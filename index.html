@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="format-detection" content="telephone=no, email=no, address=no" />
+<meta name="theme-color" content="#f8fafc" />
+<meta name="description" content="Binaural Twin Wheels: mobile-friendly left/right split tone generator." />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Binaural Twin Wheels" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="favicon.svg" />
+<link rel="manifest" href="manifest.webmanifest" />
+<title>Binaural Twin Wheels — Left/Right Split</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <nav class="appbar" role="banner">
+    <div class="appbar-inner">
+      <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">☀️</button>
+    </div>
+  </nav>
+  <header>
+    <div class="controls" role="toolbar" aria-label="Transport controls">
+      <button id="play">▶ Play</button>
+      <button id="pause">⏸ Pause</button>
+      <button id="stop">■ Stop</button>
+      <button id="reset">⟲ Reset</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="wheel-container">
+      <div class="wheel" id="wheelL" aria-label="Left wheel"></div>
+      <div class="wheel-controls">
+        <div class="pan-control">
+          <div class="pan-label">Pan</div>
+          <div class="pan-slider-container">
+            <span class="pan-label-marker">L</span>
+            <input type="range" class="pan-slider" data-wheel="wheelL" min="-100" max="100" value="-100" step="1" aria-label="Pan left wheel">
+            <span class="pan-label-marker">R</span>
+          </div>
+          <div class="pan-value" data-wheel="wheelL">L</div>
+        </div>
+        <button class="mute-btn" data-wheel="wheelL" aria-label="Mute/unmute wheel">
+          <span class="mute-icon">🔊</span>
+          <span class="mute-text">Mute</span>
+        </button>
+      </div>
+    </div>
+    <div class="mono-control-container">
+      <div class="presets-section">
+        <label for="presetSelect">Presets:</label>
+        <select id="presetSelect" aria-label="Select preset">
+          <option value="">Custom</option>
+          <option value="0">OM Low</option>
+          <option value="1">OM</option>
+          <option value="2">OM Third</option>
+          <option value="3">OM Fifth</option>
+        </select>
+      </div>
+      
+      <div class="live-info-section">
+        <div class="live-info-label">Live Info</div>
+        <div class="live-info-content">
+          <div class="live-info-wheels">
+            <div class="live-info-item">
+              <div class="live-info-item-label">Left Wheel</div>
+              <div class="live-info-item-note" id="leftWheelNote">—</div>
+              <div class="live-info-item-freq" id="leftWheelFreq">—</div>
+            </div>
+            <div class="live-info-item">
+              <div class="live-info-item-label">Right Wheel</div>
+              <div class="live-info-item-note" id="rightWheelNote">—</div>
+              <div class="live-info-item-freq" id="rightWheelFreq">—</div>
+            </div>
+          </div>
+          <div class="live-info-item frequency-diff">
+            <div class="live-info-item-label">Frequency Δ</div>
+            <div class="live-info-item-value" id="frequencyDiff">—</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bottom-controls">
+        <div class="mono-control-label">Mono</div>
+        <div class="mono-volume-bar">
+          <div class="mono-volume-track">
+            <div class="mono-volume-slider" id="monoSlider" role="slider" aria-label="Mono volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
+          </div>
+        </div>
+        <div class="mono-volume-value" id="monoVolumeValue">0%</div>
+        <div class="fine-tune-container">
+          <div class="fine-tune-label">Fine Tune</div>
+          <div class="fine-tune-dial" id="fineTuneDial" role="slider" aria-label="Fine tune both wheels" tabindex="0">
+            <div class="fine-tune-rotor">
+              <div class="fine-tune-pointer"></div>
+            </div>
+            <div class="fine-tune-center">
+              <div class="fine-tune-value" id="fineTuneValue">0.000 Hz</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="wheel-container">
+      <div class="wheel" id="wheelR" aria-label="Right wheel"></div>
+      <div class="wheel-controls">
+        <div class="pan-control">
+          <div class="pan-label">Pan</div>
+          <div class="pan-slider-container">
+            <span class="pan-label-marker">L</span>
+            <input type="range" class="pan-slider" data-wheel="wheelR" min="-100" max="100" value="100" step="1" aria-label="Pan right wheel">
+            <span class="pan-label-marker">R</span>
+          </div>
+          <div class="pan-value" data-wheel="wheelR">R</div>
+        </div>
+        <button class="mute-btn" data-wheel="wheelR" aria-label="Mute/unmute wheel">
+          <span class="mute-icon">🔊</span>
+          <span class="mute-text">Mute</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <section class="keyboard-section" aria-label="Piano reference">
+    <div class="keyboard-header">
+      <h2>Piano Reference</h2>
+      <p>Highlights show which piano notes match the current wheel frequencies.</p>
+      <button class="note-system-toggle" id="noteSystemToggle" aria-label="Toggle note system">
+        <span class="toggle-label">Musical Note</span>
+      </button>
+    </div>
+    <div class="piano-keyboard-wrapper">
+      <div class="keyboard-targets-row">
+        <button type="button" class="keyboard-target-btn is-active" data-target="left" aria-pressed="true">
+          <span class="btn-indicator">L</span>
+        </button>
+        <button type="button" class="keyboard-target-btn is-active" data-target="right" aria-pressed="true">
+          <span class="btn-indicator">R</span>
+        </button>
+      </div>
+      <div id="pianoKeyboard" class="piano-keyboard"></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>Use headphones for binaural effect. Keep volume low for comfort.</p>
+  </footer>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
+

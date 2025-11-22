@@ -1,0 +1,13 @@
+{
+  "name": "Binaural Twin Wheels",
+  "short_name": "Binaural Wheels",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#f8fafc",
+  "description": "Mobile-friendly binaural split generator with vibrato and fine tuning.",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
+
