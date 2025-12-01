@@ -12,20 +12,16 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="favicon.svg" />
 <link rel="manifest" href="manifest.webmanifest" />
-<title>Binaural Twin Wheels — Left/Right Split</title>
+<title>Nestorium</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="app">
-  <nav class="appbar" role="banner">
-    <div class="appbar-inner">
-      <button id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">☀️</button>
-    </div>
-  </nav>
   <header>
     <div class="controls" role="toolbar" aria-label="Transport controls">
       <button id="play">▶ Play</button>
       <button id="pause">⏸ Pause</button>
+      <button id="themeToggle" class="icon-btn theme-btn-small" aria-label="Toggle theme" title="Toggle theme">☀️</button>
       <button id="stop">■ Stop</button>
       <button id="reset">⟲ Reset</button>
     </div>
@@ -55,31 +51,58 @@
         <label for="presetSelect">Presets:</label>
         <select id="presetSelect" aria-label="Select preset">
           <option value="">Custom</option>
-          <option value="0">OM Low</option>
-          <option value="1">OM</option>
-          <option value="2">OM Third</option>
-          <option value="3">OM Fifth</option>
+          <option value="0">Unison (1:1)</option>
+          <option value="1">Octave (1:2)</option>
+          <option value="2">Fifth (2:3)</option>
+          <option value="3">Fourth (3:4)</option>
+          <option value="4">Major Sixth (3:5)</option>
+          <option value="5">Major Third (4:5)</option>
+          <option value="6">Minor Third (5:6)</option>
+          <option value="7">Minor Sixth (5:8)</option>
+          <option value="8">Minor Seventh (5:9)</option>
+          <option value="9">Major Second (8:9)</option>
+          <option value="10">Major Seventh (8:15)</option>
+          <option value="11">Minor Second (15:16)</option>
+          <option value="12">Tritone (32:45)</option>
         </select>
       </div>
       
       <div class="live-info-section">
-        <div class="live-info-label">Live Info</div>
+        <div class="live-info-label"></div>
         <div class="live-info-content">
           <div class="live-info-wheels">
-            <div class="live-info-item">
+            <div class="live-info-wheel-wrapper">
               <div class="live-info-item-label">Left Wheel</div>
-              <div class="live-info-item-note" id="leftWheelNote">—</div>
-              <div class="live-info-item-freq" id="leftWheelFreq">—</div>
+              <div class="live-info-item">
+                <div class="live-info-item-note" id="leftWheelNote">—</div>
+                <div class="live-info-item-offset" id="leftWheelOffset">—</div>
+                <div class="live-info-item-freq" id="leftWheelFreq">—</div>
+              </div>
             </div>
-            <div class="live-info-item">
+            <div class="live-info-wheel-wrapper">
               <div class="live-info-item-label">Right Wheel</div>
-              <div class="live-info-item-note" id="rightWheelNote">—</div>
-              <div class="live-info-item-freq" id="rightWheelFreq">—</div>
+              <div class="live-info-item">
+                <div class="live-info-item-note" id="rightWheelNote">—</div>
+                <div class="live-info-item-offset" id="rightWheelOffset">—</div>
+                <div class="live-info-item-freq" id="rightWheelFreq">—</div>
+              </div>
             </div>
           </div>
           <div class="live-info-item frequency-diff">
             <div class="live-info-item-label">Frequency Δ</div>
             <div class="live-info-item-value" id="frequencyDiff">—</div>
+          </div>
+          <div class="spectrogram-container">
+            <div class="spectrogram-header">
+              <span class="spectrogram-title">Waveform</span>
+            </div>
+            <div class="spectrogram-wrapper" id="spectrogramWrapper">
+              <canvas id="spectrogramCanvas" width="200" height="80"></canvas>
+              <div class="spectrogram-legend">
+                <div class="legend-item legend-left"><span class="legend-dot"></span>L</div>
+                <div class="legend-item legend-right"><span class="legend-dot"></span>R</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -128,21 +151,50 @@
   <section class="keyboard-section" aria-label="Piano reference">
     <div class="keyboard-header">
       <h2>Piano Reference</h2>
-      <p>Highlights show which piano notes match the current wheel frequencies.</p>
-      <button class="note-system-toggle" id="noteSystemToggle" aria-label="Toggle note system">
-        <span class="toggle-label">Musical Note</span>
-      </button>
-    </div>
-    <div class="piano-keyboard-wrapper">
-      <div class="keyboard-targets-row">
-        <button type="button" class="keyboard-target-btn is-active" data-target="left" aria-pressed="true">
-          <span class="btn-indicator">L</span>
+      <div class="keyboard-toggles">
+        <button class="note-system-toggle" id="noteSystemToggle" aria-label="Toggle note system">
+          <span class="toggle-label">Show Musical Note</span>
         </button>
-        <button type="button" class="keyboard-target-btn is-active" data-target="right" aria-pressed="true">
-          <span class="btn-indicator">R</span>
+        <button class="overtone-highlight-toggle" id="overtoneHighlightToggle" aria-label="Toggle overtone highlights">
+          <span class="toggle-label">Play Overtones</span>
         </button>
       </div>
+    </div>
+    <div class="piano-keyboard-wrapper">
+      <div class="pitch-bend-wheel" id="pitchBendWheel" role="slider" aria-label="Pitch bend wheel" tabindex="0">
+        <div class="pitch-bend-label">Scroll</div>
+        <div class="pitch-bend-scroll-housing">
+          <div class="pitch-bend-scroll-wheel" id="pitchBendScrollWheel">
+            <div class="pitch-bend-ridges"></div>
+          </div>
+          <div class="pitch-bend-center-line"></div>
+        </div>
+        <div class="pitch-bend-value" id="pitchBendValue">+0.000</div>
+      </div>
       <div id="pianoKeyboard" class="piano-keyboard"></div>
+    </div>
+  </section>
+
+  <section class="overtones-section" aria-label="Harmonic Overtones">
+    <div class="overtones-header">
+      <h2>Overtones</h2>
+      <div class="overtones-header-controls">
+        <button class="harmonic-filter-toggle" id="harmonicOnlyToggle" aria-label="Play only harmonic overtones" title="Play only consonant harmonics (Fundamental, Octaves, Fifths, Thirds)">
+          <span class="toggle-label">Harmonic Only</span>
+        </button>
+        <button class="overtones-replay-btn" id="overtonesReplay" aria-label="Replay harmonic sequence" title="Replay harmonics from fundamental">
+          <span class="replay-icon">🔄</span>
+          <span class="replay-text">Replay</span>
+        </button>
+        <button class="harmonic-filter-toggle" id="dissonantOnlyToggle" aria-label="Play only dissonant overtones" title="Play only dissonant harmonics (2nd, 4th, 6th, 7ths)">
+          <span class="toggle-label">Dissonant Only</span>
+        </button>
+      </div>
+    </div>
+    <div class="overtones-container" id="overtonesContainer">
+      <div class="overtones-display" id="overtonesDisplay">
+        <!-- Overtone cards will be generated here -->
+      </div>
     </div>
   </section>
 
