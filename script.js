@@ -665,6 +665,7 @@
     wheel1 = wheel2 = null;
     monoOsc1 = monoOsc2 = null;
     monoGain = null;
+    stopHarmonicOscillators();
     setTransportActive('stop');
   }
   function setFreq(osc, hz){
@@ -684,6 +685,11 @@
   // Track mute state for each wheel
   let wheelLMuted = false;
   let wheelRMuted = false;
+  
+  // Track overtone state (declared early for use in mute functions)
+  let showOvertoneHighlights = false;
+  let wheelMuteStatesBeforeOvertones = { left: false, right: false };
+  let currentOvertonesFundamental = 0; // Moved here to avoid TDZ issues
   
   // Binaural handling for sub-audible selections
   const BINAURAL_MIN_AUDIBLE_HZ = 20;
@@ -767,11 +773,49 @@
   })();
   
   // Presets
+  // Harmonic interval presets based on OM frequency (136.10 Hz) as C
+  // Ratios from overtone (harmonic) scale - left:right matches the ratio numbers
+  // Left speaker plays first ratio number, Right speaker plays second ratio number
+  const OM_BASE = 136.10; // This is our "C"
   const PRESETS = [
-    { name: 'OM Low', left: 68.05, right: 68.05 },
-    { name: 'OM', left: 136.10, right: 136.10 },
-    { name: 'OM Third', left: 136.10, right: 170.025 },
-    { name: 'OM Fifth', left: 136.10, right: 204.15 }
+    // (1:1) C:C - both same frequency
+    { name: 'Unison (1:1)', left: OM_BASE, right: OM_BASE },
+    
+    // (1:2) C:c - C and octave above
+    { name: 'Octave (1:2)', left: OM_BASE, right: OM_BASE * 2 },
+    
+    // (2:3) C:G - unit = C/2, left=2*unit, right=3*unit
+    { name: 'Fifth (2:3)', left: OM_BASE, right: OM_BASE * 3/2 },
+    
+    // (3:4) G:C - unit = C/4, left=3*unit (G below C), right=4*unit (C)
+    { name: 'Fourth (3:4)', left: OM_BASE * 3/4, right: OM_BASE },
+    
+    // (3:5) G:E - unit = G/3 where G = C*3/2, so unit=C/2, left=3*unit, right=5*unit
+    { name: 'Major Sixth (3:5)', left: OM_BASE * 3/2, right: OM_BASE * 5/2 },
+    
+    // (4:5) C:E - unit = C/4, left=4*unit (C), right=5*unit (E)
+    { name: 'Major Third (4:5)', left: OM_BASE, right: OM_BASE * 5/4 },
+    
+    // (5:6) E:G - unit = C/4, left=5*unit (E), right=6*unit (G)
+    { name: 'Minor Third (5:6)', left: OM_BASE * 5/4, right: OM_BASE * 6/4 },
+    
+    // (5:8) E:C - unit = C/4, left=5*unit (E), right=8*unit (C octave)
+    { name: 'Minor Sixth (5:8)', left: OM_BASE * 5/4, right: OM_BASE * 2 },
+    
+    // (5:9) E:D - unit = C/4, left=5*unit (E), right=9*unit (D)
+    { name: 'Minor Seventh (5:9)', left: OM_BASE * 5/4, right: OM_BASE * 9/4 },
+    
+    // (8:9) C:D - unit = C/8, left=8*unit (C), right=9*unit (D)
+    { name: 'Major Second (8:9)', left: OM_BASE, right: OM_BASE * 9/8 },
+    
+    // (8:15) C:B - unit = C/8, left=8*unit (C), right=15*unit (B)
+    { name: 'Major Seventh (8:15)', left: OM_BASE, right: OM_BASE * 15/8 },
+    
+    // (15:16) B:C - unit = C/16, left=15*unit (B), right=16*unit (C octave)
+    { name: 'Minor Second (15:16)', left: OM_BASE * 15/8, right: OM_BASE * 2 },
+    
+    // (32:45) C:F# - unit = C/32, left=32*unit (C), right=45*unit (F#)
+    { name: 'Tritone (32:45)', left: OM_BASE, right: OM_BASE * 45/32 }
   ];
 
   const KEYBOARD_NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -780,13 +824,21 @@
   const KEYBOARD_WHITE_TOTAL = 52;
   const BLACK_KEY_POSITION_OFFSET = 0.62;
   const pianoKeyboardEl = document.getElementById('pianoKeyboard');
-  const keyboardTargetButtons = document.querySelectorAll('.keyboard-target-btn');
-  const keyboardTargetsState = { left: true, right: true };
+  const keyboardTargetsState = { left: true, right: true }; // Always target both wheels
   let pianoKeys = [];
   const pianoHighlightState = { left: null, right: null };
 
+  // Frequency labels layer for showing cent deviation above active keys
+  let freqLabelsLayer = null;
+  const freqLabelMap = new Map(); // key element -> label element
+  
   function buildPianoKeyboard() {
     if (!pianoKeyboardEl) return;
+    
+    // Create frequency labels layer above the keyboard
+    freqLabelsLayer = document.createElement('div');
+    freqLabelsLayer.className = 'piano-freq-labels';
+    
     const inner = document.createElement('div');
     inner.className = 'piano-keyboard-inner';
     const whiteLayer = document.createElement('div');
@@ -838,11 +890,15 @@
     }
 
     pianoKeyboardEl.innerHTML = '';
+    pianoKeyboardEl.appendChild(freqLabelsLayer);
     pianoKeyboardEl.appendChild(inner);
     pianoKeys = keys.map((key, idx) => ({
       ...key,
       nextFrequency: keys[idx + 1]?.frequency ?? key.frequency
     }));
+    
+    // Clear label map when rebuilding keyboard
+    freqLabelMap.clear();
   }
   
   function getKeySpanForFrequency(freq) {
@@ -897,6 +953,11 @@
     if (!pianoKeyboardEl || !pianoKeys.length || !wheelL || !wheelR) return;
     applyKeyHighlight('left', wheelL.getHz());
     applyKeyHighlight('right', wheelR.getHz());
+    
+    // Update frequency labels if not in overtone mode
+    if (!showOvertoneHighlights) {
+      updateFreqLabels();
+    }
   }
   
   // Update piano keyboard labels based on current note system
@@ -923,12 +984,13 @@
     solfege: ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si']
   };
   
-  // Convert frequency to piano note name with cents deviation
+  // Convert frequency to piano note name with cents deviation and Hz offset
+  // Always shows positive cents (deviation from note at or below the frequency)
   function frequencyToNote(frequency) {
-    if (!Number.isFinite(frequency) || frequency <= 0) return { note: '—', cents: 0 };
+    if (!Number.isFinite(frequency) || frequency <= 0) return { note: '—', cents: 0, hzOffset: 0 };
     
     // Check if frequency is below human hearing range (15 Hz)
-    if (frequency < 15) return { note: 'BELOW_HEARING', cents: 0 };
+    if (frequency < 15) return { note: 'BELOW_HEARING', cents: 0, hzOffset: 0 };
     
     // A4 = 440 Hz, MIDI note 69
     const A4 = 440;
@@ -937,51 +999,59 @@
     // Calculate the MIDI note number (can be fractional)
     const noteNumber = 12 * Math.log2(frequency / A4) + A4_MIDI;
     
-    // Round to nearest MIDI note
-    const nearestMidi = Math.round(noteNumber);
+    // Floor to get the note at or below the frequency (always positive cents)
+    const baseMidi = Math.floor(noteNumber);
     
-    // Calculate cents deviation from the nearest note (-50 to +50 cents)
-    const cents = Math.round((noteNumber - nearestMidi) * 100);
+    // Calculate cents deviation from the base note (always 0 to +99 cents)
+    const cents = Math.round((noteNumber - baseMidi) * 100);
+    
+    // Calculate base frequency and Hz offset
+    const baseFreq = A4 * Math.pow(2, (baseMidi - A4_MIDI) / 12);
+    const hzOffset = frequency - baseFreq;
     
     // Get note name based on current system
     const noteNames = NOTE_NAMES[noteSystem];
-    const noteIndex = nearestMidi % 12;
-    const octave = Math.floor(nearestMidi / 12) - 1;
+    const noteIndex = ((baseMidi % 12) + 12) % 12; // Handle negative modulo
+    const octave = Math.floor(baseMidi / 12) - 1;
     const noteName = noteNames[noteIndex] + octave;
     
-    return { note: noteName, cents };
+    return { note: noteName, cents, hzOffset };
   }
 
   // Update live information display
   function updateLiveInfo() {
     const leftWheelNoteEl = document.getElementById('leftWheelNote');
     const rightWheelNoteEl = document.getElementById('rightWheelNote');
+    const leftWheelOffsetEl = document.getElementById('leftWheelOffset');
+    const rightWheelOffsetEl = document.getElementById('rightWheelOffset');
     const leftWheelFreqEl = document.getElementById('leftWheelFreq');
     const rightWheelFreqEl = document.getElementById('rightWheelFreq');
     const frequencyDiffEl = document.getElementById('frequencyDiff');
     
-    if (!leftWheelNoteEl || !rightWheelNoteEl || !leftWheelFreqEl || !rightWheelFreqEl || !frequencyDiffEl) return;
+    if (!leftWheelNoteEl || !rightWheelNoteEl || !leftWheelOffsetEl || !rightWheelOffsetEl || !leftWheelFreqEl || !rightWheelFreqEl || !frequencyDiffEl) return;
     if (!wheelL || !wheelR) return;
     
     const leftFreq = wheelL.getHz();
     const rightFreq = wheelR.getHz();
     
-    // Get note names with cents
+    // Get note names with Hz offset
     const leftNote = frequencyToNote(leftFreq);
     const rightNote = frequencyToNote(rightFreq);
     
-    // Format note display with cents
-    const formatNoteDisplay = (noteData) => {
-      if (noteData.note === '—') return '—';
-      if (noteData.note === 'BELOW_HEARING') return '🔇';
-      const centsStr = noteData.cents === 0 ? '' : 
-        (noteData.cents > 0 ? ` +${noteData.cents}¢` : ` ${noteData.cents}¢`);
-      return `${noteData.note}${centsStr}`;
+    // Format Hz offset display
+    const formatHzOffset = (noteData) => {
+      if (noteData.note === '—' || noteData.note === 'BELOW_HEARING') return '—';
+      if (noteData.hzOffset === 0) return '+0.0Hz';
+      return noteData.hzOffset > 0 ? `+${noteData.hzOffset.toFixed(1)}Hz` : `${noteData.hzOffset.toFixed(1)}Hz`;
     };
     
-    // Update note names and styling
-    leftWheelNoteEl.textContent = formatNoteDisplay(leftNote);
-    rightWheelNoteEl.textContent = formatNoteDisplay(rightNote);
+    // Update note names (just the note, no offset)
+    leftWheelNoteEl.textContent = leftNote.note === 'BELOW_HEARING' ? '🔇' : leftNote.note;
+    rightWheelNoteEl.textContent = rightNote.note === 'BELOW_HEARING' ? '🔇' : rightNote.note;
+    
+    // Update Hz offsets
+    leftWheelOffsetEl.textContent = formatHzOffset(leftNote);
+    rightWheelOffsetEl.textContent = formatHzOffset(rightNote);
     
     // Add/remove below-hearing class for styling
     if (leftNote.note === 'BELOW_HEARING') {
@@ -1003,38 +1073,326 @@
     // Calculate frequency difference
     const diff = Math.abs(rightFreq - leftFreq);
     frequencyDiffEl.textContent = `${diff.toFixed(3)} Hz`;
-  }
-
-  function updateWheelTargetIndicators() {
-    // Update visual indicators on wheels based on keyboard target state
-    const wheelLEl = document.getElementById('wheelL');
-    const wheelREl = document.getElementById('wheelR');
     
-    if (wheelLEl) {
-      wheelLEl.classList.toggle('piano-target-active', keyboardTargetsState.left);
-    }
-    if (wheelREl) {
-      wheelREl.classList.toggle('piano-target-active', keyboardTargetsState.right);
-    }
+    // Update spectrogram
+    updateSpectrogram(leftFreq, rightFreq);
   }
 
-  function initKeyboardTargets() {
-    keyboardTargetButtons.forEach(btn => {
-      const target = btn.dataset.target;
-      if (!target) return;
-      const active = btn.classList.contains('is-active');
-      keyboardTargetsState[target] = active;
-      btn.setAttribute('aria-pressed', String(active));
-      btn.addEventListener('click', () => {
-        const next = !btn.classList.contains('is-active');
-        keyboardTargetsState[target] = next;
-        btn.classList.toggle('is-active', next);
-        btn.setAttribute('aria-pressed', String(next));
-        updateWheelTargetIndicators();
-      });
-    });
-    // Initialize wheel indicators
-    updateWheelTargetIndicators();
+  // ===== OSCILLOSCOPE WAVEFORM VISUALIZATION =====
+  const spectrogramCanvas = document.getElementById('spectrogramCanvas');
+  const spectrogramCtx = spectrogramCanvas?.getContext('2d');
+  const spectrogramWrapper = document.getElementById('spectrogramWrapper');
+  
+  // Oscilloscope state
+  let spectrogramEnabled = true; // Always visible
+  let spectrogramAnimationId = null;
+  let isAudioPlaying = false;
+  let wavePhaseLeft = 0;
+  let wavePhaseRight = 0;
+  let lastFrameTime = 0;
+  const SPECTROGRAM_HEIGHT = 60;
+  
+  // Resize canvas with proper DPR handling
+  function resizeSpectrogramCanvas() {
+    if (!spectrogramCanvas) return;
+    const rect = spectrogramCanvas.parentElement?.getBoundingClientRect();
+    if (rect && rect.width > 0) {
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.floor(rect.width);
+      spectrogramCanvas.width = width * dpr;
+      spectrogramCanvas.height = SPECTROGRAM_HEIGHT * dpr;
+      spectrogramCanvas.style.width = width + 'px';
+      spectrogramCanvas.style.height = SPECTROGRAM_HEIGHT + 'px';
+      if (spectrogramCtx) {
+        spectrogramCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        // Re-render current state after resize
+        if (isAudioPlaying) {
+          const leftFreq = wheelL?.getHz() ?? 0;
+          const rightFreq = wheelR?.getHz() ?? 0;
+          renderOscilloscope(leftFreq, rightFreq);
+        } else {
+          renderIdleWaveform();
+        }
+      }
+    }
+  }
+  
+  // Render idle/empty waveform (flat lines when no audio)
+  function renderIdleWaveform() {
+    if (!spectrogramCanvas || !spectrogramCtx) return;
+    
+    const dpr = window.devicePixelRatio || 1;
+    const width = spectrogramCanvas.width / dpr;
+    const height = spectrogramCanvas.height / dpr;
+    
+    if (width <= 0 || height <= 0) return;
+    
+    const isDark = document.body.dataset.theme === 'dark';
+    const centerY = height / 2;
+    
+    // Clear canvas
+    spectrogramCtx.clearRect(0, 0, width, height);
+    
+    // Background with subtle gradient
+    const bgGrad = spectrogramCtx.createLinearGradient(0, 0, 0, height);
+    if (isDark) {
+      bgGrad.addColorStop(0, '#0d1117');
+      bgGrad.addColorStop(0.5, '#0a0e14');
+      bgGrad.addColorStop(1, '#0d1117');
+    } else {
+      bgGrad.addColorStop(0, '#f8fafc');
+      bgGrad.addColorStop(0.5, '#f1f5f9');
+      bgGrad.addColorStop(1, '#f8fafc');
+    }
+    spectrogramCtx.fillStyle = bgGrad;
+    spectrogramCtx.fillRect(0, 0, width, height);
+    
+    // Center line (dashed)
+    spectrogramCtx.strokeStyle = isDark ? 'rgba(100, 120, 150, 0.2)' : 'rgba(100, 120, 150, 0.15)';
+    spectrogramCtx.lineWidth = 1;
+    spectrogramCtx.setLineDash([4, 4]);
+    spectrogramCtx.beginPath();
+    spectrogramCtx.moveTo(0, centerY);
+    spectrogramCtx.lineTo(width, centerY);
+    spectrogramCtx.stroke();
+    spectrogramCtx.setLineDash([]);
+  }
+  
+  setTimeout(() => {
+    resizeSpectrogramCanvas();
+    // Render initial empty state (flat lines, no animation)
+    if (spectrogramCtx) {
+      renderIdleWaveform();
+    }
+  }, 100);
+  window.addEventListener('resize', resizeSpectrogramCanvas);
+  
+  // Start continuous waveform animation
+  function startSpectrogramAnimation() {
+    if (spectrogramAnimationId) return;
+    lastFrameTime = performance.now();
+    
+    function animate(timestamp) {
+      if (!spectrogramEnabled || !isAudioPlaying) {
+        spectrogramAnimationId = null;
+        return;
+      }
+      
+      // Calculate delta time for smooth animation
+      const deltaTime = (timestamp - lastFrameTime) / 1000; // Convert to seconds
+      lastFrameTime = timestamp;
+      
+      // Get current frequencies
+      const leftFreq = wheelL?.getHz() ?? 100;
+      const rightFreq = wheelR?.getHz() ?? 100;
+      
+      // Update wave phases based on actual frequencies
+      // Scale frequency for visible oscillation (divide to slow down high frequencies)
+      const leftDisplayFreq = Math.min(leftFreq, 500) * 0.15;
+      const rightDisplayFreq = Math.min(rightFreq, 500) * 0.15;
+      
+      wavePhaseLeft += deltaTime * leftDisplayFreq * Math.PI * 2;
+      wavePhaseRight += deltaTime * rightDisplayFreq * Math.PI * 2;
+      
+      // Keep phases within reasonable bounds
+      if (wavePhaseLeft > Math.PI * 200) wavePhaseLeft -= Math.PI * 200;
+      if (wavePhaseRight > Math.PI * 200) wavePhaseRight -= Math.PI * 200;
+      
+      // Render waveform
+      renderOscilloscope(leftFreq, rightFreq);
+      
+      spectrogramAnimationId = requestAnimationFrame(animate);
+    }
+    
+    spectrogramAnimationId = requestAnimationFrame(animate);
+  }
+  
+  function stopSpectrogramAnimation() {
+    if (spectrogramAnimationId) {
+      cancelAnimationFrame(spectrogramAnimationId);
+      spectrogramAnimationId = null;
+    }
+  }
+  
+  function renderOscilloscope(leftFreq, rightFreq) {
+    if (!spectrogramCanvas || !spectrogramCtx) return;
+    
+    const dpr = window.devicePixelRatio || 1;
+    const width = spectrogramCanvas.width / dpr;
+    const height = spectrogramCanvas.height / dpr;
+    
+    if (width <= 0 || height <= 0) return;
+    
+    const isDark = document.body.dataset.theme === 'dark';
+    const centerY = height / 2;
+    const amplitude = height * 0.35;
+    
+    // Calculate display frequencies for wave cycles
+    const leftDisplayFreq = Math.min(leftFreq, 500) * 0.15;
+    const rightDisplayFreq = Math.min(rightFreq, 500) * 0.15;
+    
+    // Number of wave cycles to show
+    const leftCycles = Math.max(2, Math.min(8, leftDisplayFreq / 5));
+    const rightCycles = Math.max(2, Math.min(8, rightDisplayFreq / 5));
+    
+    // Clear canvas
+    spectrogramCtx.clearRect(0, 0, width, height);
+    
+    // Background with subtle gradient
+    const bgGrad = spectrogramCtx.createLinearGradient(0, 0, 0, height);
+    if (isDark) {
+      bgGrad.addColorStop(0, '#0d1117');
+      bgGrad.addColorStop(0.5, '#0a0e14');
+      bgGrad.addColorStop(1, '#0d1117');
+    } else {
+      bgGrad.addColorStop(0, '#f8fafc');
+      bgGrad.addColorStop(0.5, '#f1f5f9');
+      bgGrad.addColorStop(1, '#f8fafc');
+    }
+    spectrogramCtx.fillStyle = bgGrad;
+    spectrogramCtx.fillRect(0, 0, width, height);
+    
+    // Center line
+    spectrogramCtx.strokeStyle = isDark ? 'rgba(100, 120, 150, 0.2)' : 'rgba(100, 120, 150, 0.15)';
+    spectrogramCtx.lineWidth = 1;
+    spectrogramCtx.setLineDash([4, 4]);
+    spectrogramCtx.beginPath();
+    spectrogramCtx.moveTo(0, centerY);
+    spectrogramCtx.lineTo(width, centerY);
+    spectrogramCtx.stroke();
+    spectrogramCtx.setLineDash([]);
+    
+    // Draw combined/binaural waveform (subtle, in background)
+    const beatFreq = Math.abs(leftFreq - rightFreq);
+    if (beatFreq > 0 && beatFreq < 50) {
+      spectrogramCtx.beginPath();
+      spectrogramCtx.strokeStyle = isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)';
+      spectrogramCtx.lineWidth = 8;
+      
+      const beatDisplayFreq = beatFreq * 0.5;
+      for (let x = 0; x <= width; x++) {
+        const t = x / width;
+        const beatPhase = (wavePhaseLeft + wavePhaseRight) / 2 + t * beatDisplayFreq * Math.PI * 2;
+        const y = centerY + Math.sin(beatPhase) * amplitude * 0.8;
+        if (x === 0) {
+          spectrogramCtx.moveTo(x, y);
+        } else {
+          spectrogramCtx.lineTo(x, y);
+        }
+      }
+      spectrogramCtx.stroke();
+    }
+    
+    // Draw left channel waveform (orange/amber)
+    spectrogramCtx.beginPath();
+    const leftGrad = spectrogramCtx.createLinearGradient(0, centerY - amplitude, 0, centerY + amplitude);
+    leftGrad.addColorStop(0, '#f97316');
+    leftGrad.addColorStop(0.5, '#fb923c');
+    leftGrad.addColorStop(1, '#f97316');
+    spectrogramCtx.strokeStyle = leftGrad;
+    spectrogramCtx.lineWidth = 2;
+    spectrogramCtx.lineCap = 'round';
+    spectrogramCtx.lineJoin = 'round';
+    
+    for (let x = 0; x <= width; x++) {
+      const t = x / width;
+      const phase = wavePhaseLeft + t * leftCycles * Math.PI * 2;
+      const y = centerY + Math.sin(phase) * amplitude * 0.7;
+      if (x === 0) {
+        spectrogramCtx.moveTo(x, y);
+      } else {
+        spectrogramCtx.lineTo(x, y);
+      }
+    }
+    spectrogramCtx.stroke();
+    
+    // Left glow effect
+    spectrogramCtx.strokeStyle = isDark ? 'rgba(249, 115, 22, 0.3)' : 'rgba(249, 115, 22, 0.2)';
+    spectrogramCtx.lineWidth = 4;
+    spectrogramCtx.beginPath();
+    for (let x = 0; x <= width; x++) {
+      const t = x / width;
+      const phase = wavePhaseLeft + t * leftCycles * Math.PI * 2;
+      const y = centerY + Math.sin(phase) * amplitude * 0.7;
+      if (x === 0) {
+        spectrogramCtx.moveTo(x, y);
+      } else {
+        spectrogramCtx.lineTo(x, y);
+      }
+    }
+    spectrogramCtx.stroke();
+    
+    // Draw right channel waveform (cyan/blue)
+    spectrogramCtx.beginPath();
+    const rightGrad = spectrogramCtx.createLinearGradient(0, centerY - amplitude, 0, centerY + amplitude);
+    rightGrad.addColorStop(0, '#06b6d4');
+    rightGrad.addColorStop(0.5, '#22d3ee');
+    rightGrad.addColorStop(1, '#06b6d4');
+    spectrogramCtx.strokeStyle = rightGrad;
+    spectrogramCtx.lineWidth = 2;
+    
+    for (let x = 0; x <= width; x++) {
+      const t = x / width;
+      const phase = wavePhaseRight + t * rightCycles * Math.PI * 2;
+      const y = centerY + Math.sin(phase) * amplitude * 0.7;
+      if (x === 0) {
+        spectrogramCtx.moveTo(x, y);
+      } else {
+        spectrogramCtx.lineTo(x, y);
+      }
+    }
+    spectrogramCtx.stroke();
+    
+    // Right glow effect
+    spectrogramCtx.strokeStyle = isDark ? 'rgba(6, 182, 212, 0.3)' : 'rgba(6, 182, 212, 0.2)';
+    spectrogramCtx.lineWidth = 4;
+    spectrogramCtx.beginPath();
+    for (let x = 0; x <= width; x++) {
+      const t = x / width;
+      const phase = wavePhaseRight + t * rightCycles * Math.PI * 2;
+      const y = centerY + Math.sin(phase) * amplitude * 0.7;
+      if (x === 0) {
+        spectrogramCtx.moveTo(x, y);
+      } else {
+        spectrogramCtx.lineTo(x, y);
+      }
+    }
+    spectrogramCtx.stroke();
+  }
+  
+  // Called by updateLiveInfo - ensures animation if playing
+  function updateSpectrogram(leftFreq, rightFreq) {
+    if (!spectrogramEnabled || !isAudioPlaying) return;
+    if (!spectrogramAnimationId) {
+      startSpectrogramAnimation();
+    }
+  }
+  
+  // Functions to control visualization based on audio state
+  function onAudioStart() {
+    isAudioPlaying = true;
+    if (spectrogramEnabled) {
+      startSpectrogramAnimation();
+    }
+  }
+  
+  function onAudioStop() {
+    isAudioPlaying = false;
+    stopSpectrogramAnimation();
+    // Render idle waveform when stopped
+    renderIdleWaveform();
+  }
+  
+  function onAudioPause() {
+    // Stop animating but keep last frame visible
+    stopSpectrogramAnimation();
+  }
+  
+  function onAudioResume() {
+    isAudioPlaying = true;
+    if (spectrogramEnabled) {
+      startSpectrogramAnimation();
+    }
   }
 
   function triggerPianoFrequency(keyEl) {
@@ -1065,10 +1423,25 @@
       applied = true;
     }
     if (applied) {
+      // Reset pitch bend and fine tune to default position
+      pitchBendOffset = 0;
+      fineTuneOffset = 0;
+      fineTuneRotation = 0;
+      if (typeof pitchBendScrollPos !== 'undefined') pitchBendScrollPos = 0;
+      if (typeof updatePitchBendDisplay === 'function') updatePitchBendDisplay();
+      if (typeof updatePitchBendScrollPosition === 'function') updatePitchBendScrollPosition();
+      if (typeof updateFineTuneDisplay === 'function') updateFineTuneDisplay();
+      
       ensurePlaying();
       scheduleOscillatorSync();
       keyEl.classList.add('is-triggered');
       setTimeout(() => keyEl.classList.remove('is-triggered'), 160);
+      
+      // Update overtones to show harmonics of this piano key
+      // Defer slightly to avoid conflicts with click animation
+      setTimeout(() => {
+        setOvertonesFundamental(freq, keyEl);
+      }, 20);
     }
     
     // Reset flag after a short delay
@@ -1233,6 +1606,12 @@
 
   // Mute functionality
   function toggleMute(wheelId) {
+    // Prevent toggling wheel mute while overtones are active
+    // (wheels are force-muted when overtones are playing)
+    if (showOvertoneHighlights) {
+      return;
+    }
+    
     if (wheelId === 'wheelL') {
       wheelLMuted = !wheelLMuted;
     } else if (wheelId === 'wheelR') {
@@ -1248,6 +1627,18 @@
     if (wheelLMuteBtn) {
       const icon = wheelLMuteBtn.querySelector('.mute-icon');
       const text = wheelLMuteBtn.querySelector('.mute-text');
+      
+      // Add/remove disabled state when overtones are active
+      if (showOvertoneHighlights) {
+        wheelLMuteBtn.style.opacity = '0.5';
+        wheelLMuteBtn.style.cursor = 'not-allowed';
+        wheelLMuteBtn.title = 'Mute controls disabled while Overtones are active';
+      } else {
+        wheelLMuteBtn.style.opacity = '';
+        wheelLMuteBtn.style.cursor = '';
+        wheelLMuteBtn.title = '';
+      }
+      
       if (wheelLMuted) {
         icon.textContent = '🔇';
         text.textContent = 'Unmute';
@@ -1264,6 +1655,18 @@
     if (wheelRMuteBtn) {
       const icon = wheelRMuteBtn.querySelector('.mute-icon');
       const text = wheelRMuteBtn.querySelector('.mute-text');
+      
+      // Add/remove disabled state when overtones are active
+      if (showOvertoneHighlights) {
+        wheelRMuteBtn.style.opacity = '0.5';
+        wheelRMuteBtn.style.cursor = 'not-allowed';
+        wheelRMuteBtn.title = 'Mute controls disabled while Overtones are active';
+      } else {
+        wheelRMuteBtn.style.opacity = '';
+        wheelRMuteBtn.style.cursor = '';
+        wheelRMuteBtn.title = '';
+      }
+      
       if (wheelRMuted) {
         icon.textContent = '🔇';
         text.textContent = 'Unmute';
@@ -1291,10 +1694,972 @@
   // Build piano keyboard visualization
   buildPianoKeyboard();
   updateKeyboardHighlights();
-  initKeyboardTargets();
   
   // Initialize live info display
   updateLiveInfo();
+
+  // ===== OVERTONES FUNCTIONALITY =====
+  const overtonesDisplay = document.getElementById('overtonesDisplay');
+  const overtonesContainer = document.getElementById('overtonesContainer');
+  const overtonesReplayBtn = document.getElementById('overtonesReplay');
+  // currentOvertonesFundamental is declared earlier to avoid TDZ issues
+  let activeOvertoneKey = null; // Track which piano key is active for overtones
+  
+  // Harmonic audio state
+  let harmonicOscillators = []; // Array of 16 oscillator objects
+  let harmonicMutedState = Array(16).fill(false); // Track mute state for each harmonic (false = unmuted)
+  let harmonicVolumes = Array(16).fill(50); // Track volume for each harmonic (1-100, default 50%)
+  let harmonicPans = Array(16).fill(0); // Track pan for each harmonic (-100 to +100, default 0 = center)
+  let harmonicsPlaying = false; // Track if harmonics are currently playing
+  let harmonicSequenceTimeouts = []; // Track timeouts for sequential harmonic playback
+  let harmonicActiveStates = Array(16).fill(false); // Track which harmonics are currently active (unmuted in sequence)
+  
+  // Filter toggle elements and state
+  const harmonicOnlyToggle = document.getElementById('harmonicOnlyToggle');
+  const dissonantOnlyToggle = document.getElementById('dissonantOnlyToggle');
+  let harmonicFilterMode = 'all'; // 'all', 'harmonic', 'dissonant'
+  
+  // Define which harmonics are consonant (harmonic) vs dissonant
+  // Harmonic indices (0-based): 
+  // - Consonant: 0 (Fundamental), 1 (Octave), 2 (Perfect Fifth), 3 (Octave), 4 (Major Third), 
+  //              5 (Perfect Fifth), 7 (Octave), 11 (Perfect Fifth), 15 (Octave)
+  // - Dissonant: 6 (Flatted Seventh), 8 (Major Second), 10 (Augmented Fourth), 
+  //              12 (Minor Sixth), 13 (Flatted Seventh), 14 (Major Seventh)
+  // Note: Harmonic 9 (Major Third) is borderline but generally consonant
+  const CONSONANT_HARMONICS = [0, 1, 2, 3, 4, 5, 7, 9, 11, 15]; // Fundamental, Octaves, Fifths, Thirds
+  const DISSONANT_HARMONICS = [6, 8, 10, 12, 13, 14]; // 7ths, 2nds, Tritone, Minor 6th
+  
+  // Check if a harmonic should be muted based on filter mode
+  function isHarmonicFilteredOut(harmonicIndex) {
+    if (harmonicFilterMode === 'all') return false;
+    if (harmonicFilterMode === 'harmonic') {
+      return !CONSONANT_HARMONICS.includes(harmonicIndex);
+    }
+    if (harmonicFilterMode === 'dissonant') {
+      return !DISSONANT_HARMONICS.includes(harmonicIndex);
+    }
+    return false;
+  }
+  
+  // Apply harmonic filter - mute/unmute based on current filter mode
+  function applyHarmonicFilter() {
+    for (let i = 0; i < 16; i++) {
+      const shouldBeFilteredOut = isHarmonicFilteredOut(i);
+      const wasManuallyMuted = harmonicMutedState[i];
+      
+      // Update gain based on filter
+      const harmonic = harmonicOscillators[i];
+      if (harmonic && harmonic.gain && audioCtx && harmonicActiveStates[i]) {
+        const shouldBeMuted = shouldBeFilteredOut || wasManuallyMuted;
+        const userGain = getHarmonicGain(i);
+        const targetGain = shouldBeMuted ? 0 : userGain;
+        try {
+          harmonic.gain.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.03);
+        } catch {
+          harmonic.gain.gain.value = targetGain;
+        }
+      }
+      
+      // Update card visual
+      const card = overtonesDisplay?.querySelector(`[data-harmonic="${i + 1}"]`);
+      if (card) {
+        if (shouldBeFilteredOut) {
+          card.classList.add('is-filtered-out');
+        } else {
+          card.classList.remove('is-filtered-out');
+        }
+      }
+    }
+    
+    // Update piano key highlights
+    updateOvertoneHighlights();
+  }
+  
+  // Toggle filter mode handlers
+  if (harmonicOnlyToggle) {
+    harmonicOnlyToggle.addEventListener('click', () => {
+      if (harmonicFilterMode === 'harmonic') {
+        // Turn off filter
+        harmonicFilterMode = 'all';
+        harmonicOnlyToggle.classList.remove('is-active');
+      } else {
+        // Turn on harmonic filter, turn off dissonant
+        harmonicFilterMode = 'harmonic';
+        harmonicOnlyToggle.classList.add('is-active');
+        dissonantOnlyToggle?.classList.remove('is-active');
+      }
+      applyHarmonicFilter();
+    });
+  }
+  
+  if (dissonantOnlyToggle) {
+    dissonantOnlyToggle.addEventListener('click', () => {
+      if (harmonicFilterMode === 'dissonant') {
+        // Turn off filter
+        harmonicFilterMode = 'all';
+        dissonantOnlyToggle.classList.remove('is-active');
+      } else {
+        // Turn on dissonant filter, turn off harmonic
+        harmonicFilterMode = 'dissonant';
+        dissonantOnlyToggle.classList.add('is-active');
+        harmonicOnlyToggle?.classList.remove('is-active');
+      }
+      applyHarmonicFilter();
+    });
+  }
+  
+  // Replay harmonic sequence function
+  function replayHarmonicSequence() {
+    if (!showOvertoneHighlights || !currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
+    
+    // Add visual feedback to replay button
+    if (overtonesReplayBtn) {
+      overtonesReplayBtn.classList.add('is-replaying');
+      setTimeout(() => {
+        overtonesReplayBtn.classList.remove('is-replaying');
+      }, 500);
+    }
+    
+    // Clear any pending sequence timeouts
+    harmonicSequenceTimeouts.forEach(timeout => clearTimeout(timeout));
+    harmonicSequenceTimeouts = [];
+    
+    // Remove visual playing classes from all cards
+    overtonesDisplay?.querySelectorAll('.overtone-card').forEach(card => {
+      card.classList.remove('is-playing');
+    });
+    
+    // Reset active states
+    harmonicActiveStates = Array(16).fill(false);
+    
+    // Mute all harmonics first
+    harmonicOscillators.forEach(harmonic => {
+      if (harmonic && harmonic.gain && audioCtx) {
+        try {
+          harmonic.gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.01);
+        } catch {
+          harmonic.gain.gain.value = 0;
+        }
+      }
+    });
+    
+    // Start the sequential playback - skip muted/filtered harmonics
+    const sequenceDelay = 300; // 300ms between each playable harmonic
+    let playableIndex = 0; // Track delay for playable harmonics only
+    
+    for (let i = 0; i < 16; i++) {
+      const isFilteredOut = isHarmonicFilteredOut(i);
+      const isMuted = harmonicMutedState[i];
+      const willPlay = !isMuted && !isFilteredOut;
+      
+      // Calculate delay based on playable harmonics count, not index
+      const delay = willPlay ? playableIndex * sequenceDelay : 0;
+      
+      const timeoutId = setTimeout(() => {
+        if (!harmonicsPlaying || !showOvertoneHighlights) return;
+        
+        const harmonic = harmonicOscillators[i];
+        
+        // Mark as active so it can be unmuted if filter changes
+        harmonicActiveStates[i] = true;
+        
+        if (harmonic && harmonic.started && willPlay) {
+          const userGain = getHarmonicGain(i);
+          try {
+            harmonic.gain.gain.linearRampToValueAtTime(userGain, audioCtx.currentTime + 0.05);
+          } catch {
+            harmonic.gain.gain.value = userGain;
+          }
+          
+          const card = overtonesDisplay?.querySelector(`[data-harmonic="${i + 1}"]`);
+          if (card) {
+            card.classList.add('is-playing');
+          }
+        }
+      }, delay);
+      
+      harmonicSequenceTimeouts.push(timeoutId);
+      
+      // Only increment playable index for harmonics that will play
+      if (willPlay) {
+        playableIndex++;
+      }
+    }
+  }
+  
+  // Update replay button active state
+  function updateReplayButtonState() {
+    if (overtonesReplayBtn) {
+      if (showOvertoneHighlights && currentOvertonesFundamental > 0 && harmonicsPlaying) {
+        overtonesReplayBtn.classList.add('is-active');
+      } else {
+        overtonesReplayBtn.classList.remove('is-active');
+      }
+    }
+  }
+  
+  // Attach replay button event listener
+  if (overtonesReplayBtn) {
+    overtonesReplayBtn.addEventListener('click', replayHarmonicSequence);
+  }
+  
+  // Interval names for each harmonic (matching the example)
+  const INTERVAL_NAMES = [
+    'Fundamental', 'Octave', 'Perfect Fifth', 'Octave', 'Major Third',
+    'Perfect Fifth', 'Flatted Seventh', 'Octave', 'Major Second', 'Major Third',
+    'Augmented Fourth', 'Perfect Fifth', 'Minor Sixth', 'Flatted Seventh',
+    'Major Seventh', 'Octave'
+  ];
+  
+  // Generate color for each harmonic based on its position
+  function getHarmonicColor(harmonicNumber) {
+    const hue = (harmonicNumber - 1) * 22.5; // Distribute across color wheel
+    return {
+      primary: `hsl(${hue}, 65%, 55%)`,
+      light: `hsl(${hue + 20}, 70%, 65%)`
+    };
+  }
+  
+  // Calculate gain for a harmonic based on user-set volume (1-100%)
+  function getHarmonicGain(harmonicIndex) {
+    const volumePercent = harmonicVolumes[harmonicIndex];
+    const baseGain = 0.3; // Maximum volume per harmonic
+    return baseGain * (volumePercent / 100);
+  }
+  
+  // Create harmonic oscillators
+  function createHarmonicOscillators() {
+    if (!audioCtx) {
+      ensureAudio();
+    }
+    
+    // Stop existing oscillators if any
+    stopHarmonicOscillators();
+    
+    harmonicOscillators = [];
+    harmonicActiveStates = Array(16).fill(false); // Reset active states
+    
+    for (let i = 0; i < 16; i++) {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      
+      const gain = audioCtx.createGain();
+      // Start all harmonics with gain = 0, they'll be unmuted sequentially
+      gain.gain.value = 0;
+      
+      const panner = audioCtx.createStereoPanner();
+      panner.pan.value = harmonicPans[i] / 100; // Convert -100..100 to -1..1
+      
+      osc.connect(gain);
+      gain.connect(panner);
+      panner.connect(audioCtx.destination);
+      
+      harmonicOscillators.push({ osc, gain, panner, started: false, harmonicIndex: i });
+    }
+  }
+  
+  // Start harmonic oscillators with sequential 200ms delay between each
+  function startHarmonicOscillators() {
+    if (!audioCtx || !currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
+    
+    ensureAudio();
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(()=>{});
+    }
+    
+    // Clear any existing sequence timeouts
+    harmonicSequenceTimeouts.forEach(timeout => clearTimeout(timeout));
+    harmonicSequenceTimeouts = [];
+    
+    // Create oscillators if they don't exist
+    if (harmonicOscillators.length === 0) {
+      createHarmonicOscillators();
+    }
+    
+    const t = audioCtx.currentTime + 0.01;
+    const sequenceDelay = 300; // 200ms between each harmonic
+    
+    // Start all oscillators immediately but muted
+    for (let i = 0; i < 16; i++) {
+      const harmonicFreq = currentOvertonesFundamental * (i + 1);
+      const harmonic = harmonicOscillators[i];
+      
+      if (harmonic && !harmonic.started) {
+        harmonic.osc.frequency.value = harmonicFreq;
+        harmonic.gain.gain.value = 0; // Start muted
+        harmonic.osc.start(t);
+        harmonic.started = true;
+      } else if (harmonic && harmonic.started) {
+        // Update frequency if already started
+        setFreq(harmonic.osc, harmonicFreq);
+      }
+    }
+    
+    harmonicsPlaying = true;
+    updateReplayButtonState();
+    
+    // Unmute each harmonic sequentially - skip muted/filtered harmonics
+    let playableIndex = 0; // Track delay for playable harmonics only
+    
+    for (let i = 0; i < 16; i++) {
+      const isFilteredOut = isHarmonicFilteredOut(i);
+      const isMuted = harmonicMutedState[i];
+      const willPlay = !isMuted && !isFilteredOut;
+      
+      // Calculate delay based on playable harmonics count, not index
+      const delay = willPlay ? playableIndex * sequenceDelay : 0;
+      
+      const timeoutId = setTimeout(() => {
+        if (!harmonicsPlaying) return; // Stop if playback was cancelled
+        
+        const harmonic = harmonicOscillators[i];
+        
+        // Mark this harmonic as active so it can be unmuted if filter changes
+        harmonicActiveStates[i] = true;
+        
+        if (harmonic && harmonic.started && willPlay) {
+          const userGain = getHarmonicGain(i);
+          // Smooth fade in
+          try {
+            harmonic.gain.gain.linearRampToValueAtTime(userGain, audioCtx.currentTime + 0.05);
+          } catch {
+            harmonic.gain.gain.value = userGain;
+          }
+          
+          // Visual feedback - add playing class to the overtone card
+          const card = overtonesDisplay?.querySelector(`[data-harmonic="${i + 1}"]`);
+          if (card) {
+            card.classList.add('is-playing');
+          }
+        }
+      }, delay);
+      
+      harmonicSequenceTimeouts.push(timeoutId);
+      
+      // Only increment playable index for harmonics that will play
+      if (willPlay) {
+        playableIndex++;
+      }
+    }
+  }
+  
+  // Stop harmonic oscillators
+  function stopHarmonicOscillators() {
+    // Clear any pending sequence timeouts
+    harmonicSequenceTimeouts.forEach(timeout => clearTimeout(timeout));
+    harmonicSequenceTimeouts = [];
+    
+    // Remove visual playing classes from all cards
+    overtonesDisplay?.querySelectorAll('.overtone-card').forEach(card => {
+      card.classList.remove('is-playing');
+    });
+    
+    harmonicOscillators.forEach(harmonic => {
+      if (harmonic && harmonic.started) {
+        try {
+          harmonic.osc.stop();
+        } catch (e) {
+          // Already stopped
+        }
+      }
+    });
+    
+    harmonicOscillators = [];
+    harmonicsPlaying = false;
+    harmonicActiveStates = Array(16).fill(false);
+    updateReplayButtonState();
+  }
+  
+  // Update harmonic frequencies when fundamental changes
+  function updateHarmonicFrequencies() {
+    if (!harmonicsPlaying || !currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
+    
+    for (let i = 0; i < 16; i++) {
+      const harmonicFreq = currentOvertonesFundamental * (i + 1);
+      const harmonic = harmonicOscillators[i];
+      
+      if (harmonic && harmonic.started) {
+        setFreq(harmonic.osc, harmonicFreq);
+      }
+    }
+  }
+  
+  // Toggle mute state for a specific harmonic
+  function toggleHarmonicMute(harmonicIndex) {
+    if (harmonicIndex < 0 || harmonicIndex >= 16) return;
+    
+    // Toggle mute state
+    harmonicMutedState[harmonicIndex] = !harmonicMutedState[harmonicIndex];
+    
+    // Update gain - only if harmonic has been activated in the sequence
+    const harmonic = harmonicOscillators[harmonicIndex];
+    if (harmonic && harmonic.gain && audioCtx && harmonicActiveStates[harmonicIndex]) {
+      const now = audioCtx.currentTime;
+      const userGain = getHarmonicGain(harmonicIndex);
+      const isMuted = harmonicMutedState[harmonicIndex] || isHarmonicFilteredOut(harmonicIndex);
+      const targetGain = isMuted ? 0 : userGain;
+      try {
+        harmonic.gain.gain.setTargetAtTime(targetGain, now, 0.015);
+      } catch {
+        harmonic.gain.gain.value = targetGain;
+      }
+    }
+    
+    // Update card visual state
+    updateHarmonicCardMuteState(harmonicIndex);
+    
+    // Update piano key highlights to reflect muted state
+    updateOvertoneHighlights();
+  }
+  
+  // Update card visual state for mute
+  function updateHarmonicCardMuteState(harmonicIndex) {
+    const card = overtonesDisplay?.querySelector(`[data-harmonic="${harmonicIndex + 1}"]`);
+    if (!card) return;
+    
+    const muteIndicator = card.querySelector('.overtone-mute-indicator');
+    
+    if (harmonicMutedState[harmonicIndex]) {
+      card.classList.add('is-muted');
+      if (muteIndicator) muteIndicator.textContent = '🔇';
+    } else {
+      card.classList.remove('is-muted');
+      if (muteIndicator) muteIndicator.textContent = '🔊';
+    }
+  }
+  
+  // Update harmonic volume
+  function updateHarmonicVolume(harmonicIndex, newVolume) {
+    if (harmonicIndex < 0 || harmonicIndex >= 16) return;
+    
+    // Clamp volume to 1-100%
+    const clampedVolume = Math.max(1, Math.min(100, newVolume));
+    harmonicVolumes[harmonicIndex] = clampedVolume;
+    
+    // Update audio gain - only if harmonic has been activated in the sequence
+    const harmonic = harmonicOscillators[harmonicIndex];
+    if (harmonic && harmonic.gain && audioCtx && harmonicActiveStates[harmonicIndex]) {
+      const now = audioCtx.currentTime;
+      const userGain = getHarmonicGain(harmonicIndex);
+      const isMuted = harmonicMutedState[harmonicIndex] || isHarmonicFilteredOut(harmonicIndex);
+      const targetGain = isMuted ? 0 : userGain;
+      try {
+        harmonic.gain.gain.setTargetAtTime(targetGain, now, 0.015);
+      } catch {
+        harmonic.gain.gain.value = targetGain;
+      }
+    }
+    
+    // Update visual feedback
+    const card = overtonesDisplay?.querySelector(`[data-harmonic="${harmonicIndex + 1}"]`);
+    if (card) {
+      card.style.setProperty('--volume-fill', (clampedVolume / 100).toFixed(3));
+      const volumeLabel = card.querySelector('.overtone-volume-label');
+      if (volumeLabel) {
+        volumeLabel.textContent = `${clampedVolume}%`;
+      }
+    }
+  }
+  
+  // Update harmonic pan
+  function updateHarmonicPan(harmonicIndex, newPan) {
+    if (harmonicIndex < 0 || harmonicIndex >= 16) return;
+    
+    // Clamp pan to -100..100
+    const clampedPan = Math.max(-100, Math.min(100, newPan));
+    harmonicPans[harmonicIndex] = clampedPan;
+    
+    // Update audio panner
+    const harmonic = harmonicOscillators[harmonicIndex];
+    if (harmonic && harmonic.panner && audioCtx) {
+      const now = audioCtx.currentTime;
+      const panValue = clampedPan / 100; // Convert to -1..1
+      try {
+        harmonic.panner.pan.setTargetAtTime(panValue, now, 0.015);
+      } catch {
+        harmonic.panner.pan.value = panValue;
+      }
+    }
+  }
+  
+  // Generate overtone cards for a given fundamental frequency
+  function generateOvertones(fundamentalHz) {
+    if (!overtonesDisplay) return;
+    
+    currentOvertonesFundamental = fundamentalHz;
+    overtonesDisplay.innerHTML = '';
+    
+    if (!fundamentalHz || fundamentalHz <= 0) {
+      overtonesDisplay.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--muted);">Play a piano key to see its overtones</div>';
+      stopHarmonicOscillators();
+      return;
+    }
+    
+    // Stop existing harmonics and create new ones
+    stopHarmonicOscillators();
+    createHarmonicOscillators();
+    
+    // Only start playing harmonics if Show Overtones is enabled
+    if (showOvertoneHighlights) {
+      startHarmonicOscillators();
+    }
+    
+    for (let i = 1; i <= 16; i++) {
+      const freq = fundamentalHz * i;
+      const noteData = frequencyToNote(freq);
+      const colors = getHarmonicColor(i);
+      const harmonicIndex = i - 1;
+      
+      // Get detailed frequency info for Hz offset and cents
+      const detailInfo = getDetailedFreqInfo(freq);
+      const hzOffsetStr = detailInfo ? `${detailInfo.hzOffset >= 0 ? '+' : ''}${detailInfo.hzOffset.toFixed(1)} Hz` : '—';
+      const centsStr = detailInfo ? `${detailInfo.cents >= 0 ? '+' : ''}${detailInfo.cents}¢` : '—';
+      
+      const card = document.createElement('div');
+      card.className = 'overtone-card';
+      card.dataset.harmonic = i;
+      card.style.setProperty('--overtone-color', colors.primary);
+      card.style.setProperty('--overtone-color-light', colors.light);
+      
+      // Apply muted state if this harmonic is muted
+      if (harmonicMutedState[harmonicIndex]) {
+        card.classList.add('is-muted');
+      }
+      
+      // Apply filtered-out state based on current filter mode
+      if (isHarmonicFilteredOut(harmonicIndex)) {
+        card.classList.add('is-filtered-out');
+      }
+      
+      // Set initial volume gradient fill
+      const volumePercent = harmonicVolumes[harmonicIndex];
+      card.style.setProperty('--volume-fill', (volumePercent / 100).toFixed(3));
+      
+      card.innerHTML = `
+        <div class="overtone-volume-fill"></div>
+        <div class="overtone-content">
+          <div class="overtone-mute-indicator">🔊</div>
+          <div class="overtone-number">Harmonic ${i}</div>
+          <div class="overtone-note-name">${noteData.note === 'BELOW_HEARING' ? '🔇' : noteData.note}</div>
+          <div class="overtone-interval-name">${INTERVAL_NAMES[i - 1] || `Partial ${i}`}</div>
+          <div class="overtone-frequency">${freq.toFixed(1)} Hz</div>
+          <div class="overtone-deviation">
+            <span class="overtone-hz-offset">${hzOffsetStr}</span>
+            <span class="overtone-cents">${centsStr}</span>
+          </div>
+          <div class="overtone-volume-label">${volumePercent}%</div>
+        </div>
+        <div class="overtone-pan-control">
+          <span class="overtone-pan-label-l">L</span>
+          <input type="range" class="overtone-pan-slider" min="-100" max="100" value="${harmonicPans[harmonicIndex]}" step="1">
+          <span class="overtone-pan-label-r">R</span>
+        </div>
+      `;
+      
+      // Add click handler for mute/unmute on the content area
+      const contentArea = card.querySelector('.overtone-content');
+      contentArea.title = 'Click to mute/unmute • Scroll to adjust volume';
+      contentArea.addEventListener('click', (e) => {
+        // Don't toggle mute if clicking on volume label
+        if (!e.target.classList.contains('overtone-volume-label')) {
+          toggleHarmonicMute(harmonicIndex);
+        }
+      });
+      
+      // Add mouse wheel handler for volume control
+      card.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY || e.deltaX;
+        const change = delta > 0 ? -5 : 5; // Decrease on scroll down, increase on scroll up
+        updateHarmonicVolume(harmonicIndex, harmonicVolumes[harmonicIndex] + change);
+      }, { passive: false });
+      
+      // Add pan slider handler
+      const panSlider = card.querySelector('.overtone-pan-slider');
+      panSlider.addEventListener('input', (e) => {
+        e.stopPropagation(); // Prevent triggering mute
+        const panValue = parseInt(e.target.value, 10);
+        updateHarmonicPan(harmonicIndex, panValue);
+      });
+      
+      panSlider.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent triggering mute
+      });
+      
+      overtonesDisplay.appendChild(card);
+    }
+  }
+  
+  // Throttle function for smooth updates during rapid changes
+  let updateOvertonesTimeout = null;
+  let lastOvertoneUpdate = 0;
+  const OVERTONE_UPDATE_THROTTLE = 16; // ~60fps
+  
+  // Update overtones when fundamental changes (from fine tune)
+  function updateOvertones() {
+    if (!currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
+    
+    // Throttle rapid updates to prevent layout thrashing
+    const now = Date.now();
+    const timeSinceLastUpdate = now - lastOvertoneUpdate;
+    
+    if (timeSinceLastUpdate < OVERTONE_UPDATE_THROTTLE) {
+      // Too soon, schedule for later
+      if (updateOvertonesTimeout) {
+        clearTimeout(updateOvertonesTimeout);
+      }
+      updateOvertonesTimeout = setTimeout(() => {
+        updateOvertones();
+      }, OVERTONE_UPDATE_THROTTLE - timeSinceLastUpdate);
+      return;
+    }
+    
+    lastOvertoneUpdate = now;
+    
+    // Update card displays
+    for (let i = 1; i <= 16; i++) {
+      const card = overtonesDisplay?.querySelector(`[data-harmonic="${i}"]`);
+      if (!card) continue;
+      
+      const freq = currentOvertonesFundamental * i;
+      const noteData = frequencyToNote(freq);
+      const detailInfo = getDetailedFreqInfo(freq);
+      
+      const noteNameEl = card.querySelector('.overtone-note-name');
+      const frequencyEl = card.querySelector('.overtone-frequency');
+      const hzOffsetEl = card.querySelector('.overtone-hz-offset');
+      const centsEl = card.querySelector('.overtone-cents');
+      
+      if (noteNameEl) {
+        noteNameEl.textContent = noteData.note === 'BELOW_HEARING' ? '🔇' : noteData.note;
+      }
+      if (frequencyEl) {
+        frequencyEl.textContent = `${freq.toFixed(1)} Hz`;
+      }
+      if (hzOffsetEl) {
+        hzOffsetEl.textContent = detailInfo ? `${detailInfo.hzOffset >= 0 ? '+' : ''}${detailInfo.hzOffset.toFixed(1)} Hz` : '—';
+      }
+      if (centsEl) {
+        centsEl.textContent = detailInfo ? `${detailInfo.cents >= 0 ? '+' : ''}${detailInfo.cents}¢` : '—';
+      }
+    }
+    
+    // Only update harmonic frequencies if overtones are enabled
+    if (showOvertoneHighlights) {
+      updateHarmonicFrequencies();
+    }
+    
+    // Update overtone highlights on piano keys (already throttled internally)
+    updateOvertoneHighlights();
+  }
+  
+  // Clear overtone highlights from piano keys
+  function clearOvertoneHighlights() {
+    pianoKeys.forEach(key => {
+      if (key.element) {
+        key.element.classList.remove('is-overtone');
+        key.element.style.removeProperty('--overtone-highlight');
+        key.element.style.removeProperty('--overtone-opacity');
+        key.element.removeAttribute('data-overtone-count');
+        
+        // Force background reset by removing inline style
+        // (needed because overtone styles use !important)
+        if (key.element.style.background) {
+          key.element.style.removeProperty('background');
+        }
+      }
+    });
+    
+    // Clear frequency labels
+    clearFreqLabels();
+  }
+  
+  // Clear all frequency labels from above the piano keys
+  function clearFreqLabels() {
+    if (freqLabelsLayer) {
+      freqLabelsLayer.innerHTML = '';
+    }
+    freqLabelMap.clear();
+  }
+  
+  // Format cents for display (just the cents portion)
+  function formatCentsOnly(cents) {
+    if (cents === 0) return '0¢';
+    return cents > 0 ? `+${cents}¢` : `${cents}¢`;
+  }
+  
+  // Calculate the exact frequency of a MIDI note number
+  function midiToFrequency(midi) {
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+  
+  // Get detailed frequency info for labels
+  function getDetailedFreqInfo(frequency) {
+    if (!Number.isFinite(frequency) || frequency <= 0) return null;
+    if (frequency < 15) return null;
+    
+    const A4 = 440;
+    const A4_MIDI = 69;
+    const noteNumber = 12 * Math.log2(frequency / A4) + A4_MIDI;
+    const baseMidi = Math.floor(noteNumber);
+    const cents = Math.round((noteNumber - baseMidi) * 100);
+    const exactNoteFreq = midiToFrequency(baseMidi);
+    const hzOffset = frequency - exactNoteFreq;
+    
+    return {
+      frequency: frequency,
+      exactNoteFreq: exactNoteFreq,
+      hzOffset: hzOffset,
+      cents: cents
+    };
+  }
+  
+  // Create a single frequency label above a piano key
+  function createSingleFreqLabel(keyElement, frequency, color, side = null) {
+    if (!freqLabelsLayer || !keyElement || !keyElement.isConnected) return;
+    
+    const keyboardInner = pianoKeyboardEl?.querySelector('.piano-keyboard-inner');
+    if (!keyboardInner) return;
+    
+    const keyboardRect = keyboardInner.getBoundingClientRect();
+    const keyRect = keyElement.getBoundingClientRect();
+    const relativeLeft = keyRect.left - keyboardRect.left + (keyRect.width / 2);
+    
+    // Use frequencyToNote to get the same calculation as LIVE INFO
+    const noteInfo = frequencyToNote(frequency);
+    if (noteInfo.note === '—' || noteInfo.note === 'BELOW_HEARING') return;
+    
+    // Get detailed frequency info
+    const detailInfo = getDetailedFreqInfo(frequency);
+    
+    // Create label element with multi-line info
+    const label = document.createElement('div');
+    label.className = 'piano-freq-label';
+    
+    if (detailInfo) {
+      // In overtone mode, only show Hz offset (simpler label for multiple close notes)
+      if (showOvertoneHighlights) {
+        const offsetStr = (detailInfo.hzOffset >= 0 ? '+' : '') + detailInfo.hzOffset.toFixed(1) + ' Hz';
+        label.innerHTML = `<span class="freq-label-offset">${offsetStr}</span>`;
+      } else {
+        // Format: actual freq, Hz offset, cents
+        const freqStr = detailInfo.frequency.toFixed(2) + ' Hz';
+        const offsetStr = (detailInfo.hzOffset >= 0 ? '+' : '') + detailInfo.hzOffset.toFixed(1) + ' Hz';
+        const centsStr = formatCentsOnly(detailInfo.cents);
+        
+        label.innerHTML = `<span class="freq-label-hz">${freqStr}</span><span class="freq-label-offset">${offsetStr}</span><span class="freq-label-cents">${centsStr}</span>`;
+      }
+    } else {
+      label.textContent = showOvertoneHighlights ? '0 Hz' : formatCentsOnly(noteInfo.cents);
+    }
+    
+    label.style.setProperty('--label-left', `${relativeLeft}px`);
+    if (color) {
+      label.style.setProperty('--label-color', color);
+    }
+    if (side) {
+      label.classList.add(`label-${side}`);
+    }
+    
+    // Check if it's a black key
+    if (keyElement.classList.contains('black-key')) {
+      label.classList.add('for-black-key');
+    }
+    
+    freqLabelsLayer.appendChild(label);
+    freqLabelMap.set(keyElement, label);
+  }
+  
+  // Create frequency labels for wheel frequencies (non-overtone mode)
+  function createWheelFreqLabels() {
+    if (!freqLabelsLayer || !pianoKeyboardEl || !wheelL || !wheelR) return;
+    
+    const leftFreq = wheelL.getHz();
+    const rightFreq = wheelR.getHz();
+    
+    // Get key spans for both wheels
+    const leftKeySpan = getKeySpanForFrequency(leftFreq);
+    const rightKeySpan = getKeySpanForFrequency(rightFreq);
+    
+    // Create labels for left wheel
+    if (leftKeySpan?.key?.element) {
+      createSingleFreqLabel(leftKeySpan.key.element, leftFreq, '#f97316', 'left');
+    }
+    
+    // Create labels for right wheel (if different key)
+    if (rightKeySpan?.key?.element && rightKeySpan.key.element !== leftKeySpan?.key?.element) {
+      createSingleFreqLabel(rightKeySpan.key.element, rightFreq, '#fb923c', 'right');
+    }
+  }
+  
+  // Create frequency labels above active piano keys (overtone mode)
+  function createOvertoneFreqLabels() {
+    if (!freqLabelsLayer || !pianoKeyboardEl) return;
+    
+    overtoneKeyMap.forEach((harmonics, keyElement) => {
+      if (!keyElement || !keyElement.isConnected) return;
+      
+      // Get the strongest harmonic (by volume) for this key
+      const strongest = harmonics.reduce((max, h) => 
+        h.volume > max.volume ? h : max
+      , harmonics[0]);
+      
+      createSingleFreqLabel(keyElement, strongest.harmonicFreq, strongest.color);
+    });
+  }
+  
+  // Main function to update frequency labels based on current mode
+  function updateFreqLabels() {
+    clearFreqLabels();
+    
+    if (showOvertoneHighlights && currentOvertonesFundamental > 0) {
+      // Show overtone labels
+      createOvertoneFreqLabels();
+    } else {
+      // Show wheel frequency labels
+      createWheelFreqLabels();
+    }
+  }
+  
+  // Track which keys have overtones for better visual management
+  const overtoneKeyMap = new Map(); // key element -> array of {harmonicIndex, color, volume}
+  let isUpdatingOvertones = false; // Prevent overlapping updates
+  let pendingOvertoneUpdate = false; // Track if an update is pending
+  let overtoneUpdateFrame = null; // Track animation frame
+  
+  // Update overtone highlights on piano keys (with throttling to prevent layout thrashing)
+  function updateOvertoneHighlights() {
+    // If already updating, mark that we need another update after this one
+    if (isUpdatingOvertones) {
+      pendingOvertoneUpdate = true;
+      return;
+    }
+    
+    // Cancel any pending frame
+    if (overtoneUpdateFrame) {
+      cancelAnimationFrame(overtoneUpdateFrame);
+      overtoneUpdateFrame = null;
+    }
+    
+    isUpdatingOvertones = true;
+    
+    // Use requestAnimationFrame to batch DOM updates
+    overtoneUpdateFrame = requestAnimationFrame(() => {
+      overtoneUpdateFrame = null;
+      
+      try {
+        // Clear existing overtone highlights
+        clearOvertoneHighlights();
+        overtoneKeyMap.clear();
+        
+        if (!showOvertoneHighlights || !currentOvertonesFundamental || currentOvertonesFundamental <= 0) {
+          // Show wheel frequency labels when overtones are disabled
+          createWheelFreqLabels();
+          isUpdatingOvertones = false;
+          if (pendingOvertoneUpdate) {
+            pendingOvertoneUpdate = false;
+            updateOvertoneHighlights();
+          }
+          return;
+        }
+        
+        // First pass: collect all harmonics per key
+        for (let i = 1; i <= 16; i++) {
+          const harmonicIndex = i - 1;
+          
+          // Skip muted harmonics - don't highlight their piano keys
+          if (harmonicMutedState[harmonicIndex]) {
+            continue;
+          }
+          
+          const harmonicFreq = currentOvertonesFundamental * i;
+          
+          // Find the closest piano key to this harmonic frequency
+          const keySpan = getKeySpanForFrequency(harmonicFreq);
+          if (!keySpan?.key?.element) continue;
+          
+          // Get color and volume for this harmonic
+          const colors = getHarmonicColor(i);
+          const volume = harmonicVolumes[harmonicIndex];
+          // Get the frequency ratio (how close to the key) - same as wheel mode
+          const ratio = keySpan.ratio;
+          
+          // Track this harmonic on this key
+          const keyElement = keySpan.key.element;
+          if (!overtoneKeyMap.has(keyElement)) {
+            overtoneKeyMap.set(keyElement, []);
+          }
+          overtoneKeyMap.get(keyElement).push({
+            harmonicIndex,
+            color: colors.primary,
+            volume,
+            ratio, // Store the frequency ratio for fill visualization
+            harmonicFreq // Store the actual harmonic frequency
+          });
+        }
+        
+        // Second pass: apply visual styling based on strongest harmonic per key
+        // Batch all DOM updates together
+        const updates = [];
+        overtoneKeyMap.forEach((harmonics, keyElement) => {
+          // Find the strongest (highest volume) harmonic on this key
+          const strongest = harmonics.reduce((max, h) => 
+            h.volume > max.volume ? h : max
+          , harmonics[0]);
+          
+          // Use the frequency ratio for fill (same calculation as wheel mode)
+          // This shows how close the harmonic is to this key's frequency
+          const fillRatio = strongest.ratio;
+          
+          updates.push({
+            element: keyElement,
+            color: strongest.color,
+            opacity: fillRatio.toFixed(3), // Use ratio for fill, not volume
+            count: harmonics.length
+          });
+        });
+        
+        // Apply all updates at once with validation
+        updates.forEach(update => {
+          // Ensure element is still in DOM and valid
+          if (update.element && update.element.isConnected) {
+            update.element.classList.add('is-overtone');
+            update.element.style.setProperty('--overtone-highlight', update.color);
+            update.element.style.setProperty('--overtone-opacity', update.opacity);
+            update.element.setAttribute('data-overtone-count', update.count);
+          }
+        });
+        
+        // Create frequency labels above active keys
+        createOvertoneFreqLabels();
+        
+      } finally {
+        isUpdatingOvertones = false;
+        
+        // If another update was requested while we were updating, do it now
+        if (pendingOvertoneUpdate) {
+          pendingOvertoneUpdate = false;
+          updateOvertoneHighlights();
+        }
+      }
+    });
+  }
+  
+  // Set overtones based on piano key or wheel frequency
+  function setOvertonesFundamental(frequency, sourceKey = null) {
+    currentOvertonesFundamental = frequency;
+    activeOvertoneKey = sourceKey;
+    generateOvertones(frequency);
+    
+    // Defer highlight update to next frame to avoid conflicts with click animations
+    requestAnimationFrame(() => {
+      updateOvertoneHighlights();
+    });
+  }
+  
+  // Initialize with default frequency (same as wheel default)
+  const defaultFrequency = SORTED_FREQUENCIES[0] || 0.1;
+  generateOvertones(defaultFrequency);
   
   // Note system toggle button
   const noteSystemToggle = document.getElementById('noteSystemToggle');
@@ -1305,7 +2670,7 @@
     // Update button label
     const toggleLabel = noteSystemToggle.querySelector('.toggle-label');
     if (toggleLabel) {
-      toggleLabel.textContent = noteSystem === 'alphabetical' ? 'Musical Note' : 'Solfeggio';
+      toggleLabel.textContent = noteSystem === 'alphabetical' ? 'Show Musical Note' : 'Show Solfeggio';
     }
     
     // Update live info display with new note system
@@ -1315,14 +2680,97 @@
     updatePianoKeyLabels();
   });
   
+  // Overtone highlighting toggle
+  const overtoneHighlightToggle = document.getElementById('overtoneHighlightToggle');
+  
+  overtoneHighlightToggle?.addEventListener('click', () => {
+    showOvertoneHighlights = !showOvertoneHighlights;
+    
+    // Update button active state
+    if (showOvertoneHighlights) {
+      overtoneHighlightToggle.classList.add('is-active');
+      
+      // Store current mute states before muting
+      wheelMuteStatesBeforeOvertones.left = wheelLMuted;
+      wheelMuteStatesBeforeOvertones.right = wheelRMuted;
+      
+      // Mute both wheels when overtones are active
+      if (!wheelLMuted) {
+        wheelLMuted = true;
+      }
+      if (!wheelRMuted) {
+        wheelRMuted = true;
+      }
+      
+      updateOscillators();
+      updateMuteButtons();
+      
+      // Start playing harmonics if we have an active fundamental
+      if (currentOvertonesFundamental > 0) {
+        startHarmonicOscillators();
+      }
+    } else {
+      overtoneHighlightToggle.classList.remove('is-active');
+      
+      // Restore previous mute states when overtones are disabled
+      wheelLMuted = wheelMuteStatesBeforeOvertones.left;
+      wheelRMuted = wheelMuteStatesBeforeOvertones.right;
+      
+      updateOscillators();
+      updateMuteButtons();
+      
+      // Stop playing harmonics when disabled
+      stopHarmonicOscillators();
+    }
+    
+    // Update highlights
+    updateOvertoneHighlights();
+  });
+  
   pianoKeyboardEl?.addEventListener('pointerdown', handlePianoPointerDown);
   pianoKeyboardEl?.addEventListener('keydown', handlePianoKeydown);
   pianoKeyboardEl?.addEventListener('wheel', (e) => {
-    if (!keyboardTargetsState.left && !keyboardTargetsState.right) return;
     e.preventDefault();
-    const direction = e.deltaY < 0 ? 1 : -1;
-    const magnitude = Math.min(3, Math.abs(e.deltaY) * SCROLL_SCALE);
-    nudgeSelectedWheels(direction * (SCROLL_BASE_STEP + magnitude));
+    
+    // Check if we're scrolling over a piano key
+    const keyEl = e.target.closest('.piano-key');
+    
+    if (keyEl && currentOvertonesFundamental > 0) {
+      // Scrolling over a piano key - adjust overtones fundamental and wheels
+      const delta = e.deltaY || e.deltaX;
+      const deltaRotation = -delta * 0.5; // Same sensitivity as Fine Tune dial
+      const deltaHz = (deltaRotation / 360) * 10; // Same conversion as Fine Tune
+      
+      // Calculate new fundamental frequency
+      let newFundamental = currentOvertonesFundamental + deltaHz;
+      
+      // Clamp to valid range
+      newFundamental = Math.max(0.1, Math.min(MAX_FREQUENCY_HZ, newFundamental));
+      
+      // Update wheels to match the new fundamental (same as clicking the key)
+      isProgrammaticChange = true;
+      
+      if (keyboardTargetsState.left) {
+        wheelL.setHz(newFundamental);
+      }
+      if (keyboardTargetsState.right) {
+        wheelR.setHz(newFundamental);
+      }
+      
+      scheduleOscillatorSync();
+      
+      // Update overtones with new fundamental (smooth update without regenerating)
+      currentOvertonesFundamental = newFundamental;
+      updateOvertones();
+      
+      // Reset flag after a short delay
+      setTimeout(() => { isProgrammaticChange = false; }, 100);
+    } else if (keyboardTargetsState.left || keyboardTargetsState.right) {
+      // Scrolling over keyboard background - nudge wheels as before
+      const direction = e.deltaY < 0 ? 1 : -1;
+      const magnitude = Math.min(3, Math.abs(e.deltaY) * SCROLL_SCALE);
+      nudgeSelectedWheels(direction * (SCROLL_BASE_STEP + magnitude));
+    }
   }, { passive: false });
 
   // Mono volume slider functionality
@@ -1474,9 +2922,24 @@
       
       fineTuneOffset += actualDelta;
       
+      // Sync pitch bend offset (they share the same purpose)
+      if (typeof pitchBendOffset !== 'undefined') {
+        pitchBendOffset += actualDelta;
+        if (typeof pitchBendScrollPos !== 'undefined') pitchBendScrollPos += actualDelta * 10;
+        if (typeof updatePitchBendDisplay === 'function') updatePitchBendDisplay();
+        if (typeof updatePitchBendScrollPosition === 'function') updatePitchBendScrollPosition();
+      }
+      
       // Set the new frequencies
       wheelL.setHz(newL);
       wheelR.setHz(newR);
+      
+      // Update overtones if we have an active fundamental
+      // Use the left wheel frequency as the fundamental for overtones
+      if (currentOvertonesFundamental > 0) {
+        currentOvertonesFundamental = newL;
+        updateOvertones();
+      }
     }
     
     updateFineTuneDisplay();
@@ -1585,6 +3048,187 @@
   // Initialize fine-tune display
   updateFineTuneDisplay();
 
+  // ===== PITCH BEND WHEEL =====
+  // Duplicates FINE TUNE functionality - scroll up/down to increase/decrease frequency
+  // Uses infinite scroll wheel design like a mouse wheel
+  let pitchBendOffset = 0; // Accumulated offset in Hz (same as fineTuneOffset)
+  let pitchBendScrollPos = 0; // Scroll position in pixels (infinite)
+  const pitchBendWheel = document.getElementById('pitchBendWheel');
+  const pitchBendScrollWheel = document.getElementById('pitchBendScrollWheel');
+  const pitchBendValue = document.getElementById('pitchBendValue');
+  
+  // Ridge pattern repeats every 10px, so we loop within that range
+  const RIDGE_REPEAT = 10;
+  
+  function updatePitchBendDisplay() {
+    if (pitchBendValue) {
+      pitchBendValue.textContent = `${pitchBendOffset >= 0 ? '+' : ''}${pitchBendOffset.toFixed(3)}`;
+    }
+  }
+  
+  function updatePitchBendScrollPosition() {
+    if (!pitchBendScrollWheel) return;
+    // Use modulo to create infinite looping scroll effect
+    // The wheel is 300% height, centered at -33%
+    const loopedPos = pitchBendScrollPos % RIDGE_REPEAT;
+    pitchBendScrollWheel.style.transform = `translateY(calc(-33.33% + ${loopedPos}px))`;
+  }
+  
+  function applyPitchBend(deltaHz) {
+    // Apply the delta to both wheels (same as applyFineTune)
+    const currentL = wheelL.getHz();
+    const currentR = wheelR.getHz();
+    
+    // Calculate new frequencies with bounds checking
+    let newL = Math.max(0.1, Math.min(MAX_FREQUENCY_HZ, currentL + deltaHz));
+    let newR = Math.max(0.1, Math.min(MAX_FREQUENCY_HZ, currentR + deltaHz));
+    
+    // Only update if at least one wheel can move
+    if (newL !== currentL || newR !== currentR) {
+      // Calculate actual delta applied (in case we hit bounds)
+      const actualDeltaL = newL - currentL;
+      const actualDeltaR = newR - currentR;
+      const actualDelta = (Math.abs(actualDeltaL) > Math.abs(actualDeltaR)) ? actualDeltaL : actualDeltaR;
+      
+      pitchBendOffset += actualDelta;
+      // Update scroll position - 10px per 1 Hz for visible movement
+      pitchBendScrollPos += actualDelta * 10;
+      
+      // Also sync with fine tune offset so they stay in sync
+      fineTuneOffset += actualDelta;
+      fineTuneRotation += (actualDelta / 10) * 360; // Sync rotation too
+      
+      // Set the new frequencies
+      wheelL.setHz(newL);
+      wheelR.setHz(newR);
+      
+      // Update overtones if we have an active fundamental
+      if (currentOvertonesFundamental > 0) {
+        currentOvertonesFundamental = newL;
+        updateOvertones();
+      }
+    }
+    
+    updatePitchBendDisplay();
+    updatePitchBendScrollPosition();
+    updateFineTuneDisplay(); // Keep fine tune display in sync
+  }
+  
+  // Pitch bend drag handlers
+  if (pitchBendWheel) {
+    let isDragging = false;
+    let lastY = 0;
+    
+    const startDrag = (e) => {
+      isDragging = true;
+      pitchBendWheel.classList.add('is-active');
+      
+      if (e.type.includes('touch')) {
+        lastY = e.touches[0].clientY;
+      } else {
+        lastY = e.clientY;
+      }
+      e.preventDefault();
+    };
+    
+    const doDrag = (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      
+      let currentY;
+      if (e.type.includes('touch')) {
+        currentY = e.touches[0].clientY;
+      } else {
+        currentY = e.clientY;
+      }
+      
+      // Up = positive (negative Y direction)
+      const delta = lastY - currentY;
+      lastY = currentY;
+      
+      // Convert pixel movement to Hz change
+      // Sensitivity: 1 pixel = 0.1 Hz
+      const deltaHz = delta * 0.1;
+      applyPitchBend(deltaHz);
+    };
+    
+    const endDrag = () => {
+      isDragging = false;
+      pitchBendWheel.classList.remove('is-active');
+    };
+    
+    // Mouse events
+    pitchBendWheel.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', endDrag);
+    
+    // Touch events
+    pitchBendWheel.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('touchmove', doDrag, { passive: false });
+    document.addEventListener('touchend', endDrag);
+    
+    // Mouse wheel scrolling (main functionality)
+    pitchBendWheel.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      pitchBendWheel.classList.add('is-active');
+      
+      // Use same sensitivity as fine tune dial
+      const delta = e.deltaY || e.deltaX;
+      const deltaHz = -delta * 0.05; // Negative because wheel down = positive deltaY but we want decrease
+      applyPitchBend(deltaHz);
+      
+      // Remove active class after a short delay
+      setTimeout(() => {
+        pitchBendWheel.classList.remove('is-active');
+      }, 150);
+    }, { passive: false });
+    
+    // Keyboard support
+    pitchBendWheel.addEventListener('keydown', (e) => {
+      let deltaHz = 0;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+        deltaHz = e.shiftKey ? 1 : 0.1; // Shift for larger steps
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+        deltaHz = e.shiftKey ? -1 : -0.1;
+        e.preventDefault();
+      } else if (e.key === 'Home') {
+        // Reset to center
+        const resetDelta = -pitchBendOffset;
+        applyPitchBend(resetDelta);
+        pitchBendScrollPos = 0;
+        updatePitchBendScrollPosition();
+        e.preventDefault();
+        return;
+      }
+      if (deltaHz !== 0) {
+        pitchBendWheel.classList.add('is-active');
+        applyPitchBend(deltaHz);
+        setTimeout(() => {
+          pitchBendWheel.classList.remove('is-active');
+        }, 150);
+      }
+    });
+    
+    // Add visual highlight to wheels when pitch bend is hovered (same as fine tune)
+    const wheelLEl = document.getElementById('wheelL');
+    const wheelREl = document.getElementById('wheelR');
+    
+    pitchBendWheel.addEventListener('mouseenter', () => {
+      if (wheelLEl) wheelLEl.classList.add('fine-tune-active');
+      if (wheelREl) wheelREl.classList.add('fine-tune-active');
+    });
+    
+    pitchBendWheel.addEventListener('mouseleave', () => {
+      if (wheelLEl) wheelLEl.classList.remove('fine-tune-active');
+      if (wheelREl) wheelREl.classList.remove('fine-tune-active');
+    });
+  }
+  
+  // Initialize pitch bend display
+  updatePitchBendDisplay();
+  updatePitchBendScrollPosition();
+
   // Buttons
   document.getElementById('play').addEventListener('click', async ()=>{
     ensureAudio();
@@ -1614,6 +3258,23 @@
     fineTuneRotation = 0;
     updateFineTuneDisplay();
     
+    // Reset pitch bend wheel
+    pitchBendOffset = 0;
+    pitchBendScrollPos = 0;
+    updatePitchBendDisplay();
+    updatePitchBendScrollPosition();
+    
+    // Reset harmonic mute states, volumes, and pans
+    harmonicMutedState = Array(16).fill(false);
+    harmonicVolumes = Array(16).fill(50);
+    harmonicPans = Array(16).fill(0);
+    
+    // Reset overtones to default frequency (same as wheel default)
+    const defaultFrequency = SORTED_FREQUENCIES[0] || 0.1;
+    currentOvertonesFundamental = defaultFrequency;
+    activeOvertoneKey = null;
+    generateOvertones(defaultFrequency);
+    
     // Reset flag after a short delay
     setTimeout(() => { isProgrammaticChange = false; }, 100);
   });
@@ -1634,6 +3295,15 @@
         el.classList.remove('is-active');
       }
     });
+    
+    // Update spectrogram based on transport state
+    if (which === 'play') {
+      onAudioStart();
+    } else if (which === 'pause') {
+      onAudioPause();
+    } else if (which === 'stop') {
+      onAudioStop();
+    }
   }
   function attachRipple(el){
     el?.addEventListener('click', (e)=>{
@@ -1673,6 +3343,15 @@
     const next = current === 'dark' ? 'light' : 'dark';
     localStorage.setItem(THEME_KEY, next);
     applyTheme(next);
+    
+    // Update spectrogram canvas with new theme colors
+    if (isAudioPlaying) {
+      const leftFreq = wheelL?.getHz() ?? 0;
+      const rightFreq = wheelR?.getHz() ?? 0;
+      renderOscilloscope(leftFreq, rightFreq);
+    } else {
+      renderIdleWaveform();
+    }
   });
 
   // PWA: register service worker
