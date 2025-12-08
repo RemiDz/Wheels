@@ -2015,9 +2015,213 @@ body[data-theme="dark"] .spectrogram-header {
   letter-spacing: 0.3px;
 }
 
+/* ===== MUSIC SCHOOL SECTION (Compact Dropdown) ===== */
+.music-school-section {
+  margin: 8px auto;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.school-header-compact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: 320px;
+}
+
+.school-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, #9370db 0%, #40e0d0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  white-space: nowrap;
+}
+
+.concept-dropdown {
+  padding: 5px 28px 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--control-bg);
+  color: var(--control-fg);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239370db' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
+  min-width: 130px;
+  transition: all 0.2s ease;
+}
+
+.concept-dropdown:hover {
+  border-color: rgba(147, 112, 219, 0.5);
+  box-shadow: 0 2px 8px rgba(147, 112, 219, 0.15);
+}
+
+.concept-dropdown:focus {
+  outline: 2px solid rgba(147, 112, 219, 0.5);
+  outline-offset: 1px;
+  border-color: rgba(147, 112, 219, 0.6);
+}
+
+body[data-theme="dark"] .concept-dropdown {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b4a0e8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+@media (max-width: 400px) {
+  .school-header-compact {
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px;
+  }
+  
+  .concept-dropdown {
+    width: 100%;
+  }
+}
+
+/* Concept Explanation - Visible & Centered */
+.concept-explanation {
+  display: none;
+  margin: 10px auto 0;
+  max-width: 650px;
+}
+
+.concept-explanation.active {
+  display: block;
+}
+
+.explanation-content {
+  background: var(--panel-bg);
+  border: 1px solid rgba(147, 112, 219, 0.4);
+  border-radius: 12px;
+  padding: 12px 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  animation: explanation-fade-in 0.2s ease;
+}
+
+@keyframes explanation-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.explanation-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: rgba(147, 112, 219, 0.2);
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.explanation-close:hover {
+  background: rgba(255, 105, 180, 0.3);
+  color: var(--fg);
+}
+
+.explanation-visual { flex-shrink: 0; }
+.explanation-visual svg { width: 60px; height: 28px; }
+
+.explanation-body { flex: 1; min-width: 0; }
+
+.explanation-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #9370db;
+}
+
+.explanation-text {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--fg);
+}
+
+.explanation-demo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.demo-btn {
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #9370db, #40e0d0);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.demo-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 10px rgba(147, 112, 219, 0.4);
+}
+
+.demo-btn.playing {
+  background: linear-gradient(135deg, #ff69b4, #9370db);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .explanation-content {
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    padding: 12px;
+  }
+  
+  .explanation-body {
+    width: 100%;
+    order: 1;
+  }
+  
+  .explanation-visual { order: 0; }
+  .explanation-visual svg { width: 70px; height: 32px; }
+  .explanation-demo { order: 2; margin-top: 4px; }
+  
+  .explanation-title { font-size: 13px; }
+  .explanation-text { font-size: 11px; }
+}
+
 /* Keyboard reference */
 .keyboard-section {
-  margin: 32px auto 16px;
+  margin: 12px auto 16px;
   padding: 18px 20px 22px;
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
@@ -2587,6 +2791,7 @@ body[data-theme="dark"] .spectrogram-header {
   position: absolute;
   inset: 0;
   height: 62%;
+  z-index: 2;
 }
 
 .piano-key {
@@ -2816,6 +3021,62 @@ body[data-theme="dark"] .spectrogram-header {
     0 4px 8px rgba(0,0,0,0.25),
     0 0 20px var(--left-highlight, transparent),
     -4px 0 12px var(--left-highlight, transparent);
+}
+
+/* Music School Demo Key Highlight - NO transform to avoid layout breaks */
+.piano-key.school-demo-active {
+  z-index: 5;
+}
+
+.white-key.school-demo-active {
+  background: linear-gradient(180deg, 
+    #d4c4f8 0%, 
+    #b090e8 50%,
+    #9370db 100%
+  ) !important;
+  box-shadow: 
+    0 0 15px rgba(147, 112, 219, 0.9),
+    0 0 30px rgba(147, 112, 219, 0.5) !important;
+}
+
+.black-key.school-demo-active {
+  background: linear-gradient(180deg, 
+    #a080e0 0%, 
+    #8060c0 60%,
+    #6040a0 100%
+  ) !important;
+  box-shadow: 
+    0 0 12px rgba(147, 112, 219, 0.9),
+    0 0 25px rgba(147, 112, 219, 0.6) !important;
+}
+
+/* Frequency Demo - Fill spans full key width instead of half */
+.piano-key.school-demo-filling::before {
+  width: 100% !important;
+  border-right: none !important;
+  border-left: none !important;
+  border-radius: 0 0 4px 4px !important;
+  opacity: 1 !important;
+}
+
+/* White keys stay below black keys even when filling */
+.white-key.school-demo-filling {
+  z-index: 1;
+  box-shadow: 
+    0 0 15px var(--left-highlight, rgba(147, 112, 219, 0.9)),
+    0 0 25px var(--left-highlight, rgba(147, 112, 219, 0.5)) !important;
+}
+
+.black-key.school-demo-filling::before {
+  border-radius: 0 0 3px 3px !important;
+}
+
+/* Black keys always stay on top */
+.black-key.school-demo-filling {
+  z-index: 10;
+  box-shadow: 
+    0 0 12px var(--left-highlight, rgba(147, 112, 219, 0.9)),
+    0 0 20px var(--left-highlight, rgba(147, 112, 219, 0.6)) !important;
 }
 
 .piano-key.is-right:not(.is-overtone) .key-glow-bottom {
