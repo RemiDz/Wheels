@@ -774,47 +774,47 @@
   
   // Presets
   // Harmonic interval presets based on OM frequency (136.10 Hz) as C
-  // Ratios from overtone (harmonic) scale - left:right matches the ratio numbers
-  // Left speaker plays first ratio number, Right speaker plays second ratio number
+  // Ordered by the overtone series - consecutive harmonic ratios first, then compound intervals
+  // Ratio n:m means interval from nth to mth harmonic, frequency ratio = m/n
   const OM_BASE = 136.10; // This is our "C"
   const PRESETS = [
-    // (1:1) C:C - both same frequency
+    // 1:1 - Unison (same frequency)
     { name: 'Unison (1:1)', left: OM_BASE, right: OM_BASE },
     
-    // (1:2) C:c - C and octave above
+    // 1:2 - Octave (1st to 2nd harmonic)
     { name: 'Octave (1:2)', left: OM_BASE, right: OM_BASE * 2 },
     
-    // (2:3) C:G - unit = C/2, left=2*unit, right=3*unit
+    // 2:3 - Perfect Fifth (2nd to 3rd harmonic)
     { name: 'Fifth (2:3)', left: OM_BASE, right: OM_BASE * 3/2 },
     
-    // (3:4) G:C - unit = C/4, left=3*unit (G below C), right=4*unit (C)
-    { name: 'Fourth (3:4)', left: OM_BASE * 3/4, right: OM_BASE },
+    // 3:4 - Perfect Fourth (3rd to 4th harmonic)
+    { name: 'Fourth (3:4)', left: OM_BASE, right: OM_BASE * 4/3 },
     
-    // (3:5) G:E - unit = G/3 where G = C*3/2, so unit=C/2, left=3*unit, right=5*unit
-    { name: 'Major Sixth (3:5)', left: OM_BASE * 3/2, right: OM_BASE * 5/2 },
+    // 3:5 - Major Sixth (3rd to 5th harmonic)
+    { name: 'Major Sixth (3:5)', left: OM_BASE, right: OM_BASE * 5/3 },
     
-    // (4:5) C:E - unit = C/4, left=4*unit (C), right=5*unit (E)
+    // 4:5 - Major Third (4th to 5th harmonic)
     { name: 'Major Third (4:5)', left: OM_BASE, right: OM_BASE * 5/4 },
     
-    // (5:6) E:G - unit = C/4, left=5*unit (E), right=6*unit (G)
-    { name: 'Minor Third (5:6)', left: OM_BASE * 5/4, right: OM_BASE * 6/4 },
+    // 5:6 - Minor Third (5th to 6th harmonic)
+    { name: 'Minor Third (5:6)', left: OM_BASE, right: OM_BASE * 6/5 },
     
-    // (5:8) E:C - unit = C/4, left=5*unit (E), right=8*unit (C octave)
-    { name: 'Minor Sixth (5:8)', left: OM_BASE * 5/4, right: OM_BASE * 2 },
+    // 5:8 - Minor Sixth (5th to 8th harmonic)
+    { name: 'Minor Sixth (5:8)', left: OM_BASE, right: OM_BASE * 8/5 },
     
-    // (5:9) E:D - unit = C/4, left=5*unit (E), right=9*unit (D)
-    { name: 'Minor Seventh (5:9)', left: OM_BASE * 5/4, right: OM_BASE * 9/4 },
+    // 5:9 - Minor Seventh (5th to 9th harmonic)
+    { name: 'Minor Seventh (5:9)', left: OM_BASE, right: OM_BASE * 9/5 },
     
-    // (8:9) C:D - unit = C/8, left=8*unit (C), right=9*unit (D)
+    // 8:9 - Major Second (8th to 9th harmonic)
     { name: 'Major Second (8:9)', left: OM_BASE, right: OM_BASE * 9/8 },
     
-    // (8:15) C:B - unit = C/8, left=8*unit (C), right=15*unit (B)
+    // 8:15 - Major Seventh (8th to 15th harmonic)
     { name: 'Major Seventh (8:15)', left: OM_BASE, right: OM_BASE * 15/8 },
     
-    // (15:16) B:C - unit = C/16, left=15*unit (B), right=16*unit (C octave)
-    { name: 'Minor Second (15:16)', left: OM_BASE * 15/8, right: OM_BASE * 2 },
+    // 15:16 - Minor Second (15th to 16th harmonic)
+    { name: 'Minor Second (15:16)', left: OM_BASE, right: OM_BASE * 16/15 },
     
-    // (32:45) C:F# - unit = C/32, left=32*unit (C), right=45*unit (F#)
+    // 32:45 - Tritone (complex ratio, high in harmonic series)
     { name: 'Tritone (32:45)', left: OM_BASE, right: OM_BASE * 45/32 }
   ];
 
@@ -3353,6 +3353,689 @@
       renderIdleWaveform();
     }
   });
+
+  // ===== MUSIC SCHOOL SECTION =====
+  const musicSchoolConcepts = {
+    frequency: {
+      title: 'Frequency',
+      text: 'How many times a sound wave vibrates per second, measured in Hertz (Hz). 100 Hz = 100 vibrations/sec (low bass), 1000 Hz = 1000 vibrations/sec (higher pitch). Each unique frequency corresponds to a specific pitch—change the frequency, change the note! Piano example: A4 = 440 Hz (concert pitch). One key right: A#4 = 466.16 Hz. Each adjacent key increases frequency by ~5.9%. After 12 keys (one octave), frequency doubles: A5 = 880 Hz.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <path d="M5 15 Q15 3 25 15 Q35 27 45 15 Q55 3 65 15 Q75 27 85 15 Q92 8 98 15" stroke="#9370db" stroke-width="2" fill="none"/>
+      </svg>`,
+      demoType: 'frequency'
+    },
+    vibrations: {
+      title: 'Vibrations',
+      text: 'Physical back-and-forth motion that creates sound. A guitar string vibrates when plucked, pushing air molecules into pressure waves that travel to your ear. The speed of vibration determines pitch: faster = higher, slower = lower.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <path d="M50 5 L50 25" stroke="#9370db" stroke-width="3"/>
+        <path d="M46 3 L50 0 L54 3" stroke="#40e0d0" stroke-width="1.5" fill="none"/>
+        <path d="M42 6 C39 9 39 12 42 15" stroke="#ff69b4" stroke-width="1.5" fill="none" opacity="0.6"/>
+        <path d="M58 6 C61 9 61 12 58 15" stroke="#ff69b4" stroke-width="1.5" fill="none" opacity="0.6"/>
+      </svg>`,
+      demoType: 'vibrato'
+    },
+    harmonics: {
+      title: 'Harmonics',
+      text: 'Whole-number multiples of the base frequency. If the fundamental is 100 Hz, harmonics are 200 Hz (2×), 300 Hz (3×), 400 Hz (4×), etc. These create pleasing musical intervals like octaves and fifths, which is why harmonics sound good together.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <path d="M5 22 Q25 10 45 22 Q65 34 85 22" stroke="#9370db" stroke-width="2" fill="none" opacity="0.5"/>
+        <path d="M5 15 Q15 8 25 15 Q35 22 45 15 Q55 8 65 15 Q75 22 85 15" stroke="#40e0d0" stroke-width="2" fill="none"/>
+      </svg>`,
+      demoType: 'harmonics'
+    },
+    overtones: {
+      title: 'Overtones',
+      text: 'Frequencies produced above the fundamental note. The 1st overtone = 2nd harmonic, 2nd overtone = 3rd harmonic, etc. Overtones give instruments their unique "voice" (timbre)—why a piano and violin playing the same note sound different.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <path d="M5 22 Q20 8 40 22 Q60 36 80 22 Q90 16 95 22" stroke="#9370db" stroke-width="2.5" fill="none"/>
+        <path d="M5 16 Q12 10 20 16 Q28 22 35 16 Q42 10 50 16 Q58 22 65 16 Q72 10 80 16" stroke="#40e0d0" stroke-width="1.5" fill="none" opacity="0.7"/>
+        <path d="M5 11 Q10 8 15 11 Q20 14 25 11 Q30 8 35 11 Q40 14 45 11 Q50 8 55 11 Q60 14 65 11 Q70 8 75 11 Q80 14 85 11" stroke="#ff69b4" stroke-width="1" fill="none" opacity="0.5"/>
+      </svg>`,
+      demoType: 'overtones'
+    },
+    timbre: {
+      title: 'Timbre',
+      text: 'The unique "color" or quality of a sound that lets you tell instruments apart. A piano and violin playing the same note at the same volume sound different because of timbre—it\'s determined by the mix and strength of overtones each instrument produces.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <path d="M5 20 Q15 10 25 20 Q35 30 45 20" stroke="#9370db" stroke-width="2" fill="none"/>
+        <path d="M55 20 Q62 12 70 20 Q78 28 85 20" stroke="#40e0d0" stroke-width="2" fill="none"/>
+        <circle cx="25" cy="8" r="4" fill="#9370db" opacity="0.6"/>
+        <circle cx="70" cy="8" r="4" fill="#40e0d0" opacity="0.6"/>
+      </svg>`,
+      demoType: 'timbre'
+    },
+    tone: {
+      title: 'Tone',
+      text: 'A pure sine wave at a single frequency with no overtones—like a tuning fork or electronic beep. Real instruments produce complex tones with many overtones. Pure tones are rare in nature but common in synthesizers and test signals.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <path d="M5 15 Q25 3 50 15 Q75 27 95 15" stroke="#9370db" stroke-width="2.5" fill="none"/>
+      </svg>`,
+      demoType: 'tone'
+    },
+    note: {
+      title: 'Note',
+      text: 'A named musical pitch in the system: C, D, E, F, G, A, B (repeating in octaves). Each note corresponds to a specific frequency—A4 = 440 Hz is the universal tuning standard. Notes let musicians communicate pitch using letters instead of Hz values.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <ellipse cx="25" cy="20" rx="8" ry="6" fill="#9370db" transform="rotate(-15 25 20)"/>
+        <path d="M32 18 L32 5" stroke="#9370db" stroke-width="2"/>
+        <path d="M32 5 Q42 3 46 6 Q42 10 32 8" fill="#9370db"/>
+        <text x="60" y="18" font-size="11" fill="#40e0d0" font-weight="bold">A4</text>
+      </svg>`,
+      demoType: 'note'
+    },
+    scale: {
+      title: 'Scale',
+      text: 'An ordered sequence of notes spanning an octave with specific intervals between them. The major scale (Do-Re-Mi-Fa-Sol-La-Ti-Do) follows a pattern of whole and half steps. Different scales (major, minor, pentatonic) create different moods and styles.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <circle cx="12" cy="24" r="3" fill="#40e0d0"/>
+        <circle cx="27" cy="20" r="3" fill="#40e0d0"/>
+        <circle cx="42" cy="16" r="3" fill="#9370db"/>
+        <circle cx="57" cy="12" r="3" fill="#40e0d0"/>
+        <circle cx="72" cy="8" r="3" fill="#40e0d0"/>
+        <circle cx="87" cy="4" r="3" fill="#ff69b4"/>
+      </svg>`,
+      demoType: 'scale'
+    },
+    octave: {
+      title: 'Octave',
+      text: 'The interval where frequency exactly doubles (ratio 2:1). A3=220 Hz → A4=440 Hz → A5=880 Hz. Notes one octave apart share the same letter name and sound "equivalent" but higher or lower. This 2:1 ratio is why the 12-note pattern repeats on a piano.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <path d="M10 22 Q25 10 40 22" stroke="#9370db" stroke-width="2" fill="none"/>
+        <path d="M40 22 Q55 10 70 22" stroke="#40e0d0" stroke-width="2" fill="none"/>
+        <text x="25" y="28" font-size="7" fill="#9370db" font-weight="bold">1×</text>
+        <text x="55" y="28" font-size="7" fill="#40e0d0" font-weight="bold">2×</text>
+      </svg>`,
+      demoType: 'octave'
+    }
+  };
+
+  // Music School DOM elements
+  const musicSchoolSection = document.getElementById('musicSchoolSection');
+  const conceptSelect = document.getElementById('conceptSelect');
+  const conceptExplanation = document.getElementById('conceptExplanation');
+  const explanationClose = document.getElementById('explanationClose');
+  const explanationVisual = document.getElementById('explanationVisual');
+  const explanationTitle = document.getElementById('explanationTitle');
+  const explanationText = document.getElementById('explanationText');
+  const explanationDemo = document.getElementById('explanationDemo');
+
+  let activeSchoolOscillator = null;
+  let activeSchoolGain = null;
+  let schoolDemoHighlightedKeys = [];
+
+  function showConceptExplanation(concept) {
+    const data = musicSchoolConcepts[concept];
+    if (!data) return;
+
+    // Stop any playing demo when switching concepts
+    stopSchoolDemo();
+
+    // Populate explanation
+    explanationVisual.innerHTML = data.visual;
+    explanationTitle.textContent = data.title;
+    explanationText.textContent = data.text;
+
+    // Create demo button based on type
+    explanationDemo.innerHTML = '';
+    const demoBtn = document.createElement('button');
+    demoBtn.className = 'demo-btn';
+    
+    switch(data.demoType) {
+      case 'frequency':
+        demoBtn.innerHTML = '🔊 Low→High';
+        demoBtn.addEventListener('click', () => playFrequencyDemo(demoBtn));
+        break;
+      case 'vibrato':
+        demoBtn.innerHTML = '🔊 Vibrato';
+        demoBtn.addEventListener('click', () => playVibratoDemo(demoBtn));
+        break;
+      case 'harmonics':
+        demoBtn.innerHTML = '🔊 Harmonics';
+        demoBtn.addEventListener('click', () => playHarmonicsDemo(demoBtn));
+        break;
+      case 'overtones':
+        demoBtn.innerHTML = '🔊 Overtones';
+        demoBtn.addEventListener('click', () => playOvertonesDemo(demoBtn));
+        break;
+      case 'timbre':
+        demoBtn.innerHTML = '🔊 Compare Timbres';
+        demoBtn.addEventListener('click', () => playTimbreDemo(demoBtn));
+        break;
+      case 'tone':
+        demoBtn.innerHTML = '🔊 Pure Tone';
+        demoBtn.addEventListener('click', () => playToneDemo(demoBtn));
+        break;
+      case 'note':
+        demoBtn.innerHTML = '🔊 Play Notes';
+        demoBtn.addEventListener('click', () => playNoteDemo(demoBtn));
+        break;
+      case 'scale':
+        demoBtn.innerHTML = '🔊 Play Scale';
+        demoBtn.addEventListener('click', () => playScaleDemo(demoBtn));
+        break;
+      case 'octave':
+        demoBtn.innerHTML = '🔊 Octaves';
+        demoBtn.addEventListener('click', () => playOctaveDemo(demoBtn));
+        break;
+    }
+    
+    explanationDemo.appendChild(demoBtn);
+    conceptExplanation.classList.add('active');
+  }
+
+  function hideConceptExplanation() {
+    conceptExplanation.classList.remove('active');
+    if (conceptSelect) conceptSelect.value = '';
+    stopSchoolDemo();
+  }
+
+  function ensureSchoolAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  // Highlight piano key for a frequency
+  function highlightSchoolKey(frequency) {
+    const keySpan = getKeySpanForFrequency(frequency);
+    if (keySpan?.key?.element) {
+      keySpan.key.element.classList.add('school-demo-active');
+      schoolDemoHighlightedKeys.push(keySpan.key.element);
+    }
+  }
+
+  // Clear all school demo highlights
+  function clearSchoolKeyHighlights() {
+    schoolDemoHighlightedKeys.forEach(el => {
+      el.classList.remove('school-demo-active');
+    });
+    schoolDemoHighlightedKeys = [];
+  }
+
+  let schoolDemoTimeout = null;
+  
+  // FREQUENCY DEMO: Variables for fill animation
+  let schoolFillAnimationFrame = null;
+  let schoolCurrentFillingKey = null;
+  
+  // Clear filling key highlight
+  function clearSchoolFillingKey() {
+    if (schoolCurrentFillingKey) {
+      schoolCurrentFillingKey.classList.remove('is-left', 'school-demo-filling');
+      schoolCurrentFillingKey.style.removeProperty('--left-fill');
+      schoolCurrentFillingKey.style.removeProperty('--left-highlight');
+      schoolCurrentFillingKey = null;
+    }
+    if (schoolFillAnimationFrame) {
+      cancelAnimationFrame(schoolFillAnimationFrame);
+      schoolFillAnimationFrame = null;
+    }
+  }
+  
+  function stopSchoolDemo() {
+    if (schoolDemoTimeout) {
+      clearTimeout(schoolDemoTimeout);
+      schoolDemoTimeout = null;
+    }
+    clearSchoolKeyHighlights();
+    clearSchoolFillingKey(); // Clear frequency fill animation
+    if (activeSchoolOscillator) {
+      try { activeSchoolOscillator.stop(); activeSchoolOscillator.disconnect(); } catch(e) {}
+      activeSchoolOscillator = null;
+    }
+    if (activeSchoolGain) {
+      try { activeSchoolGain.disconnect(); } catch(e) {}
+      activeSchoolGain = null;
+    }
+    document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('playing'));
+  }
+  
+  function playFrequencyDemo(btn) {
+    stopSchoolDemo();
+    clearSchoolFillingKey();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    if (!pianoKeys.length) {
+      btn.classList.remove('playing');
+      return;
+    }
+    
+    // Use A3 (220 Hz) to A4 (440 Hz) - one octave range
+    const startFreq = 220; // A3
+    const endFreq = 440;   // A4
+    
+    // Sweep audio from A3 to A4
+    activeSchoolGain = audioCtx.createGain();
+    activeSchoolGain.connect(audioCtx.destination);
+    activeSchoolGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    activeSchoolGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1);
+
+    activeSchoolOscillator = audioCtx.createOscillator();
+    activeSchoolOscillator.type = 'sine';
+    activeSchoolOscillator.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+    activeSchoolOscillator.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + 5);
+    activeSchoolOscillator.connect(activeSchoolGain);
+    activeSchoolOscillator.start();
+
+    // Animate fill across A3 to A4 over 5 seconds
+    const duration = 5000;
+    const startTime = performance.now();
+    let lastKeyEl = null;
+    
+    // Color interpolation from low (purple) to high (orange/pink)
+    function getFrequencyColor(progress) {
+      const r = Math.round(120 + progress * 135); // 120 -> 255
+      const g = Math.round(80 - progress * 30);   // 80 -> 50
+      const b = Math.round(200 - progress * 120); // 200 -> 80
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+    
+    function animateFill(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      
+      // Calculate current frequency (exponential interpolation to match audio)
+      const currentFreq = startFreq * Math.pow(endFreq / startFreq, progress);
+      
+      // Find which key this frequency falls on
+      const keySpan = getKeySpanForFrequency(currentFreq);
+      if (!keySpan?.key?.element) {
+        if (progress < 1) {
+          schoolFillAnimationFrame = requestAnimationFrame(animateFill);
+        }
+        return;
+      }
+      
+      const keyEl = keySpan.key.element;
+      const fillRatio = keySpan.ratio;
+      const color = getFrequencyColor(progress);
+      
+      // If we moved to a new key, clear the previous one
+      if (lastKeyEl && lastKeyEl !== keyEl) {
+        lastKeyEl.classList.remove('is-left', 'school-demo-filling');
+        lastKeyEl.style.removeProperty('--left-fill');
+        lastKeyEl.style.removeProperty('--left-highlight');
+      }
+      
+      // Setup current key
+      if (lastKeyEl !== keyEl) {
+        keyEl.classList.add('is-left', 'school-demo-filling');
+        keyEl.classList.remove('is-overtone');
+        schoolCurrentFillingKey = keyEl;
+        lastKeyEl = keyEl;
+      }
+      
+      // Update current key's fill level and color
+      keyEl.style.setProperty('--left-fill', fillRatio.toFixed(3));
+      keyEl.style.setProperty('--left-highlight', color);
+      
+      if (progress < 1) {
+        schoolFillAnimationFrame = requestAnimationFrame(animateFill);
+      }
+    }
+    
+    schoolFillAnimationFrame = requestAnimationFrame(animateFill);
+
+    schoolDemoTimeout = setTimeout(() => {
+      activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+      setTimeout(() => {
+        clearSchoolFillingKey();
+        stopSchoolDemo();
+        btn.classList.remove('playing');
+      }, 350);
+    }, 5200);
+  }
+
+  // VIBRATO DEMO: Play a note with pitch wobble to show vibration
+  function playVibratoDemo(btn) {
+    stopSchoolDemo();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+    
+    const baseFreq = 440;
+    highlightSchoolKey(baseFreq);
+    
+    activeSchoolGain = audioCtx.createGain();
+    activeSchoolGain.connect(audioCtx.destination);
+    activeSchoolGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    activeSchoolGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1);
+
+    activeSchoolOscillator = audioCtx.createOscillator();
+    activeSchoolOscillator.type = 'sine';
+    activeSchoolOscillator.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+    
+    // Create vibrato with LFO
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = 6; // 6 Hz vibrato rate
+    lfoGain.gain.value = 15; // ±15 Hz pitch variation
+    lfo.connect(lfoGain);
+    lfoGain.connect(activeSchoolOscillator.frequency);
+    
+    activeSchoolOscillator.connect(activeSchoolGain);
+    activeSchoolOscillator.start();
+    lfo.start();
+
+    schoolDemoTimeout = setTimeout(() => {
+      activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+      setTimeout(() => {
+        try { lfo.stop(); lfo.disconnect(); } catch(e) {}
+        stopSchoolDemo();
+        btn.classList.remove('playing');
+      }, 250);
+    }, 1500);
+  }
+
+  // HARMONICS DEMO: Play fundamental then add harmonics one by one (exact multiples)
+  function playHarmonicsDemo(btn) {
+    stopSchoolDemo();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    const fundamental = 220;
+    const oscillators = [];
+    const gains = [];
+    
+    const masterGain = audioCtx.createGain();
+    masterGain.connect(audioCtx.destination);
+    masterGain.gain.value = 0.3;
+
+    // Start with just fundamental
+    highlightSchoolKey(fundamental);
+    
+    function addHarmonic(mult, delay) {
+      schoolDemoTimeout = setTimeout(() => {
+        highlightSchoolKey(fundamental * mult);
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = fundamental * mult;
+        gain.gain.value = 0.4 / mult;
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start();
+        oscillators.push(osc);
+        gains.push(gain);
+      }, delay);
+    }
+
+    // Add harmonics progressively (exact integer multiples)
+    addHarmonic(1, 0);
+    addHarmonic(2, 400);
+    addHarmonic(3, 800);
+    addHarmonic(4, 1200);
+
+    schoolDemoTimeout = setTimeout(() => {
+      masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+      setTimeout(() => {
+        oscillators.forEach(o => { try { o.stop(); o.disconnect(); } catch(e) {} });
+        gains.forEach(g => g.disconnect());
+        masterGain.disconnect();
+        clearSchoolKeyHighlights();
+        btn.classList.remove('playing');
+      }, 350);
+    }, 2200);
+  }
+
+  // OVERTONES DEMO: Play each overtone individually then combine them
+  function playOvertonesDemo(btn) {
+    stopSchoolDemo();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    const fundamental = 220; // A3
+    const overtones = [1, 2, 3, 4, 5, 6]; // Fundamental + 5 overtones
+    const amplitudes = [0.3, 0.2, 0.15, 0.12, 0.1, 0.08];
+    let index = 0;
+    const oscillators = [];
+    const gains = [];
+    
+    const masterGain = audioCtx.createGain();
+    masterGain.connect(audioCtx.destination);
+    masterGain.gain.value = 1;
+
+    // Play each overtone one at a time, then hold all together
+    function playNextOvertone() {
+      if (index >= overtones.length) {
+        // All overtones now playing together - let them ring
+        schoolDemoTimeout = setTimeout(() => {
+          masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+          setTimeout(() => {
+            oscillators.forEach(o => { try { o.stop(); o.disconnect(); } catch(e) {} });
+            gains.forEach(g => g.disconnect());
+            masterGain.disconnect();
+            clearSchoolKeyHighlights();
+            btn.classList.remove('playing');
+          }, 450);
+        }, 800);
+        return;
+      }
+
+      const mult = overtones[index];
+      const freq = fundamental * mult;
+      
+      highlightSchoolKey(freq);
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(amplitudes[index], audioCtx.currentTime + 0.05);
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start();
+      oscillators.push(osc);
+      gains.push(gain);
+      
+      index++;
+      schoolDemoTimeout = setTimeout(playNextOvertone, 350);
+    }
+
+    playNextOvertone();
+  }
+
+  // TONE DEMO: Play a pure, steady sine wave
+  function playToneDemo(btn) {
+    stopSchoolDemo();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+    
+    const freq = 440;
+    highlightSchoolKey(freq);
+    
+    activeSchoolGain = audioCtx.createGain();
+    activeSchoolGain.connect(audioCtx.destination);
+    activeSchoolGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    activeSchoolGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1);
+
+    activeSchoolOscillator = audioCtx.createOscillator();
+    activeSchoolOscillator.type = 'sine';
+    activeSchoolOscillator.frequency.value = freq;
+    activeSchoolOscillator.connect(activeSchoolGain);
+    activeSchoolOscillator.start();
+
+    schoolDemoTimeout = setTimeout(() => {
+      activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+      setTimeout(() => {
+        stopSchoolDemo();
+        btn.classList.remove('playing');
+      }, 250);
+    }, 1500);
+  }
+
+  // TIMBRE DEMO: Play same note with different waveforms to show timbre differences
+  function playTimbreDemo(btn) {
+    stopSchoolDemo();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+    
+    const freq = 440; // A4
+    const waveforms = ['sine', 'triangle', 'square', 'sawtooth'];
+    let index = 0;
+    
+    function playNextTimbre() {
+      if (index >= waveforms.length) {
+        clearSchoolDemoHighlights();
+        btn.classList.remove('playing');
+        return;
+      }
+      
+      highlightSchoolKey(freq);
+      
+      activeSchoolGain = audioCtx.createGain();
+      activeSchoolGain.connect(audioCtx.destination);
+      activeSchoolGain.gain.setValueAtTime(0, audioCtx.currentTime);
+      activeSchoolGain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05);
+
+      activeSchoolOscillator = audioCtx.createOscillator();
+      activeSchoolOscillator.type = waveforms[index];
+      activeSchoolOscillator.frequency.value = freq;
+      activeSchoolOscillator.connect(activeSchoolGain);
+      activeSchoolOscillator.start();
+
+      schoolDemoTimeout = setTimeout(() => {
+        activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+        setTimeout(() => {
+          if (activeSchoolOscillator) {
+            activeSchoolOscillator.stop();
+            activeSchoolOscillator = null;
+          }
+          index++;
+          schoolDemoTimeout = setTimeout(playNextTimbre, 200);
+        }, 150);
+      }, 600);
+    }
+    
+    playNextTimbre();
+  }
+
+  // NOTE DEMO: Play C, E, G notes showing different named pitches
+  function playNoteDemo(btn) {
+    stopSchoolDemo();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    // C4, E4, G4 (a chord broken up)
+    const notes = [261.63, 329.63, 392.00];
+    let index = 0;
+
+    function playNext() {
+      clearSchoolKeyHighlights();
+      if (index >= notes.length) {
+        btn.classList.remove('playing');
+        return;
+      }
+      highlightSchoolKey(notes[index]);
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = notes[index];
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.35);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.4);
+      
+      index++;
+      schoolDemoTimeout = setTimeout(playNext, 450);
+    }
+    playNext();
+  }
+
+  // SCALE DEMO: Play C major scale
+  function playScaleDemo(btn) {
+    stopSchoolDemo();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    const scale = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+    let index = 0;
+
+    function playNext() {
+      clearSchoolKeyHighlights();
+      if (index >= scale.length) {
+        btn.classList.remove('playing');
+        return;
+      }
+      highlightSchoolKey(scale[index]);
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = scale[index];
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.22, audioCtx.currentTime + 0.03);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.22);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.25);
+      
+      index++;
+      schoolDemoTimeout = setTimeout(playNext, 280);
+    }
+    playNext();
+  }
+
+  // OCTAVE DEMO: Play same note across 3 octaves
+  function playOctaveDemo(btn) {
+    stopSchoolDemo();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    const octaves = [220, 440, 880]; // A3, A4, A5
+    let index = 0;
+
+    function playNext() {
+      clearSchoolKeyHighlights();
+      if (index >= octaves.length) {
+        btn.classList.remove('playing');
+        return;
+      }
+      highlightSchoolKey(octaves[index]);
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = octaves[index];
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.45);
+      
+      index++;
+      schoolDemoTimeout = setTimeout(playNext, 550);
+    }
+    playNext();
+  }
+
+  // Event listeners for music school dropdown
+  if (conceptSelect) {
+    // Reset to default on page load (browsers sometimes remember form values)
+    conceptSelect.value = '';
+    
+    conceptSelect.addEventListener('change', () => {
+      const concept = conceptSelect.value;
+      if (concept) {
+        showConceptExplanation(concept);
+      } else {
+        hideConceptExplanation();
+      }
+    });
+  }
+
+  if (explanationClose) {
+    explanationClose.addEventListener('click', hideConceptExplanation);
+  }
 
   // PWA: register service worker
   if ('serviceWorker' in navigator) {
