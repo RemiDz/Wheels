@@ -60,6 +60,7 @@
     
     <!-- Right: Actions -->
     <div class="page-header-actions">
+      <a href="Nestorium - User Tutorial Guide.pdf" target="_blank" rel="noopener noreferrer" class="icon-btn tutorial-btn" aria-label="Open Tutorial Guide" title="Open Tutorial Guide">📖</a>
       <button id="themeToggle" class="icon-btn theme-btn-header" aria-label="Toggle theme" title="Toggle theme">☀️</button>
       <a href="https://www.paypal.com/donate/?hosted_button_id=ABRWM7GB438R4" target="_blank" rel="noopener noreferrer" class="donate-orb" aria-label="Support via PayPal">
         <span class="orb-glow"></span>
@@ -99,7 +100,28 @@
     </div>
     <div class="mono-control-container">
       <div class="presets-section">
-        <label for="presetSelect">Presets:</label>
+        <label for="binauralPresetSelect">Binaural Beats:</label>
+        <select id="binauralPresetSelect" aria-label="Select binaural beat preset">
+          <option value="">Select state...</option>
+          <option value="delta1">Deep Sleep (1 Hz Δ)</option>
+          <option value="delta2">Sleep (2 Hz Δ)</option>
+          <option value="delta3">Lucid Dreams (3 Hz Δ)</option>
+          <option value="theta5">Deep Meditation (5 Hz Δ)</option>
+          <option value="theta6">Meditation (6 Hz Δ)</option>
+          <option value="theta7">Creativity (7 Hz Δ)</option>
+          <option value="alpha8">Light Relaxation (8 Hz Δ)</option>
+          <option value="alpha10">Calm Focus (10 Hz Δ)</option>
+          <option value="alpha12">Relaxed Alert (12 Hz Δ)</option>
+          <option value="beta15">Mental Clarity (15 Hz Δ)</option>
+          <option value="beta18">Focus (18 Hz Δ)</option>
+          <option value="beta20">Concentration (20 Hz Δ)</option>
+          <option value="beta25">High Alert (25 Hz Δ)</option>
+          <option value="gamma40">Peak Performance (40 Hz Δ)</option>
+        </select>
+      </div>
+      
+      <div class="presets-section">
+        <label for="presetSelect">Musical Intervals:</label>
         <select id="presetSelect" aria-label="Select preset">
           <option value="">Custom</option>
           <option value="0">Unison (1:1)</option>
@@ -280,6 +302,12 @@
 
   <footer class="footer">
     <p>Use headphones for binaural effect. Keep volume low for comfort.</p>
+    <div class="footer-branding">
+      <a href="https://www.harmonicsounds.com" target="_blank" rel="noopener noreferrer">
+        <img src="HarmonicSounds.webp" alt="Harmonic Sounds" class="footer-logo" />
+        <span>Harmonic Sounds®</span>
+      </a>
+    </div>
   </footer>
 </div>
 
