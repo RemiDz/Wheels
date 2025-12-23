@@ -1505,6 +1505,10 @@
       wheelL.setHz(preset.left);
       wheelR.setHz(preset.right);
       
+      // Clear binaural preset selection
+      const binauralPresetSelect = document.getElementById('binauralPresetSelect');
+      if (binauralPresetSelect) binauralPresetSelect.value = '';
+      
       // Start playing audio automatically (like piano keys)
       ensureAudio();
       if (audioCtx?.state === 'suspended') {
@@ -1522,9 +1526,58 @@
     }
   });
 
+  // Binaural Beats Presets - using lower fundamental frequencies for better sound experience
+  const binauralPresetSelect = document.getElementById('binauralPresetSelect');
+  const BINAURAL_PRESETS = {
+    'delta1': { left: 80, right: 81, name: 'Deep Sleep' },
+    'delta2': { left: 90, right: 92, name: 'Sleep' },
+    'delta3': { left: 100, right: 103, name: 'Lucid Dreams' },
+    'theta5': { left: 110, right: 115, name: 'Deep Meditation' },
+    'theta6': { left: 120, right: 126, name: 'Meditation' },
+    'theta7': { left: 130, right: 137, name: 'Creativity' },
+    'alpha8': { left: 140, right: 148, name: 'Light Relaxation' },
+    'alpha10': { left: 150, right: 160, name: 'Calm Focus' },
+    'alpha12': { left: 160, right: 172, name: 'Relaxed Alert' },
+    'beta15': { left: 170, right: 185, name: 'Mental Clarity' },
+    'beta18': { left: 180, right: 198, name: 'Focus' },
+    'beta20': { left: 190, right: 210, name: 'Concentration' },
+    'beta25': { left: 200, right: 225, name: 'High Alert' },
+    'gamma40': { left: 210, right: 250, name: 'Peak Performance' }
+  };
+  
+  binauralPresetSelect?.addEventListener('change', () => {
+    const presetKey = binauralPresetSelect.value;
+    if (presetKey && BINAURAL_PRESETS[presetKey]) {
+      const preset = BINAURAL_PRESETS[presetKey];
+      isApplyingPreset = true;
+      isProgrammaticChange = true;
+      wheelL.setHz(preset.left);
+      wheelR.setHz(preset.right);
+      
+      // Clear musical preset selection
+      if (presetSelect) presetSelect.value = '';
+      
+      // Start playing audio automatically
+      ensureAudio();
+      if (audioCtx?.state === 'suspended') {
+        audioCtx.resume().catch(()=>{});
+      }
+      startAudio();
+      setTransportActive('play');
+      
+      scheduleOscillatorSync();
+      // Reset flags after a short delay to allow wheel changes to complete
+      setTimeout(() => { 
+        isApplyingPreset = false;
+        isProgrammaticChange = false;
+      }, 100);
+    }
+  });
+
   wheelL.setOnChange(() => { 
-    if (!isApplyingPreset && presetSelect) {
-      presetSelect.value = '';
+    if (!isApplyingPreset) {
+      if (presetSelect) presetSelect.value = '';
+      if (binauralPresetSelect) binauralPresetSelect.value = '';
     }
     
     // Auto-play when user interacts directly with wheels
@@ -1540,8 +1593,9 @@
     scheduleOscillatorSync();
   });
   wheelR.setOnChange(() => { 
-    if (!isApplyingPreset && presetSelect) {
-      presetSelect.value = '';
+    if (!isApplyingPreset) {
+      if (presetSelect) presetSelect.value = '';
+      if (binauralPresetSelect) binauralPresetSelect.value = '';
     }
     
     // Auto-play when user interacts directly with wheels
@@ -3251,6 +3305,7 @@
     wheelL.reset();
     wheelR.reset();
     if (presetSelect) presetSelect.value = '';
+    if (binauralPresetSelect) binauralPresetSelect.value = '';
     // Reset mono volume to 0%
     updateMonoVolume(0);
     // Reset fine-tune offset and rotation
