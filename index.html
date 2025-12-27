@@ -60,7 +60,7 @@
     
     <!-- Right: Actions -->
     <div class="page-header-actions">
-      <a href="Nestorium_Tutorial.pdf" target="_blank" rel="noopener noreferrer" class="icon-btn tutorial-btn" aria-label="Open Tutorial Guide" title="Open Tutorial Guide">📖</a>
+      <a href="Nestorium%20-%20User%20Tutorial%20Guide.pdf" target="_blank" rel="noopener noreferrer" class="icon-btn tutorial-btn" aria-label="Open Tutorial Guide" title="Open Tutorial Guide">📖</a>
       <button id="themeToggle" class="icon-btn theme-btn-header" aria-label="Toggle theme" title="Toggle theme">☀️</button>
       <a href="https://www.paypal.com/donate/?hosted_button_id=ABRWM7GB438R4" target="_blank" rel="noopener noreferrer" class="donate-orb" aria-label="Support via PayPal">
         <span class="orb-glow"></span>
@@ -220,6 +220,169 @@
       </div>
     </div>
   </div>
+
+  <!-- Guided Journeys Section -->
+  <section class="programs-section collapsed" id="programsSection" aria-label="Guided Journeys">
+    <button class="programs-toggle" id="programsToggle" aria-expanded="false" aria-controls="programsContent">
+      <div class="programs-toggle-content">
+        <span class="programs-icon">✨</span>
+        <span class="programs-toggle-text">Guided Journeys</span>
+        <span class="programs-toggle-hint">Binaural meditation experiences</span>
+      </div>
+      <span class="programs-toggle-arrow">▼</span>
+    </button>
+    
+    <div class="programs-content" id="programsContent" hidden>
+    <div class="programs-header">
+      <div class="programs-title-row">
+        <span class="programs-icon">✨</span>
+        <h2>Guided Journeys</h2>
+      </div>
+      <p class="programs-subtitle">Binaural meditation experiences • Headphones required</p>
+    </div>
+    
+    <div class="programs-controls">
+      <div class="program-select-wrapper">
+        <label for="programSelect">Choose Journey:</label>
+        <select id="programSelect" aria-label="Select guided journey">
+          <option value="">Select a journey...</option>
+          <option value="deep-calm">🌊 Deep Calm (15 min) - Beta → Theta</option>
+          <option value="focus-reset">🎯 Focus Reset (12 min) - Stress → Alpha</option>
+          <option value="sleep-prep">🌙 Sleep Preparation (20 min) - To Delta</option>
+          <option value="creative-flow">🎨 Creative Flow (15 min) - Alpha/Theta</option>
+          <option value="quick-refresh">⚡ Quick Refresh (8 min) - Fast Reset</option>
+        </select>
+      </div>
+      
+      <div class="program-actions">
+        <button id="programStart" class="program-btn start-btn" disabled>
+          <span class="btn-icon">▶</span>
+          <span class="btn-text">Begin Journey</span>
+        </button>
+        <button id="programStop" class="program-btn stop-btn" disabled>
+          <span class="btn-icon">■</span>
+          <span class="btn-text">Stop</span>
+        </button>
+      </div>
+    </div>
+    
+    <div class="program-display" id="programDisplay" style="display: none;">
+      <div class="program-info-panel">
+        <div class="program-current-name" id="programCurrentName">—</div>
+        <div class="program-timer">
+          <span class="timer-elapsed" id="programElapsed">00:00</span>
+          <span class="timer-separator">/</span>
+          <span class="timer-total" id="programTotal">00:00</span>
+        </div>
+      </div>
+      
+      <div class="program-progress-container">
+        <div class="program-progress-track">
+          <div class="program-progress-fill" id="programProgressFill"></div>
+          <div class="program-phase-markers" id="programPhaseMarkers"></div>
+        </div>
+      </div>
+      
+      <div class="program-phase-display">
+        <div class="phase-indicator">
+          <div class="phase-badge" id="phaseBadge">Phase 1</div>
+          <div class="phase-name" id="phaseName">—</div>
+        </div>
+        <div class="phase-frequencies">
+          <div class="freq-item">
+            <span class="freq-label">Left Ear</span>
+            <span class="freq-value" id="phaseFreqL">— Hz</span>
+          </div>
+          <div class="freq-item binaural">
+            <span class="freq-label">Binaural Beat</span>
+            <span class="freq-value" id="phaseBinaural">— Hz</span>
+          </div>
+          <div class="freq-item">
+            <span class="freq-label">Right Ear</span>
+            <span class="freq-value" id="phaseFreqR">— Hz</span>
+          </div>
+        </div>
+        <div class="phase-description" id="phaseDescription">—</div>
+      </div>
+    </div>
+    
+    <div class="program-info-cards" id="programInfoCards">
+      <div class="info-card" data-program="deep-calm">
+        <div class="info-card-header">
+          <span class="card-icon">🌊</span>
+          <h3>Deep Calm</h3>
+          <span class="card-duration">15 min</span>
+        </div>
+        <p>Transition from busy mind to peaceful theta state. Ideal for after work, anxiety relief, or preparing for meditation.</p>
+        <div class="card-phases">
+          <span class="phase-tag beta">14Hz Beta Bridge</span>
+          <span class="phase-tag alpha">10Hz Alpha</span>
+          <span class="phase-tag theta">8Hz Pre-Theta</span>
+          <span class="phase-tag deep">6Hz Theta</span>
+        </div>
+      </div>
+      
+      <div class="info-card" data-program="focus-reset">
+        <div class="info-card-header">
+          <span class="card-icon">🎯</span>
+          <h3>Focus Reset</h3>
+          <span class="card-duration">12 min</span>
+        </div>
+        <p>Clear mental fog and restore alertness. Perfect for midday energy dips or before important tasks.</p>
+        <div class="card-phases">
+          <span class="phase-tag alpha">12Hz Relaxed Alert</span>
+          <span class="phase-tag alpha">10Hz Stabilize</span>
+          <span class="phase-tag beta">14Hz Energize</span>
+        </div>
+      </div>
+      
+      <div class="info-card" data-program="sleep-prep">
+        <div class="info-card-header">
+          <span class="card-icon">🌙</span>
+          <h3>Sleep Preparation</h3>
+          <span class="card-duration">20 min</span>
+        </div>
+        <p>Gradual descent into deep delta for restful sleep. Use in bed with timer to stop playback.</p>
+        <div class="card-phases">
+          <span class="phase-tag alpha">10Hz Unwind</span>
+          <span class="phase-tag theta">6Hz Deep Calm</span>
+          <span class="phase-tag delta">3Hz Pre-Sleep</span>
+          <span class="phase-tag delta">1Hz Deep Delta</span>
+        </div>
+      </div>
+      
+      <div class="info-card" data-program="creative-flow">
+        <div class="info-card-header">
+          <span class="card-icon">🎨</span>
+          <h3>Creative Flow</h3>
+          <span class="card-duration">15 min</span>
+        </div>
+        <p>Access the alpha-theta border where creativity flourishes. Great for brainstorming, art, and problem-solving.</p>
+        <div class="card-phases">
+          <span class="phase-tag alpha">10Hz Relax</span>
+          <span class="phase-tag theta">7.5Hz Flow State</span>
+          <span class="phase-tag theta">7Hz Deep Flow</span>
+          <span class="phase-tag alpha">8Hz Integration</span>
+        </div>
+      </div>
+      
+      <div class="info-card" data-program="quick-refresh">
+        <div class="info-card-header">
+          <span class="card-icon">⚡</span>
+          <h3>Quick Refresh</h3>
+          <span class="card-duration">8 min</span>
+        </div>
+        <p>Fast mental reset when time is limited. Quick dive to alpha and back for rapid stress relief.</p>
+        <div class="card-phases">
+          <span class="phase-tag beta">12Hz Settle</span>
+          <span class="phase-tag alpha">10Hz Refresh</span>
+          <span class="phase-tag alpha">8Hz Rest</span>
+          <span class="phase-tag beta">10Hz Return</span>
+        </div>
+      </div>
+    </div>
+    </div><!-- end programs-content -->
+  </section>
 
   <section class="music-school-section" id="musicSchoolSection" aria-label="Music Theory Learning">
     <div class="school-header-compact">
