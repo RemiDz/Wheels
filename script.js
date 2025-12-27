@@ -668,6 +668,47 @@
     stopHarmonicOscillators();
     setTransportActive('stop');
   }
+  
+  // Fade out audio smoothly over specified duration (in seconds)
+  function fadeOutAudio(duration = 3) {
+    return new Promise((resolve) => {
+      if (!audioCtx) {
+        resolve();
+        return;
+      }
+      
+      const now = audioCtx.currentTime;
+      const fadeEnd = now + duration;
+      
+      // Fade out wheel gains
+      if (wheel1?.gain) {
+        try {
+          wheel1.gain.gain.setValueAtTime(wheel1.gain.gain.value, now);
+          wheel1.gain.gain.linearRampToValueAtTime(0, fadeEnd);
+        } catch(e) {}
+      }
+      if (wheel2?.gain) {
+        try {
+          wheel2.gain.gain.setValueAtTime(wheel2.gain.gain.value, now);
+          wheel2.gain.gain.linearRampToValueAtTime(0, fadeEnd);
+        } catch(e) {}
+      }
+      
+      // Fade out mono gain
+      if (monoGain) {
+        try {
+          monoGain.gain.setValueAtTime(monoGain.gain.value, now);
+          monoGain.gain.linearRampToValueAtTime(0, fadeEnd);
+        } catch(e) {}
+      }
+      
+      // Wait for fade to complete, then stop oscillators
+      setTimeout(() => {
+        stopAudio();
+        resolve();
+      }, duration * 1000 + 100);
+    });
+  }
   function setFreq(osc, hz){
     if (!osc) return;
     const now = audioCtx.currentTime;
@@ -4090,6 +4131,550 @@
 
   if (explanationClose) {
     explanationClose.addEventListener('click', hideConceptExplanation);
+  }
+
+  // ===== RELAXATION PROGRAMS =====
+  
+  // Program definitions with phases
+  const RELAXATION_PROGRAMS = {
+    'deep-calm': {
+      name: '🌊 Deep Calm',
+      duration: 15 * 60, // 15 minutes in seconds
+      description: 'Transition from busy mind to peaceful theta state',
+      phases: [
+        {
+          name: 'Arrival & Settling',
+          duration: 3 * 60, // 3 minutes
+          leftHz: 200,
+          rightHz: 214,
+          binauralHz: 14,
+          description: 'Gentle disengagement from analytical overdrive'
+        },
+        {
+          name: 'Alpha Stabilization',
+          duration: 4 * 60, // 4 minutes
+          leftHz: 200,
+          rightHz: 210,
+          binauralHz: 10,
+          description: 'Calm focus, emotional settling - the gateway state'
+        },
+        {
+          name: 'Pre-Theta Descent',
+          duration: 4 * 60, // 4 minutes
+          leftHz: 200,
+          rightHz: 208,
+          binauralHz: 8,
+          description: 'Mental quiet, inner spaciousness emerges'
+        },
+        {
+          name: 'Theta Rest',
+          duration: 3 * 60, // 3 minutes
+          leftHz: 200,
+          rightHz: 206,
+          binauralHz: 6,
+          description: 'Deep nervous system rest and integration'
+        },
+        {
+          name: 'Gentle Return',
+          duration: 1 * 60, // 1 minute
+          leftHz: 200,
+          rightHz: 200,
+          binauralHz: 0,
+          description: 'Smooth re-orientation to waking awareness'
+        }
+      ]
+    },
+    'focus-reset': {
+      name: '🎯 Focus Reset',
+      duration: 12 * 60, // 12 minutes
+      description: 'Clear mental fog and restore alertness',
+      phases: [
+        {
+          name: 'Stress Release',
+          duration: 3 * 60,
+          leftHz: 180,
+          rightHz: 192,
+          binauralHz: 12,
+          description: 'Releasing tension and mental clutter'
+        },
+        {
+          name: 'Alpha Stabilize',
+          duration: 4 * 60,
+          leftHz: 180,
+          rightHz: 190,
+          binauralHz: 10,
+          description: 'Establishing calm, centered awareness'
+        },
+        {
+          name: 'Refresh Zone',
+          duration: 3 * 60,
+          leftHz: 180,
+          rightHz: 188,
+          binauralHz: 8,
+          description: 'Deep refresh and mental clarity'
+        },
+        {
+          name: 'Re-Energize',
+          duration: 2 * 60,
+          leftHz: 180,
+          rightHz: 194,
+          binauralHz: 14,
+          description: 'Returning with renewed focus and energy'
+        }
+      ]
+    },
+    'sleep-prep': {
+      name: '🌙 Sleep Preparation',
+      duration: 20 * 60, // 20 minutes
+      description: 'Gradual descent into deep delta for restful sleep',
+      phases: [
+        {
+          name: 'Unwinding',
+          duration: 4 * 60,
+          leftHz: 150,
+          rightHz: 160,
+          binauralHz: 10,
+          description: 'Letting go of the day, body relaxation begins'
+        },
+        {
+          name: 'Theta Drift',
+          duration: 5 * 60,
+          leftHz: 150,
+          rightHz: 156,
+          binauralHz: 6,
+          description: 'Thoughts become distant, dreamy state'
+        },
+        {
+          name: 'Pre-Sleep',
+          duration: 5 * 60,
+          leftHz: 150,
+          rightHz: 153,
+          binauralHz: 3,
+          description: 'Approaching the edge of sleep'
+        },
+        {
+          name: 'Deep Delta',
+          duration: 5 * 60,
+          leftHz: 150,
+          rightHz: 151,
+          binauralHz: 1,
+          description: 'Deep restorative delta wave state'
+        },
+        {
+          name: 'Sleep Fade',
+          duration: 1 * 60,
+          leftHz: 150,
+          rightHz: 150.5,
+          binauralHz: 0.5,
+          description: 'Gentle fade into natural sleep'
+        }
+      ]
+    },
+    'creative-flow': {
+      name: '🎨 Creative Flow',
+      duration: 15 * 60, // 15 minutes
+      description: 'Access the alpha-theta border for creativity',
+      phases: [
+        {
+          name: 'Settling In',
+          duration: 3 * 60,
+          leftHz: 220,
+          rightHz: 230,
+          binauralHz: 10,
+          description: 'Relaxing the analytical mind'
+        },
+        {
+          name: 'Flow Gateway',
+          duration: 4 * 60,
+          leftHz: 220,
+          rightHz: 227.5,
+          binauralHz: 7.5,
+          description: 'Entering the alpha-theta borderland'
+        },
+        {
+          name: 'Deep Flow',
+          duration: 5 * 60,
+          leftHz: 220,
+          rightHz: 227,
+          binauralHz: 7,
+          description: 'Creative insights and ideas emerge freely'
+        },
+        {
+          name: 'Integration',
+          duration: 3 * 60,
+          leftHz: 220,
+          rightHz: 228,
+          binauralHz: 8,
+          description: 'Consolidating creative insights'
+        }
+      ]
+    },
+    'quick-refresh': {
+      name: '⚡ Quick Refresh',
+      duration: 8 * 60, // 8 minutes
+      description: 'Fast mental reset when time is limited',
+      phases: [
+        {
+          name: 'Quick Settle',
+          duration: 1.5 * 60,
+          leftHz: 200,
+          rightHz: 212,
+          binauralHz: 12,
+          description: 'Rapid transition from busy state'
+        },
+        {
+          name: 'Refresh',
+          duration: 2.5 * 60,
+          leftHz: 200,
+          rightHz: 210,
+          binauralHz: 10,
+          description: 'Core alpha refresh zone'
+        },
+        {
+          name: 'Micro-Rest',
+          duration: 2 * 60,
+          leftHz: 200,
+          rightHz: 208,
+          binauralHz: 8,
+          description: 'Brief theta touch for mental reset'
+        },
+        {
+          name: 'Quick Return',
+          duration: 2 * 60,
+          leftHz: 200,
+          rightHz: 210,
+          binauralHz: 10,
+          description: 'Energized return to alertness'
+        }
+      ]
+    }
+  };
+  
+  // Program state
+  let programRunning = false;
+  let programStartTime = null;
+  let programAnimationFrame = null;
+  let currentProgram = null;
+  let currentPhaseIndex = 0;
+  let programTransitionInterval = null;
+  
+  // DOM elements
+  const programSelect = document.getElementById('programSelect');
+  const programStart = document.getElementById('programStart');
+  const programStop = document.getElementById('programStop');
+  const programDisplay = document.getElementById('programDisplay');
+  const programSection = document.querySelector('.programs-section');
+  const programInfoCards = document.getElementById('programInfoCards');
+  const programsToggle = document.getElementById('programsToggle');
+  const programsContent = document.getElementById('programsContent');
+  
+  // Toggle programs section visibility
+  if (programsToggle && programsContent && programSection) {
+    programsToggle.addEventListener('click', () => {
+      const isCollapsed = programSection.classList.contains('collapsed');
+      
+      if (isCollapsed) {
+        // Expand
+        programSection.classList.remove('collapsed');
+        programsContent.hidden = false;
+        programsToggle.setAttribute('aria-expanded', 'true');
+      } else {
+        // Collapse (only if no program is running)
+        if (!programRunning) {
+          programSection.classList.add('collapsed');
+          programsContent.hidden = true;
+          programsToggle.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
+  }
+  
+  // Format time as MM:SS
+  function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+  
+  // Get current phase based on elapsed time
+  function getCurrentPhase(program, elapsedSeconds) {
+    let accumulated = 0;
+    for (let i = 0; i < program.phases.length; i++) {
+      accumulated += program.phases[i].duration;
+      if (elapsedSeconds < accumulated) {
+        return {
+          phase: program.phases[i],
+          index: i,
+          phaseElapsed: elapsedSeconds - (accumulated - program.phases[i].duration),
+          phaseRemaining: accumulated - elapsedSeconds
+        };
+      }
+    }
+    // Return last phase if somehow exceeded
+    return {
+      phase: program.phases[program.phases.length - 1],
+      index: program.phases.length - 1,
+      phaseElapsed: program.phases[program.phases.length - 1].duration,
+      phaseRemaining: 0
+    };
+  }
+  
+  // Calculate phase markers for progress bar
+  function createPhaseMarkers(program) {
+    const markersContainer = document.getElementById('programPhaseMarkers');
+    if (!markersContainer) return;
+    markersContainer.innerHTML = '';
+    
+    let accumulated = 0;
+    for (let i = 0; i < program.phases.length - 1; i++) {
+      accumulated += program.phases[i].duration;
+      const percent = (accumulated / program.duration) * 100;
+      
+      const marker = document.createElement('div');
+      marker.className = 'phase-marker';
+      marker.style.left = `${percent}%`;
+      marker.dataset.phase = `P${i + 2}`;
+      markersContainer.appendChild(marker);
+    }
+  }
+  
+  // Smooth frequency transition
+  function setWheelFrequencySmoothly(wheel, targetHz, durationMs = 2000) {
+    const currentHz = wheel.getHz();
+    const startTime = performance.now();
+    const diff = targetHz - currentHz;
+    
+    function animate() {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(elapsed / durationMs, 1);
+      // Ease in-out cubic
+      const eased = progress < 0.5 
+        ? 4 * progress * progress * progress 
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      
+      const newHz = currentHz + diff * eased;
+      wheel.setHz(newHz);
+      
+      if (progress < 1 && programRunning) {
+        requestAnimationFrame(animate);
+      }
+    }
+    
+    requestAnimationFrame(animate);
+  }
+  
+  // Update wheel frequencies for current phase
+  function updateProgramFrequencies(phase, phaseProgress) {
+    // Get next phase for smooth transition near phase boundaries
+    const nextPhaseIndex = currentPhaseIndex + 1;
+    const hasNextPhase = currentProgram && nextPhaseIndex < currentProgram.phases.length;
+    
+    let targetLeft = phase.leftHz;
+    let targetRight = phase.rightHz;
+    
+    // If within last 5 seconds of phase and there's a next phase, start transitioning
+    if (hasNextPhase && phase.duration - (phase.duration * phaseProgress) < 5) {
+      const nextPhase = currentProgram.phases[nextPhaseIndex];
+      const transitionProgress = 1 - ((phase.duration - (phase.duration * phaseProgress)) / 5);
+      targetLeft = phase.leftHz + (nextPhase.leftHz - phase.leftHz) * transitionProgress;
+      targetRight = phase.rightHz + (nextPhase.rightHz - phase.rightHz) * transitionProgress;
+    }
+    
+    // Set frequencies on the wheels
+    wheelL.setHz(targetLeft);
+    wheelR.setHz(targetRight);
+    
+    // Update the audio
+    updateOscillators();
+  }
+  
+  // Update program display
+  function updateProgramDisplay(elapsed) {
+    if (!currentProgram) return;
+    
+    const phaseInfo = getCurrentPhase(currentProgram, elapsed);
+    const { phase, index, phaseElapsed } = phaseInfo;
+    const phaseProgress = phaseElapsed / phase.duration;
+    
+    // Update timer
+    document.getElementById('programElapsed').textContent = formatTime(elapsed);
+    document.getElementById('programTotal').textContent = formatTime(currentProgram.duration);
+    
+    // Update progress bar
+    const progressPercent = (elapsed / currentProgram.duration) * 100;
+    document.getElementById('programProgressFill').style.width = `${progressPercent}%`;
+    
+    // Update phase display
+    document.getElementById('phaseBadge').textContent = `Phase ${index + 1} of ${currentProgram.phases.length}`;
+    document.getElementById('phaseName').textContent = phase.name;
+    document.getElementById('phaseFreqL').textContent = `${phase.leftHz.toFixed(1)} Hz`;
+    document.getElementById('phaseFreqR').textContent = `${phase.rightHz.toFixed(1)} Hz`;
+    document.getElementById('phaseBinaural').textContent = `${phase.binauralHz.toFixed(1)} Hz`;
+    document.getElementById('phaseDescription').textContent = phase.description;
+    
+    // Update frequencies if phase changed
+    if (index !== currentPhaseIndex) {
+      currentPhaseIndex = index;
+      // Smooth transition to new phase frequencies
+      setWheelFrequencySmoothly(wheelL, phase.leftHz, 3000);
+      setWheelFrequencySmoothly(wheelR, phase.rightHz, 3000);
+    } else {
+      // Micro-adjustments for smooth transitions
+      updateProgramFrequencies(phase, phaseProgress);
+    }
+    
+    return elapsed >= currentProgram.duration;
+  }
+  
+  // Main program loop
+  function programLoop() {
+    if (!programRunning || !programStartTime) return;
+    
+    const elapsed = (Date.now() - programStartTime) / 1000;
+    const finished = updateProgramDisplay(elapsed);
+    
+    if (finished) {
+      stopProgram();
+      return;
+    }
+    
+    programAnimationFrame = requestAnimationFrame(programLoop);
+  }
+  
+  // Start program
+  async function startProgram(programId) {
+    const program = RELAXATION_PROGRAMS[programId];
+    if (!program) return;
+    
+    currentProgram = program;
+    currentPhaseIndex = -1; // Will be set to 0 on first update
+    
+    // Ensure audio is ready
+    ensureAudio();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+    
+    // Set initial frequencies
+    const firstPhase = program.phases[0];
+    wheelL.setHz(firstPhase.leftHz);
+    wheelR.setHz(firstPhase.rightHz);
+    
+    // Start audio
+    startAudio();
+    setTransportActive('play');
+    
+    // Show program display
+    programDisplay.style.display = 'block';
+    programSection.classList.add('is-running');
+    document.getElementById('programCurrentName').textContent = program.name;
+    
+    // Create phase markers
+    createPhaseMarkers(program);
+    
+    // Update UI
+    programStart.classList.add('is-playing');
+    programStart.querySelector('.btn-text').textContent = 'Journeying...';
+    programStart.disabled = true;
+    programStop.disabled = false;
+    programSelect.disabled = true;
+    
+    // Start timer
+    programStartTime = Date.now();
+    programRunning = true;
+    programLoop();
+  }
+  
+  // Stop program with optional fade out
+  let programFadingOut = false;
+  
+  async function stopProgram(immediate = false) {
+    // Prevent multiple fade-outs
+    if (programFadingOut) return;
+    
+    programRunning = false;
+    programStartTime = null;
+    currentPhaseIndex = 0;
+    
+    if (programAnimationFrame) {
+      cancelAnimationFrame(programAnimationFrame);
+      programAnimationFrame = null;
+    }
+    
+    if (programTransitionInterval) {
+      clearInterval(programTransitionInterval);
+      programTransitionInterval = null;
+    }
+    
+    // Update button to show fading state
+    if (!immediate) {
+      programFadingOut = true;
+      programStart.querySelector('.btn-text').textContent = 'Ending...';
+      
+      // Fade out audio over 3 seconds
+      await fadeOutAudio(3);
+      
+      programFadingOut = false;
+    } else {
+      // Immediate stop (no fade)
+      stopAudio();
+    }
+    
+    currentProgram = null;
+    
+    // Hide program display
+    programDisplay.style.display = 'none';
+    programSection.classList.remove('is-running');
+    
+    // Reset UI
+    programStart.classList.remove('is-playing');
+    programStart.querySelector('.btn-text').textContent = 'Begin Journey';
+    programStart.disabled = !programSelect.value;
+    programStop.disabled = true;
+    programSelect.disabled = false;
+  }
+  
+  // Event listeners
+  if (programSelect) {
+    programSelect.addEventListener('change', () => {
+      const value = programSelect.value;
+      programStart.disabled = !value;
+      
+      // Highlight selected info card
+      document.querySelectorAll('.info-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.program === value);
+      });
+    });
+  }
+  
+  if (programStart) {
+    programStart.addEventListener('click', () => {
+      if (programRunning) {
+        // Already running - do nothing (pause not supported for programs)
+        return;
+      }
+      const programId = programSelect.value;
+      if (programId) {
+        startProgram(programId);
+      }
+    });
+  }
+  
+  if (programStop) {
+    programStop.addEventListener('click', () => {
+      stopProgram();
+    });
+  }
+  
+  // Info card click to select program
+  if (programInfoCards) {
+    programInfoCards.addEventListener('click', (e) => {
+      const card = e.target.closest('.info-card');
+      if (card && card.dataset.program) {
+        programSelect.value = card.dataset.program;
+        programSelect.dispatchEvent(new Event('change'));
+      }
+    });
   }
 
   // PWA: register service worker
