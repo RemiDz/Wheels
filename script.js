@@ -4347,6 +4347,233 @@
           description: 'Energized return to alertness'
         }
       ]
+    },
+    'manifestation': {
+      name: '✨ Manifestation',
+      duration: 18 * 60, // 18 minutes
+      description: 'Access deep theta for visualization and intention setting',
+      phases: [
+        {
+          name: 'Centering & Grounding',
+          duration: 3 * 60,
+          leftHz: 210,
+          rightHz: 220,
+          binauralHz: 10,
+          description: 'Calming the mind, creating a receptive alpha state'
+        },
+        {
+          name: 'Heart Coherence',
+          duration: 4 * 60,
+          leftHz: 210,
+          rightHz: 218,
+          binauralHz: 8,
+          description: 'Opening to gratitude and positive emotion'
+        },
+        {
+          name: 'Vision Expansion',
+          duration: 5 * 60,
+          leftHz: 210,
+          rightHz: 217,
+          binauralHz: 7,
+          description: 'Deep theta visualization and intention setting'
+        },
+        {
+          name: 'Belief Anchoring',
+          duration: 4 * 60,
+          leftHz: 210,
+          rightHz: 217.83,
+          binauralHz: 7.83,
+          description: 'Schumann resonance alignment - grounding your vision'
+        },
+        {
+          name: 'Integration',
+          duration: 2 * 60,
+          leftHz: 210,
+          rightHz: 220,
+          binauralHz: 10,
+          description: 'Sealing practice and returning with clear intention'
+        }
+      ]
+    },
+    'morning-awakening': {
+      name: '🌅 Morning Awakening',
+      duration: 10 * 60, // 10 minutes
+      description: 'Start your day with mental clarity and natural energy',
+      phases: [
+        {
+          name: 'Gentle Wake',
+          duration: 2 * 60,
+          leftHz: 200,
+          rightHz: 208,
+          binauralHz: 8,
+          description: 'Soft awakening from rest, gentle alpha embrace'
+        },
+        {
+          name: 'Mind Clear',
+          duration: 3 * 60,
+          leftHz: 200,
+          rightHz: 210,
+          binauralHz: 10,
+          description: 'Clearing mental fog, sharpening awareness'
+        },
+        {
+          name: 'Energy Rise',
+          duration: 3 * 60,
+          leftHz: 200,
+          rightHz: 214,
+          binauralHz: 14,
+          description: 'Building natural alertness and motivation'
+        },
+        {
+          name: 'Ready State',
+          duration: 2 * 60,
+          leftHz: 200,
+          rightHz: 218,
+          binauralHz: 18,
+          description: 'Full wakefulness, ready to seize the day'
+        }
+      ]
+    },
+    'anxiety-release': {
+      name: '💜 Anxiety Release',
+      duration: 15 * 60, // 15 minutes
+      description: 'Soothe an anxious mind and calm your nervous system',
+      phases: [
+        {
+          name: 'Acknowledge',
+          duration: 3 * 60,
+          leftHz: 180,
+          rightHz: 192,
+          binauralHz: 12,
+          description: 'Meeting yourself where you are with compassion'
+        },
+        {
+          name: 'Breath Sync',
+          duration: 4 * 60,
+          leftHz: 180,
+          rightHz: 190,
+          binauralHz: 10,
+          description: 'Calming the nervous system, slowing the breath'
+        },
+        {
+          name: 'Release',
+          duration: 4 * 60,
+          leftHz: 180,
+          rightHz: 187,
+          binauralHz: 7,
+          description: 'Letting go of tension and worried thoughts'
+        },
+        {
+          name: 'Peace',
+          duration: 3 * 60,
+          leftHz: 180,
+          rightHz: 186,
+          binauralHz: 6,
+          description: 'Deep calm and safety, theta sanctuary'
+        },
+        {
+          name: 'Ground',
+          duration: 1 * 60,
+          leftHz: 180,
+          rightHz: 188,
+          binauralHz: 8,
+          description: 'Gentle return feeling centered and safe'
+        }
+      ]
+    },
+    'lucid-dreaming': {
+      name: '🔮 Lucid Dreaming',
+      duration: 20 * 60, // 20 minutes
+      description: 'Prepare your mind for conscious dreaming',
+      phases: [
+        {
+          name: 'Relaxation',
+          duration: 4 * 60,
+          leftHz: 160,
+          rightHz: 170,
+          binauralHz: 10,
+          description: 'Deep body relaxation, releasing physical tension'
+        },
+        {
+          name: 'Hypnagogia',
+          duration: 5 * 60,
+          leftHz: 160,
+          rightHz: 166,
+          binauralHz: 6,
+          description: 'Approaching the hypnagogic threshold'
+        },
+        {
+          name: 'REM Preparation',
+          duration: 5 * 60,
+          leftHz: 160,
+          rightHz: 164,
+          binauralHz: 4,
+          description: 'Theta-delta border, dream imagery emerges'
+        },
+        {
+          name: 'Dream Gate',
+          duration: 5 * 60,
+          leftHz: 160,
+          rightHz: 163,
+          binauralHz: 3,
+          description: 'Edge of sleep, consciousness floating'
+        },
+        {
+          name: 'Lucid Hold',
+          duration: 1 * 60,
+          leftHz: 160,
+          rightHz: 165,
+          binauralHz: 5,
+          description: 'Maintaining awareness thread into dreams'
+        }
+      ]
+    },
+    'healing-harmony': {
+      name: '💚 Healing Harmony',
+      duration: 16 * 60, // 16 minutes
+      description: 'Support physical and emotional recovery',
+      phases: [
+        {
+          name: 'Sanctuary',
+          duration: 3 * 60,
+          leftHz: 174,
+          rightHz: 184,
+          binauralHz: 10,
+          description: 'Creating a safe, nurturing inner space'
+        },
+        {
+          name: 'Cell Renewal',
+          duration: 4 * 60,
+          leftHz: 174,
+          rightHz: 181.83,
+          binauralHz: 7.83,
+          description: 'Schumann resonance for Earth-aligned healing'
+        },
+        {
+          name: 'Deep Restore',
+          duration: 5 * 60,
+          leftHz: 174,
+          rightHz: 178,
+          binauralHz: 4,
+          description: 'Deep delta healing state, cellular regeneration'
+        },
+        {
+          name: 'Integration',
+          duration: 3 * 60,
+          leftHz: 174,
+          rightHz: 180,
+          binauralHz: 6,
+          description: 'Integrating healing throughout body and mind'
+        },
+        {
+          name: 'Emergence',
+          duration: 1 * 60,
+          leftHz: 174,
+          rightHz: 184,
+          binauralHz: 10,
+          description: 'Returning refreshed and renewed'
+        }
+      ]
     }
   };
   
@@ -5286,6 +5513,377 @@
             pulseRate: 0.4
           },
           description: 'Perfect alignment in harmonic coherence'
+        }
+      ]
+    },
+    'zen-garden': {
+      name: '🧘 Zen Garden',
+      duration: 13 * 60, // 13 minutes
+      description: 'Tranquil harmonic intervals for mindful stillness',
+      phases: [
+        {
+          name: 'Stone Garden',
+          duration: 2.5 * 60,
+          baseHz: 174, // Near solfeggio 174Hz
+          binauralHz: 8,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'zen-stillness',
+            harmonicSpread: 0.01,
+            waveSpeed: 0.05,
+            breathCycle: 12
+          },
+          description: 'Grounding in pure unison, absolute stillness'
+        },
+        {
+          name: 'Bamboo Flow',
+          duration: 3 * 60,
+          baseHz: 164.8, // E3
+          binauralHz: 7,
+          progression: 'oceanic',
+          modulation: { 
+            type: 'zen-flow',
+            harmonicSpread: 0.015,
+            waveSpeed: 0.04,
+            breathCycle: 14
+          },
+          description: 'Perfect fourths like bamboo swaying gently'
+        },
+        {
+          name: 'Koi Pond',
+          duration: 3.5 * 60,
+          baseHz: 155.6, // Eb3
+          binauralHz: 6,
+          progression: 'dreamy',
+          modulation: { 
+            type: 'zen-ripple',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.03,
+            breathCycle: 16
+          },
+          description: 'Fifths ripple like water, spacious awareness'
+        },
+        {
+          name: 'Tea Ceremony',
+          duration: 2.5 * 60,
+          baseHz: 146.8, // D3
+          binauralHz: 5,
+          progression: 'ethereal',
+          modulation: { 
+            type: 'zen-ceremony',
+            harmonicSpread: 0.018,
+            waveSpeed: 0.025,
+            breathCycle: 18
+          },
+          description: 'Major sixths in contemplative reflection'
+        },
+        {
+          name: 'Temple Bell',
+          duration: 1.5 * 60,
+          baseHz: 174,
+          binauralHz: 8,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'zen-return',
+            harmonicSpread: 0.012,
+            waveSpeed: 0.08,
+            breathCycle: 10
+          },
+          description: 'Returning to grounding unison, bell fades'
+        }
+      ]
+    },
+    'energy-vortex': {
+      name: '⚡ Energy Vortex',
+      duration: 11 * 60, // 11 minutes
+      description: 'Dynamic harmonic spirals for vitality and alertness',
+      phases: [
+        {
+          name: 'Ignition',
+          duration: 2 * 60,
+          baseHz: 196, // G3
+          binauralHz: 12,
+          progression: 'uplifting',
+          modulation: { 
+            type: 'vortex-ignite',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.25,
+            pulseRate: 0.6
+          },
+          description: 'Perfect fifths spark the energy field'
+        },
+        {
+          name: 'Acceleration',
+          duration: 3 * 60,
+          baseHz: 220, // A3
+          binauralHz: 15,
+          progression: 'uplifting',
+          modulation: { 
+            type: 'vortex-spin',
+            harmonicSpread: 0.03,
+            waveSpeed: 0.35,
+            pulseRate: 0.8
+          },
+          description: 'Major thirds build momentum and clarity'
+        },
+        {
+          name: 'Power Surge',
+          duration: 3.5 * 60,
+          baseHz: 246.9, // B3
+          binauralHz: 18,
+          progression: 'cosmic',
+          modulation: { 
+            type: 'vortex-surge',
+            harmonicSpread: 0.035,
+            waveSpeed: 0.4,
+            pulseRate: 1.0
+          },
+          description: 'Octaves and fifths at peak intensity'
+        },
+        {
+          name: 'Radiant Core',
+          duration: 2.5 * 60,
+          baseHz: 220,
+          binauralHz: 14,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'vortex-radiate',
+            harmonicSpread: 0.025,
+            waveSpeed: 0.3,
+            pulseRate: 0.7
+          },
+          description: 'Sustained power in stable fifth intervals'
+        }
+      ]
+    },
+    'heart-opening': {
+      name: '🌸 Heart Opening',
+      duration: 14 * 60, // 14 minutes
+      description: 'Warm harmonic progressions for emotional flow',
+      phases: [
+        {
+          name: 'Heart Center',
+          duration: 2.5 * 60,
+          baseHz: 136.1, // Heart chakra frequency near C#3
+          binauralHz: 10,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'heart-ground',
+            harmonicSpread: 0.015,
+            waveSpeed: 0.08,
+            breathCycle: 10
+          },
+          description: 'Centering in grounding unison at heart frequency'
+        },
+        {
+          name: 'Warmth Rising',
+          duration: 3 * 60,
+          baseHz: 146.8, // D3
+          binauralHz: 8,
+          progression: 'uplifting',
+          modulation: { 
+            type: 'heart-warmth',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.06,
+            breathCycle: 12
+          },
+          description: 'Major thirds open the emotional body'
+        },
+        {
+          name: 'Love Expansion',
+          duration: 4 * 60,
+          baseHz: 155.6, // Eb3
+          binauralHz: 7,
+          progression: 'ethereal',
+          modulation: { 
+            type: 'heart-expand',
+            harmonicSpread: 0.025,
+            waveSpeed: 0.05,
+            breathCycle: 14
+          },
+          description: 'Major sixths create spacious compassion'
+        },
+        {
+          name: 'Release',
+          duration: 3 * 60,
+          baseHz: 164.8, // E3
+          binauralHz: 6,
+          progression: 'dreamy',
+          modulation: { 
+            type: 'heart-release',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.04,
+            breathCycle: 16
+          },
+          description: 'Perfect fifths release held emotions'
+        },
+        {
+          name: 'Integration',
+          duration: 1.5 * 60,
+          baseHz: 136.1,
+          binauralHz: 10,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'heart-integrate',
+            harmonicSpread: 0.012,
+            waveSpeed: 0.1,
+            breathCycle: 8
+          },
+          description: 'Major thirds seal the heart-opening practice'
+        }
+      ]
+    },
+    'dreamweaver': {
+      name: '🌙 Dreamweaver',
+      duration: 15 * 60, // 15 minutes
+      description: 'Deep theta-delta harmonic descent for profound rest',
+      phases: [
+        {
+          name: 'Twilight Threshold',
+          duration: 3 * 60,
+          baseHz: 164.8, // E3
+          binauralHz: 8,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'dream-twilight',
+            harmonicSpread: 0.015,
+            waveSpeed: 0.06,
+            breathCycle: 12
+          },
+          description: 'Perfect fifths at the edge of waking'
+        },
+        {
+          name: 'Descent',
+          duration: 3.5 * 60,
+          baseHz: 146.8, // D3
+          binauralHz: 6,
+          progression: 'dreamy',
+          modulation: { 
+            type: 'dream-descend',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.04,
+            breathCycle: 16
+          },
+          description: 'Perfect fourths guide the downward journey'
+        },
+        {
+          name: 'Dream Depths',
+          duration: 4 * 60,
+          baseHz: 130.8, // C3 - deep
+          binauralHz: 4,
+          progression: 'ethereal',
+          modulation: { 
+            type: 'dream-deep',
+            harmonicSpread: 0.018,
+            waveSpeed: 0.025,
+            breathCycle: 20
+          },
+          description: 'Major sixths in the ocean of dreams'
+        },
+        {
+          name: 'Still Waters',
+          duration: 3 * 60,
+          baseHz: 123.5, // B2
+          binauralHz: 3,
+          progression: 'oceanic',
+          modulation: { 
+            type: 'dream-still',
+            harmonicSpread: 0.01,
+            waveSpeed: 0.02,
+            breathCycle: 24
+          },
+          description: 'Unison in absolute rest'
+        },
+        {
+          name: 'Floating',
+          duration: 1.5 * 60,
+          baseHz: 130.8,
+          binauralHz: 5,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'dream-float',
+            harmonicSpread: 0.012,
+            waveSpeed: 0.03,
+            breathCycle: 18
+          },
+          description: 'Perfect fifths carry you into sleep'
+        }
+      ]
+    },
+    'phoenix-rising': {
+      name: '🔥 Phoenix Rising',
+      duration: 12 * 60, // 12 minutes
+      description: 'Transformational journey from stillness to empowerment',
+      phases: [
+        {
+          name: 'Ashes',
+          duration: 2 * 60,
+          baseHz: 130.8, // C3 - low, grounded
+          binauralHz: 6,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'phoenix-ashes',
+            harmonicSpread: 0.01,
+            waveSpeed: 0.04,
+            breathCycle: 14
+          },
+          description: 'Pure unison in stillness before rebirth'
+        },
+        {
+          name: 'First Ember',
+          duration: 2.5 * 60,
+          baseHz: 146.8, // D3
+          binauralHz: 8,
+          progression: 'uplifting',
+          modulation: { 
+            type: 'phoenix-ember',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.1,
+            breathCycle: 10
+          },
+          description: 'Major thirds spark the inner flame'
+        },
+        {
+          name: 'Rising Flames',
+          duration: 3 * 60,
+          baseHz: 174.6, // F3
+          binauralHz: 10,
+          progression: 'cosmic',
+          modulation: { 
+            type: 'phoenix-flame',
+            harmonicSpread: 0.03,
+            waveSpeed: 0.2,
+            breathCycle: 6
+          },
+          description: 'Perfect fifths build transformative power'
+        },
+        {
+          name: 'Taking Flight',
+          duration: 3 * 60,
+          baseHz: 196, // G3
+          binauralHz: 14,
+          progression: 'uplifting',
+          modulation: { 
+            type: 'phoenix-soar',
+            harmonicSpread: 0.035,
+            waveSpeed: 0.3,
+            breathCycle: 4
+          },
+          description: 'Octaves propel into triumphant ascent'
+        },
+        {
+          name: 'Radiant Being',
+          duration: 1.5 * 60,
+          baseHz: 220, // A3
+          binauralHz: 12,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'phoenix-radiate',
+            harmonicSpread: 0.025,
+            waveSpeed: 0.25,
+            breathCycle: 5
+          },
+          description: 'Sustained fifths in empowered presence'
         }
       ]
     }
