@@ -384,6 +384,173 @@
     </div><!-- end programs-content -->
   </section>
 
+  <!-- Dynamic Binaural Journeys Section -->
+  <section class="dynamic-journeys-section collapsed" id="dynamicJourneysSection" aria-label="Dynamic Binaural Journeys">
+    <button class="dynamic-journeys-toggle" id="dynamicJourneysToggle" aria-expanded="false" aria-controls="dynamicJourneysContent">
+      <div class="dynamic-journeys-toggle-content">
+        <span class="dynamic-journeys-icon">🌌</span>
+        <span class="dynamic-journeys-toggle-text">Dynamic Binaural Journeys</span>
+        <span class="dynamic-journeys-toggle-hint">Harmonic intervals • Musical journeys</span>
+      </div>
+      <span class="dynamic-journeys-toggle-arrow">▼</span>
+    </button>
+    
+    <div class="dynamic-journeys-content" id="dynamicJourneysContent" hidden>
+    <div class="dynamic-journeys-header">
+      <div class="dynamic-journeys-title-row">
+        <span class="dynamic-journeys-icon">🌌</span>
+        <h2>Dynamic Binaural Journeys</h2>
+      </div>
+      <p class="dynamic-journeys-subtitle">Harmonic interval progressions • Perfect fifths, major thirds & more</p>
+    </div>
+    
+    <div class="dynamic-journeys-controls">
+      <div class="dynamic-journey-select-wrapper">
+        <label for="dynamicJourneySelect">Choose Experience:</label>
+        <select id="dynamicJourneySelect" aria-label="Select dynamic journey">
+          <option value="">Select an experience...</option>
+          <option value="cosmic-drift">🚀 Cosmic Drift (12 min) - Space Odyssey</option>
+          <option value="neural-symphony">🎻 Neural Symphony (10 min) - Harmonic Interplay</option>
+          <option value="tidal-waves">🌊 Tidal Waves (14 min) - Ocean Rhythms</option>
+          <option value="aurora-borealis">🌈 Aurora Borealis (11 min) - Frequency Cascade</option>
+          <option value="quantum-pulse">⚛️ Quantum Pulse (9 min) - Rhythmic Patterns</option>
+        </select>
+      </div>
+      
+      <div class="dynamic-journey-actions">
+        <button id="dynamicJourneyStart" class="dynamic-journey-btn start-btn" disabled>
+          <span class="btn-icon">▶</span>
+          <span class="btn-text">Begin Experience</span>
+        </button>
+        <button id="dynamicJourneyStop" class="dynamic-journey-btn stop-btn" disabled>
+          <span class="btn-icon">■</span>
+          <span class="btn-text">Stop</span>
+        </button>
+      </div>
+    </div>
+    
+    <div class="dynamic-journey-display" id="dynamicJourneyDisplay" style="display: none;">
+      <div class="dynamic-journey-info-panel">
+        <div class="dynamic-journey-current-name" id="dynamicJourneyCurrentName">—</div>
+        <div class="dynamic-journey-timer">
+          <span class="timer-elapsed" id="dynamicJourneyElapsed">00:00</span>
+          <span class="timer-separator">/</span>
+          <span class="timer-total" id="dynamicJourneyTotal">00:00</span>
+        </div>
+      </div>
+      
+      <div class="dynamic-journey-progress-container">
+        <div class="dynamic-journey-progress-track">
+          <div class="dynamic-journey-progress-fill" id="dynamicJourneyProgressFill"></div>
+          <div class="dynamic-journey-phase-markers" id="dynamicJourneyPhaseMarkers"></div>
+        </div>
+      </div>
+      
+      <div class="dynamic-journey-phase-display">
+        <div class="phase-indicator">
+          <div class="phase-badge dynamic" id="dynamicPhaseBadge">Phase 1</div>
+          <div class="phase-name" id="dynamicPhaseName">—</div>
+        </div>
+        <div class="phase-frequencies">
+          <div class="freq-item">
+            <span class="freq-label">Left Ear</span>
+            <span class="freq-value" id="dynamicPhaseFreqL">— Hz</span>
+          </div>
+          <div class="freq-item binaural dynamic-beat">
+            <span class="freq-label">Binaural Beat</span>
+            <span class="freq-value" id="dynamicPhaseBinaural">— Hz</span>
+          </div>
+          <div class="freq-item">
+            <span class="freq-label">Right Ear</span>
+            <span class="freq-value" id="dynamicPhaseFreqR">— Hz</span>
+          </div>
+        </div>
+        <div class="phase-description" id="dynamicPhaseDescription">—</div>
+      </div>
+    </div>
+    
+    <div class="dynamic-journey-info-cards" id="dynamicJourneyInfoCards">
+      <div class="info-card dynamic" data-journey="cosmic-drift">
+        <div class="info-card-header">
+          <span class="card-icon">🚀</span>
+          <h3>Cosmic Drift</h3>
+          <span class="card-duration">12 min</span>
+        </div>
+        <p>Float through space on harmonic intervals. Perfect fifths and major thirds create weightless consonance as you drift through the overtone series.</p>
+        <div class="card-phases dynamic-phases">
+          <span class="phase-tag cosmic">Perfect 5ths</span>
+          <span class="phase-tag cosmic">Octave Rise</span>
+          <span class="phase-tag cosmic">Minor 3rds</span>
+          <span class="phase-tag cosmic">Major 6ths</span>
+          <span class="phase-tag cosmic">Unison</span>
+        </div>
+      </div>
+      
+      <div class="info-card dynamic" data-journey="neural-symphony">
+        <div class="info-card-header">
+          <span class="card-icon">🎻</span>
+          <h3>Neural Symphony</h3>
+          <span class="card-duration">10 min</span>
+        </div>
+        <p>A true symphony using musical harmony. Orchestral progressions through major thirds, perfect fifths, and octaves create neural entrainment with musical beauty.</p>
+        <div class="card-phases dynamic-phases">
+          <span class="phase-tag symphony">Major 3rd Prelude</span>
+          <span class="phase-tag symphony">5th Allegro</span>
+          <span class="phase-tag symphony">6th Adagio</span>
+          <span class="phase-tag symphony">Octave Finale</span>
+        </div>
+      </div>
+      
+      <div class="info-card dynamic" data-journey="tidal-waves">
+        <div class="info-card-header">
+          <span class="card-icon">🌊</span>
+          <h3>Tidal Waves</h3>
+          <span class="card-duration">14 min</span>
+        </div>
+        <p>Ride ocean rhythms through consonant intervals. Perfect fourths and fifths ebb and flow like tides, with gentle breathing modulations for deep relaxation.</p>
+        <div class="card-phases dynamic-phases">
+          <span class="phase-tag tidal">Unison Shore</span>
+          <span class="phase-tag tidal">4th & 5th Swell</span>
+          <span class="phase-tag tidal">Minor 3rd Depths</span>
+          <span class="phase-tag tidal">Major 6th Drift</span>
+          <span class="phase-tag tidal">5th Return</span>
+        </div>
+      </div>
+      
+      <div class="info-card dynamic" data-journey="aurora-borealis">
+        <div class="info-card-header">
+          <span class="card-icon">🌈</span>
+          <h3>Aurora Borealis</h3>
+          <span class="card-duration">11 min</span>
+        </div>
+        <p>Shimmer through the harmonic spectrum like northern lights. Major sixths, perfect fifths, and cascading intervals dance across your perception.</p>
+        <div class="card-phases dynamic-phases">
+          <span class="phase-tag aurora">5th Twilight</span>
+          <span class="phase-tag aurora">3rd Emergence</span>
+          <span class="phase-tag aurora">6th Curtains</span>
+          <span class="phase-tag aurora">Octave Peak</span>
+          <span class="phase-tag aurora">Unison Dawn</span>
+        </div>
+      </div>
+      
+      <div class="info-card dynamic" data-journey="quantum-pulse">
+        <div class="info-card-header">
+          <span class="card-icon">⚛️</span>
+          <h3>Quantum Pulse</h3>
+          <span class="card-duration">9 min</span>
+        </div>
+        <p>Quantum-precise harmonic pulses through musical intervals. Major thirds and perfect fifths create coherent patterns for focused entrainment.</p>
+        <div class="card-phases dynamic-phases">
+          <span class="phase-tag quantum">3rd Init</span>
+          <span class="phase-tag quantum">5th/Octave Super</span>
+          <span class="phase-tag quantum">6th Entangle</span>
+          <span class="phase-tag quantum">5th Coherence</span>
+        </div>
+      </div>
+    </div>
+    </div><!-- end dynamic-journeys-content -->
+  </section>
+
   <section class="music-school-section" id="musicSchoolSection" aria-label="Music Theory Learning">
     <div class="school-header-compact">
       <span class="school-label">🎓 Music Theory</span>
