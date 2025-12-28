@@ -4324,16 +4324,636 @@ body[data-theme="dark"] .overtone-card.is-playing {
 
 /* Program Display Panel */
 .program-display {
-  background: rgba(0, 0, 0, 0.03);
+  --freq-pulse-duration: 8s;
+  --freq-intensity: 0.5;
+  --nebula-drift: 0deg;
+  position: relative;
+  background: transparent;
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 20px;
-  border: 1px solid rgba(147, 112, 219, 0.2);
+  border: 1px solid rgba(147, 112, 219, 0.15);
   animation: fade-in 0.3s ease;
 }
 
-body[data-theme="dark"] .program-display {
-  background: rgba(255, 255, 255, 0.03);
+/* ===== GALAXY / UNIVERSE VISUAL EFFECTS ===== */
+
+/* Galaxy background container - handles clipping */
+.program-display .freq-galaxy-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  z-index: -2;
+  background: linear-gradient(135deg, 
+    rgba(10, 10, 25, 0.97) 0%,
+    rgba(20, 15, 40, 0.95) 50%,
+    rgba(10, 20, 35, 0.97) 100%
+  );
+}
+
+body[data-theme="dark"] .program-display .freq-galaxy-bg {
+  background: linear-gradient(135deg, 
+    rgba(5, 5, 15, 0.98) 0%,
+    rgba(15, 10, 30, 0.96) 50%,
+    rgba(5, 15, 25, 0.98) 100%
+  );
+}
+
+/* Primary animated nebula layer */
+.program-display .freq-galaxy-bg::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: 
+    /* Primary flowing nebula */
+    radial-gradient(ellipse 35% 40% at 30% 40%, 
+      rgba(110, 65, 180, calc(0.25 * var(--freq-intensity))) 0%, 
+      transparent 55%),
+    /* Secondary nebula cloud */
+    radial-gradient(ellipse 40% 35% at 70% 55%, 
+      rgba(50, 130, 160, calc(0.22 * var(--freq-intensity))) 0%, 
+      transparent 50%),
+    /* Accent nebula */
+    radial-gradient(ellipse 30% 35% at 45% 75%, 
+      rgba(140, 55, 110, calc(0.18 * var(--freq-intensity))) 0%, 
+      transparent 45%),
+    /* Deep space dust band */
+    radial-gradient(ellipse 50% 25% at 25% 65%, 
+      rgba(70, 100, 150, calc(0.15 * var(--freq-intensity))) 0%, 
+      transparent 60%),
+    /* Distant galaxy glow */
+    radial-gradient(ellipse 25% 30% at 75% 30%, 
+      rgba(100, 75, 145, calc(0.15 * var(--freq-intensity))) 0%, 
+      transparent 50%);
+  animation: nebula-flow 45s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes nebula-flow {
+  0% { 
+    transform: translate(0%, 0%) rotate(0deg);
+    filter: hue-rotate(0deg) blur(0px);
+  }
+  25% { 
+    transform: translate(8%, -5%) rotate(3deg);
+    filter: hue-rotate(12deg) blur(0px);
+  }
+  50% { 
+    transform: translate(0%, -8%) rotate(0deg);
+    filter: hue-rotate(25deg) blur(0px);
+  }
+  75% { 
+    transform: translate(-8%, -3%) rotate(-3deg);
+    filter: hue-rotate(12deg) blur(0px);
+  }
+  100% { 
+    transform: translate(0%, 0%) rotate(0deg);
+    filter: hue-rotate(0deg) blur(0px);
+  }
+}
+
+/* Secondary animated nebula layer - different timing */
+.program-display .freq-galaxy-bg::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  left: -40%;
+  width: 180%;
+  height: 180%;
+  background: 
+    radial-gradient(ellipse 45% 50% at 60% 35%, 
+      rgba(85, 50, 140, calc(0.18 * var(--freq-intensity))) 0%, 
+      transparent 50%),
+    radial-gradient(ellipse 40% 45% at 25% 70%, 
+      rgba(40, 105, 135, calc(0.15 * var(--freq-intensity))) 0%, 
+      transparent 45%),
+    radial-gradient(ellipse 30% 35% at 75% 75%, 
+      rgba(120, 50, 100, calc(0.12 * var(--freq-intensity))) 0%, 
+      transparent 45%);
+  animation: nebula-flow-alt 60s ease-in-out infinite;
+  pointer-events: none;
+  filter: blur(8px);
+}
+
+@keyframes nebula-flow-alt {
+  0% { 
+    transform: translate(0%, 0%) rotate(0deg) scale(1);
+    filter: blur(8px) hue-rotate(0deg);
+  }
+  33% { 
+    transform: translate(-10%, 6%) rotate(-5deg) scale(1.08);
+    filter: blur(12px) hue-rotate(15deg);
+  }
+  66% { 
+    transform: translate(8%, 10%) rotate(4deg) scale(1.05);
+    filter: blur(6px) hue-rotate(8deg);
+  }
+  100% { 
+    transform: translate(0%, 0%) rotate(0deg) scale(1);
+    filter: blur(8px) hue-rotate(0deg);
+  }
+}
+
+/* Third animated nebula layer for depth */
+.program-display .freq-nebula-bg {
+  position: absolute;
+  top: -30%;
+  left: -30%;
+  width: 160%;
+  height: 160%;
+  background: 
+    radial-gradient(ellipse 50% 55% at 55% 30%, 
+      rgba(100, 60, 160, calc(0.2 * var(--freq-intensity))) 0%, 
+      transparent 50%),
+    radial-gradient(ellipse 45% 50% at 30% 65%, 
+      rgba(50, 120, 150, calc(0.16 * var(--freq-intensity))) 0%, 
+      transparent 45%),
+    radial-gradient(ellipse 35% 40% at 70% 70%, 
+      rgba(130, 55, 100, calc(0.14 * var(--freq-intensity))) 0%, 
+      transparent 45%);
+  animation: nebula-flow-third 75s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(15px);
+}
+
+@keyframes nebula-flow-third {
+  0% { 
+    transform: translate(0%, 0%) rotate(0deg);
+    opacity: 0.7;
+  }
+  25% { 
+    transform: translate(12%, -8%) rotate(6deg);
+    opacity: 0.9;
+  }
+  50% { 
+    transform: translate(-5%, -12%) rotate(-3deg);
+    opacity: 0.8;
+  }
+  75% { 
+    transform: translate(-10%, 5%) rotate(4deg);
+    opacity: 0.85;
+  }
+  100% { 
+    transform: translate(0%, 0%) rotate(0deg);
+    opacity: 0.7;
+  }
+}
+
+/* Subtle outer glow */
+.program-display::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 17px;
+  background: linear-gradient(
+    135deg,
+    rgba(100, 80, 160, 0.2) 0%,
+    rgba(60, 120, 140, 0.15) 50%,
+    rgba(100, 80, 160, 0.2) 100%
+  );
+  z-index: -2;
+  filter: blur(8px);
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+.programs-section.is-running .program-display::after {
+  opacity: calc(0.4 * var(--freq-intensity));
+}
+
+/* Distant stars - drifting with gentle twinkle */
+.freq-galaxy-bg .freq-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.freq-galaxy-bg .freq-star:nth-child(4) { top: 8%; left: 12%; animation: star-drift-1 40s linear infinite, star-twinkle 4s ease-in-out infinite 0s; }
+.freq-galaxy-bg .freq-star:nth-child(5) { top: 15%; left: 78%; animation: star-drift-2 55s linear infinite, star-twinkle 5s ease-in-out infinite 1.2s; }
+.freq-galaxy-bg .freq-star:nth-child(6) { top: 22%; left: 45%; animation: star-drift-3 48s linear infinite, star-twinkle 6s ease-in-out infinite 0.5s; }
+.freq-galaxy-bg .freq-star:nth-child(7) { top: 35%; left: 8%; animation: star-drift-4 52s linear infinite, star-twinkle 4.5s ease-in-out infinite 2.1s; }
+.freq-galaxy-bg .freq-star:nth-child(8) { top: 42%; left: 88%; animation: star-drift-1 45s linear infinite 5s, star-twinkle 5.5s ease-in-out infinite 0.8s; }
+.freq-galaxy-bg .freq-star:nth-child(9) { top: 55%; left: 25%; animation: star-drift-2 60s linear infinite 8s, star-twinkle 7s ease-in-out infinite 1.5s; }
+.freq-galaxy-bg .freq-star:nth-child(10) { top: 65%; left: 68%; animation: star-drift-3 42s linear infinite 3s, star-twinkle 4.2s ease-in-out infinite 3.2s; }
+.freq-galaxy-bg .freq-star:nth-child(11) { top: 75%; left: 55%; animation: star-drift-4 50s linear infinite 12s, star-twinkle 6.5s ease-in-out infinite 0.3s; }
+.freq-galaxy-bg .freq-star:nth-child(12) { top: 82%; left: 15%; animation: star-drift-1 58s linear infinite 7s, star-twinkle 5.8s ease-in-out infinite 2.5s; }
+.freq-galaxy-bg .freq-star:nth-child(13) { top: 88%; left: 85%; animation: star-drift-2 47s linear infinite 2s, star-twinkle 4.8s ease-in-out infinite 1.8s; }
+.freq-galaxy-bg .freq-star:nth-child(14) { top: 12%; left: 35%; animation: star-drift-3 53s linear infinite 10s, star-twinkle 6.2s ease-in-out infinite 0.7s; }
+.freq-galaxy-bg .freq-star:nth-child(15) { top: 48%; left: 52%; animation: star-drift-4 44s linear infinite 4s, star-twinkle 5.2s ease-in-out infinite 2.8s; }
+
+/* Different drift patterns for variety */
+@keyframes star-drift-1 {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(15px, 8px); }
+  50% { transform: translate(25px, 0); }
+  75% { transform: translate(12px, -6px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes star-drift-2 {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-10px, 12px); }
+  50% { transform: translate(-20px, 5px); }
+  75% { transform: translate(-8px, -5px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes star-drift-3 {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(18px, -10px); }
+  66% { transform: translate(-5px, -15px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes star-drift-4 {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(-12px, 15px); }
+  66% { transform: translate(8px, 20px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes star-twinkle {
+  0%, 100% { 
+    opacity: 0.3;
+  }
+  50% { 
+    opacity: calc(0.6 + 0.3 * var(--freq-intensity));
+  }
+}
+
+/* Larger accent stars with soft glow and drift */
+.freq-galaxy-bg .freq-star-accent {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
+}
+
+.freq-galaxy-bg .freq-star-accent:nth-child(16) { 
+  top: 18%; left: 22%; 
+  background: rgba(180, 160, 255, 0.9);
+  animation: star-glow 8s ease-in-out infinite 0s, star-orbit-1 70s linear infinite; 
+}
+.freq-galaxy-bg .freq-star-accent:nth-child(17) { 
+  top: 45%; left: 78%; 
+  background: rgba(150, 200, 220, 0.9);
+  animation: star-glow 10s ease-in-out infinite 2s, star-orbit-2 85s linear infinite; 
+}
+.freq-galaxy-bg .freq-star-accent:nth-child(18) { 
+  top: 72%; left: 38%; 
+  background: rgba(200, 150, 180, 0.9);
+  animation: star-glow 9s ease-in-out infinite 4s, star-orbit-3 75s linear infinite; 
+}
+
+@keyframes star-glow {
+  0%, 100% { 
+    opacity: 0.4;
+    box-shadow: 0 0 4px currentColor;
+  }
+  50% { 
+    opacity: calc(0.7 + 0.2 * var(--freq-intensity));
+    box-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+  }
+}
+
+@keyframes star-orbit-1 {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(30px, -15px); }
+  50% { transform: translate(50px, 5px); }
+  75% { transform: translate(20px, 20px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes star-orbit-2 {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-25px, 20px); }
+  50% { transform: translate(-40px, -10px); }
+  75% { transform: translate(-15px, -25px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes star-orbit-3 {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(35px, 25px); }
+  66% { transform: translate(-20px, 30px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Flowing nebula wisps - dynamic cosmic clouds */
+.freq-galaxy-bg .freq-nebula {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  filter: blur(20px);
+}
+
+.freq-galaxy-bg .freq-nebula:nth-child(1) {
+  width: 180px;
+  height: 140px;
+  top: 5%;
+  left: 5%;
+  background: radial-gradient(ellipse, 
+    rgba(120, 75, 180, calc(0.25 * var(--freq-intensity))) 0%, 
+    rgba(90, 55, 150, calc(0.12 * var(--freq-intensity))) 40%,
+    transparent 70%);
+  animation: nebula-swirl-1 35s ease-in-out infinite;
+}
+
+.freq-galaxy-bg .freq-nebula:nth-child(2) {
+  width: 160px;
+  height: 200px;
+  bottom: 5%;
+  right: 5%;
+  background: radial-gradient(ellipse, 
+    rgba(55, 140, 170, calc(0.22 * var(--freq-intensity))) 0%, 
+    rgba(45, 110, 140, calc(0.1 * var(--freq-intensity))) 45%,
+    transparent 70%);
+  animation: nebula-swirl-2 42s ease-in-out infinite;
+}
+
+.freq-galaxy-bg .freq-nebula:nth-child(3) {
+  width: 200px;
+  height: 160px;
+  top: 35%;
+  left: 30%;
+  background: radial-gradient(ellipse, 
+    rgba(140, 65, 130, calc(0.2 * var(--freq-intensity))) 0%, 
+    rgba(110, 45, 100, calc(0.08 * var(--freq-intensity))) 50%,
+    transparent 70%);
+  animation: nebula-swirl-3 50s ease-in-out infinite;
+}
+
+@keyframes nebula-swirl-1 {
+  0% { 
+    transform: translate(0, 0) rotate(0deg) scale(1); 
+    opacity: 0.7;
+  }
+  25% { 
+    transform: translate(40px, 30px) rotate(15deg) scale(1.1); 
+    opacity: 0.9;
+  }
+  50% { 
+    transform: translate(60px, 10px) rotate(25deg) scale(1.15); 
+    opacity: 0.8;
+  }
+  75% { 
+    transform: translate(25px, -20px) rotate(10deg) scale(1.05); 
+    opacity: 0.85;
+  }
+  100% { 
+    transform: translate(0, 0) rotate(0deg) scale(1); 
+    opacity: 0.7;
+  }
+}
+
+@keyframes nebula-swirl-2 {
+  0% { 
+    transform: translate(0, 0) rotate(0deg) scale(1); 
+    opacity: 0.6;
+  }
+  25% { 
+    transform: translate(-35px, -25px) rotate(-12deg) scale(1.08); 
+    opacity: 0.85;
+  }
+  50% { 
+    transform: translate(-50px, 15px) rotate(-20deg) scale(1.12); 
+    opacity: 0.75;
+  }
+  75% { 
+    transform: translate(-20px, 35px) rotate(-8deg) scale(1.05); 
+    opacity: 0.9;
+  }
+  100% { 
+    transform: translate(0, 0) rotate(0deg) scale(1); 
+    opacity: 0.6;
+  }
+}
+
+@keyframes nebula-swirl-3 {
+  0% { 
+    transform: translate(0, 0) rotate(0deg) scale(1); 
+    opacity: 0.5;
+    filter: blur(25px) hue-rotate(0deg);
+  }
+  33% { 
+    transform: translate(50px, -40px) rotate(20deg) scale(1.2); 
+    opacity: 0.8;
+    filter: blur(30px) hue-rotate(15deg);
+  }
+  66% { 
+    transform: translate(-30px, -60px) rotate(-15deg) scale(1.1); 
+    opacity: 0.65;
+    filter: blur(20px) hue-rotate(-10deg);
+  }
+  100% { 
+    transform: translate(0, 0) rotate(0deg) scale(1); 
+    opacity: 0.5;
+    filter: blur(25px) hue-rotate(0deg);
+  }
+}
+
+/* Cosmic dust particles - floating through space */
+.freq-galaxy-bg .freq-dust {
+  position: absolute;
+  width: 1.5px;
+  height: 1.5px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.freq-galaxy-bg .freq-dust:nth-child(19) { top: 20%; left: 60%; animation: dust-float-1 20s ease-in-out infinite 0s; }
+.freq-galaxy-bg .freq-dust:nth-child(20) { top: 40%; left: 30%; animation: dust-float-2 25s ease-in-out infinite 3s; }
+.freq-galaxy-bg .freq-dust:nth-child(21) { top: 60%; left: 70%; animation: dust-float-3 22s ease-in-out infinite 7s; }
+.freq-galaxy-bg .freq-dust:nth-child(22) { top: 30%; left: 50%; animation: dust-float-1 28s ease-in-out infinite 5s; }
+.freq-galaxy-bg .freq-dust:nth-child(23) { top: 70%; left: 20%; animation: dust-float-2 24s ease-in-out infinite 10s; }
+.freq-galaxy-bg .freq-dust:nth-child(24) { top: 50%; left: 80%; animation: dust-float-3 26s ease-in-out infinite 2s; }
+
+@keyframes dust-float-1 {
+  0% { 
+    transform: translate(0, 0); 
+    opacity: 0;
+  }
+  10% { opacity: calc(0.4 * var(--freq-intensity)); }
+  50% { 
+    transform: translate(-50px, 30px); 
+    opacity: calc(0.5 * var(--freq-intensity));
+  }
+  90% { opacity: calc(0.4 * var(--freq-intensity)); }
+  100% { 
+    transform: translate(-80px, 50px); 
+    opacity: 0;
+  }
+}
+
+@keyframes dust-float-2 {
+  0% { 
+    transform: translate(0, 0); 
+    opacity: 0;
+  }
+  10% { opacity: calc(0.35 * var(--freq-intensity)); }
+  50% { 
+    transform: translate(40px, -25px); 
+    opacity: calc(0.45 * var(--freq-intensity));
+  }
+  90% { opacity: calc(0.35 * var(--freq-intensity)); }
+  100% { 
+    transform: translate(70px, -40px); 
+    opacity: 0;
+  }
+}
+
+@keyframes dust-float-3 {
+  0% { 
+    transform: translate(0, 0); 
+    opacity: 0;
+  }
+  10% { opacity: calc(0.3 * var(--freq-intensity)); }
+  50% { 
+    transform: translate(-30px, -40px); 
+    opacity: calc(0.5 * var(--freq-intensity));
+  }
+  90% { opacity: calc(0.3 * var(--freq-intensity)); }
+  100% { 
+    transform: translate(-60px, -70px); 
+    opacity: 0;
+  }
+}
+
+/* Central breathing aura - subtle glow */
+.freq-galaxy-bg .freq-aura {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(120, 90, 160, calc(0.12 * var(--freq-intensity))) 0%,
+    rgba(70, 110, 140, calc(0.08 * var(--freq-intensity))) 40%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 1;
+  animation: aura-breathe var(--freq-pulse-duration) ease-in-out infinite alternate;
+  filter: blur(15px);
+}
+
+@keyframes aura-breathe {
+  0% {
+    transform: translate(-50%, -50%) scale(0.85);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: calc(0.6 + 0.25 * var(--freq-intensity));
+  }
+}
+
+/* Shooting star - rare, subtle, gentle */
+.freq-galaxy-bg .freq-shooting-star {
+  --star-angle: -35deg;
+  position: absolute;
+  width: 70px;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.6) 25%,
+    rgba(200, 190, 255, 0.5) 50%,
+    rgba(180, 210, 255, 0.3) 75%,
+    transparent 100%);
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  transform: rotate(var(--star-angle));
+  filter: blur(0.5px);
+}
+
+/* Initial static positions (before JS randomizes) */
+.freq-galaxy-bg .freq-shooting-star:nth-child(26) {
+  top: 25%;
+  left: 65%;
+}
+
+.freq-galaxy-bg .freq-shooting-star:nth-child(27) {
+  top: 55%;
+  left: 35%;
+}
+
+.freq-galaxy-bg .freq-shooting-star:nth-child(28) {
+  top: 40%;
+  left: 80%;
+}
+
+/* Randomized shooting star animation - gentle, visible */
+@keyframes shooting-star-random {
+  /* Invisible for most of the cycle (0-88%) */
+  0%, 88% { 
+    opacity: 0;
+    transform: rotate(var(--star-angle)) translateX(0) scaleX(0.2);
+  }
+  /* Gentle appearance (88-98%) - about 1.5 seconds at 12s duration */
+  90% {
+    opacity: 0.4;
+    transform: rotate(var(--star-angle)) translateX(-15px) scaleX(0.6);
+  }
+  92% {
+    opacity: 0.75;
+    transform: rotate(var(--star-angle)) translateX(-35px) scaleX(0.9);
+  }
+  94% {
+    opacity: 0.6;
+    transform: rotate(var(--star-angle)) translateX(-55px) scaleX(1);
+  }
+  96% {
+    opacity: 0.35;
+    transform: rotate(var(--star-angle)) translateX(-80px) scaleX(0.9);
+  }
+  98%, 100% { 
+    opacity: 0;
+    transform: rotate(var(--star-angle)) translateX(-100px) scaleX(0.4);
+  }
+}
+
+/* Light mode adjustments - keep space theme */
+body:not([data-theme="dark"]) .program-display .freq-galaxy-bg {
+  background: linear-gradient(135deg, 
+    rgba(20, 20, 45, 0.95) 0%,
+    rgba(30, 25, 55, 0.93) 50%,
+    rgba(20, 30, 50, 0.95) 100%
+  );
+}
+
+body:not([data-theme="dark"]) .program-display .program-info-panel,
+body:not([data-theme="dark"]) .program-display .program-phase-display,
+body:not([data-theme="dark"]) .program-display .program-timer,
+body:not([data-theme="dark"]) .program-display .program-current-name,
+body:not([data-theme="dark"]) .program-display .phase-name {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+body:not([data-theme="dark"]) .program-display .phase-description,
+body:not([data-theme="dark"]) .program-display .freq-label,
+body:not([data-theme="dark"]) .program-display .timer-separator,
+body:not([data-theme="dark"]) .program-display .timer-total {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 @keyframes fade-in {
@@ -4741,5 +5361,691 @@ body[data-theme="dark"] .program-display {
   
   .freq-item.binaural .freq-value {
     font-size: 20px;
+  }
+}
+
+/* ===== DYNAMIC BINAURAL JOURNEYS ===== */
+
+.dynamic-journeys-section {
+  margin: 20px 0;
+  padding: 20px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.dynamic-journeys-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg,
+    #60a5fa 0%,
+    #a78bfa 25%,
+    #f472b6 50%,
+    #a78bfa 75%,
+    #60a5fa 100%
+  );
+  background-size: 200% 100%;
+  opacity: 0.7;
+}
+
+.dynamic-journeys-section.collapsed {
+  padding: 0;
+  border-radius: 16px;
+}
+
+.dynamic-journeys-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dynamic-journeys-toggle:hover {
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.dynamic-journeys-section:not(.collapsed) .dynamic-journeys-toggle {
+  border-bottom: 1px solid var(--panel-border);
+  border-radius: 16px 16px 0 0;
+  margin-bottom: 16px;
+}
+
+.dynamic-journeys-toggle-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dynamic-journeys-toggle .dynamic-journeys-icon {
+  font-size: 24px;
+  animation: none;
+}
+
+.dynamic-journeys-toggle-text {
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dynamic-journeys-toggle-hint {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.dynamic-journeys-toggle-arrow {
+  font-size: 12px;
+  color: var(--muted);
+  transition: transform 0.3s ease;
+}
+
+.dynamic-journeys-section:not(.collapsed) .dynamic-journeys-toggle-arrow {
+  transform: rotate(180deg);
+}
+
+/* Hide the duplicate header inside content when toggle is visible */
+.dynamic-journeys-section .dynamic-journeys-content .dynamic-journeys-header {
+  display: none;
+}
+
+.dynamic-journeys-content {
+  padding: 0 20px 20px;
+}
+
+.dynamic-journeys-content[hidden] {
+  display: none;
+}
+
+.dynamic-journeys-section:not(.collapsed) .dynamic-journeys-content {
+  display: block;
+}
+
+.dynamic-journeys-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.dynamic-journeys-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.dynamic-journeys-icon {
+  font-size: 28px;
+  animation: gentle-float-dynamic 3s ease-in-out infinite;
+}
+
+@keyframes gentle-float-dynamic {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.dynamic-journeys-title-row h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.5px;
+}
+
+.dynamic-journeys-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.dynamic-journeys-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.dynamic-journey-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dynamic-journey-select-wrapper label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+#dynamicJourneySelect {
+  padding: 10px 16px;
+  font-size: 15px;
+  background: var(--control-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 280px;
+  transition: all 0.3s;
+}
+
+#dynamicJourneySelect:hover {
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+#dynamicJourneySelect:focus {
+  outline: none;
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.dynamic-journey-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.dynamic-journey-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 2px solid transparent;
+  min-width: 130px;
+  justify-content: center;
+}
+
+.dynamic-journey-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.dynamic-journey-btn.start-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.dynamic-journey-btn.start-btn:not(:disabled):hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  transform: translateY(-2px);
+}
+
+.dynamic-journey-btn.start-btn.is-playing {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  animation: pulse-glow-dynamic 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow-dynamic {
+  0%, 100% { box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+  50% { box-shadow: 0 4px 20px rgba(139, 92, 246, 0.5); }
+}
+
+.dynamic-journey-btn.stop-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.dynamic-journey-btn.stop-btn:not(:disabled):hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Dynamic Journey Display */
+.dynamic-journey-display {
+  --freq-pulse-duration: 8s;
+  --freq-intensity: 0.5;
+  --nebula-drift: 0deg;
+  position: relative;
+  background: transparent;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  animation: fade-in 0.3s ease;
+}
+
+/* Galaxy background for dynamic journeys */
+.dynamic-journey-display .freq-galaxy-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  z-index: -2;
+  background: linear-gradient(135deg, 
+    rgba(10, 15, 30, 0.97) 0%,
+    rgba(20, 20, 50, 0.95) 50%,
+    rgba(15, 20, 40, 0.97) 100%
+  );
+}
+
+.dynamic-journey-display .freq-galaxy-bg::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: 
+    radial-gradient(ellipse 35% 40% at 30% 40%, 
+      rgba(96, 165, 250, calc(0.2 * var(--freq-intensity))) 0%, 
+      transparent 55%),
+    radial-gradient(ellipse 40% 35% at 70% 55%, 
+      rgba(139, 92, 246, calc(0.18 * var(--freq-intensity))) 0%, 
+      transparent 50%),
+    radial-gradient(ellipse 30% 35% at 45% 75%, 
+      rgba(244, 114, 182, calc(0.15 * var(--freq-intensity))) 0%, 
+      transparent 45%);
+  animation: nebula-flow calc(var(--freq-pulse-duration) * 5) ease-in-out infinite;
+  pointer-events: none;
+  filter: blur(12px);
+}
+
+.dynamic-journey-display .freq-galaxy-bg::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  left: -40%;
+  width: 180%;
+  height: 180%;
+  background: 
+    radial-gradient(ellipse 45% 50% at 60% 35%, 
+      rgba(96, 165, 250, calc(0.15 * var(--freq-intensity))) 0%, 
+      transparent 50%),
+    radial-gradient(ellipse 40% 45% at 25% 70%, 
+      rgba(167, 139, 250, calc(0.12 * var(--freq-intensity))) 0%, 
+      transparent 45%);
+  animation: nebula-flow-alt calc(var(--freq-pulse-duration) * 6) ease-in-out infinite;
+  pointer-events: none;
+  filter: blur(8px);
+}
+
+/* Outer glow for dynamic journeys */
+.dynamic-journey-display::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 17px;
+  background: linear-gradient(
+    135deg,
+    rgba(96, 165, 250, 0.2) 0%,
+    rgba(139, 92, 246, 0.15) 50%,
+    rgba(244, 114, 182, 0.2) 100%
+  );
+  z-index: -2;
+  filter: blur(8px);
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+.dynamic-journeys-section.is-running .dynamic-journey-display::after {
+  opacity: calc(0.4 * var(--freq-intensity));
+}
+
+.dynamic-journey-info-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.dynamic-journey-current-name {
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dynamic-journey-timer {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.dynamic-journey-timer .timer-separator {
+  color: var(--text-muted);
+  margin: 0 4px;
+}
+
+.dynamic-journey-timer .timer-total {
+  color: var(--text-muted);
+}
+
+/* Progress Bar */
+.dynamic-journey-progress-container {
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.dynamic-journey-progress-track {
+  height: 8px;
+  background: var(--panel-border);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.dynamic-journey-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #f472b6 100%);
+  border-radius: 4px;
+  width: 0%;
+  transition: width 0.3s linear;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+.dynamic-journey-phase-markers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+}
+
+.dynamic-journey-phase-markers .phase-marker {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Phase Display */
+.dynamic-journey-phase-display {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.dynamic-journey-phase-display .phase-indicator {
+  margin-bottom: 20px;
+}
+
+.phase-badge.dynamic {
+  display: inline-block;
+  padding: 4px 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.dynamic-journey-phase-display .phase-name {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.freq-item.binaural.dynamic-beat .freq-value {
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: freq-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes freq-shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Info Cards */
+.dynamic-journey-info-cards {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+.info-card.dynamic {
+  background: var(--control-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: 14px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.info-card.dynamic::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.info-card.dynamic:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.15);
+}
+
+.info-card.dynamic:hover::before {
+  opacity: 1;
+}
+
+.info-card.dynamic.active {
+  border-color: #a78bfa;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
+}
+
+.info-card.dynamic.active::before {
+  opacity: 1;
+}
+
+.info-card.dynamic .info-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.info-card.dynamic .card-icon {
+  font-size: 24px;
+}
+
+.info-card.dynamic h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.info-card.dynamic .card-duration {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 10px;
+  color: #a78bfa;
+  font-weight: 600;
+}
+
+.info-card.dynamic p {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0 0 10px 0;
+  position: relative;
+  z-index: 1;
+}
+
+.card-phases.dynamic-phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Dynamic phase tag colors */
+.phase-tag.cosmic {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+
+.phase-tag.symphony {
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(167, 139, 250, 0.25);
+}
+
+.phase-tag.tidal {
+  background: rgba(34, 211, 238, 0.15);
+  color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.25);
+}
+
+.phase-tag.aurora {
+  background: rgba(244, 114, 182, 0.15);
+  color: #f472b6;
+  border: 1px solid rgba(244, 114, 182, 0.25);
+}
+
+.phase-tag.quantum {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+}
+
+/* Running state */
+.dynamic-journeys-section.is-running {
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.15);
+}
+
+.dynamic-journeys-section.is-running::before {
+  animation: border-shimmer-dynamic 2s linear infinite;
+  opacity: 1;
+}
+
+@keyframes border-shimmer-dynamic {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .dynamic-journey-info-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .dynamic-journey-info-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dynamic-journeys-section {
+    padding: 16px;
+  }
+  
+  .dynamic-journeys-toggle {
+    padding: 14px 16px;
+  }
+  
+  .dynamic-journeys-toggle-hint {
+    display: none;
+  }
+  
+  .dynamic-journeys-toggle-text {
+    font-size: 14px;
+  }
+  
+  .dynamic-journeys-controls {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  #dynamicJourneySelect {
+    min-width: 100%;
+    max-width: 100%;
+  }
+  
+  .dynamic-journey-actions {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .dynamic-journey-btn {
+    flex: 1;
+    max-width: 150px;
+  }
+  
+  .dynamic-journey-info-panel {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+  
+  .dynamic-journey-timer {
+    font-size: 20px;
+  }
+  
+  .dynamic-journey-current-name {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 500px) {
+  .dynamic-journey-info-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-card.dynamic h3 {
+    font-size: 14px;
+  }
+  
+  .dynamic-journey-phase-display .phase-name {
+    font-size: 18px;
   }
 }
