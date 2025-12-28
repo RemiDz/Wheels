@@ -4512,6 +4512,10 @@
     document.getElementById('phaseBinaural').textContent = `${phase.binauralHz.toFixed(1)} Hz`;
     document.getElementById('phaseDescription').textContent = phase.description;
     
+    // Update frequency-responsive visuals
+    const overallProgress = elapsed / currentProgram.duration;
+    updateFrequencyVisuals(programDisplay, phase.binauralHz, overallProgress);
+    
     // Update frequencies if phase changed
     if (index !== currentPhaseIndex) {
       currentPhaseIndex = index;
@@ -4541,10 +4545,186 @@
     programAnimationFrame = requestAnimationFrame(programLoop);
   }
   
+  // Create galaxy-themed visual elements
+  function createFrequencyVisuals(container) {
+    // Remove any existing visuals first
+    removeFrequencyVisuals(container);
+    
+    // Create main galaxy background container (handles clipping and animated layers)
+    const galaxyBg = document.createElement('div');
+    galaxyBg.className = 'freq-galaxy-bg';
+    container.insertBefore(galaxyBg, container.firstChild);
+    
+    // Create third nebula layer for additional depth
+    const nebulaBg = document.createElement('div');
+    nebulaBg.className = 'freq-nebula-bg';
+    galaxyBg.appendChild(nebulaBg);
+    
+    // Create nebula wisps (flowing clouds) - inside galaxy container
+    for (let i = 0; i < 3; i++) {
+      const nebula = document.createElement('div');
+      nebula.className = 'freq-nebula';
+      galaxyBg.appendChild(nebula);
+    }
+    
+    // Create distant stars (small, drifting with twinkle) - inside galaxy container
+    for (let i = 0; i < 12; i++) {
+      const star = document.createElement('div');
+      star.className = 'freq-star';
+      galaxyBg.appendChild(star);
+    }
+    
+    // Create accent stars (larger, with glow and orbit) - inside galaxy container
+    for (let i = 0; i < 3; i++) {
+      const starAccent = document.createElement('div');
+      starAccent.className = 'freq-star-accent';
+      galaxyBg.appendChild(starAccent);
+    }
+    
+    // Create cosmic dust particles - inside galaxy container
+    for (let i = 0; i < 6; i++) {
+      const dust = document.createElement('div');
+      dust.className = 'freq-dust';
+      galaxyBg.appendChild(dust);
+    }
+    
+    // Create center aura (breathing glow)
+    const aura = document.createElement('div');
+    aura.className = 'freq-aura';
+    galaxyBg.appendChild(aura);
+    
+    // Create shooting stars (very rare, gentle) with random positioning
+    // Only 2 shooting stars, appearing rarely
+    for (let i = 0; i < 2; i++) {
+      const shootingStar = document.createElement('div');
+      shootingStar.className = 'freq-shooting-star';
+      shootingStar.dataset.starIndex = i;
+      galaxyBg.appendChild(shootingStar);
+      
+      // Start random repositioning for this shooting star
+      randomizeShootingStar(shootingStar, i);
+    }
+  }
+  
+  // Store shooting star interval IDs for cleanup
+  let shootingStarIntervals = [];
+  
+  // Randomize shooting star position and timing - occasional, calming appearances
+  function randomizeShootingStar(star, index) {
+    // First star after 10-20 seconds, second after 25-40 seconds
+    const initialDelay = 10000 + (index * 15000) + Math.random() * 10000;
+    
+    const repositionStar = () => {
+      // Random position across the container
+      const topPos = 10 + Math.random() * 50; // 10% to 60% from top
+      const leftPos = 15 + Math.random() * 65; // 15% to 80% from left
+      
+      // Random angle between -30 and -50 degrees
+      const angle = -30 - Math.random() * 20;
+      
+      // Random size variation
+      const width = 55 + Math.random() * 35; // 55px to 90px
+      
+      // Apply new position
+      star.style.top = `${topPos}%`;
+      star.style.left = `${leftPos}%`;
+      star.style.width = `${width}px`;
+      star.style.setProperty('--star-angle', `${angle}deg`);
+      
+      // Restart animation by removing and re-adding the class
+      star.style.animation = 'none';
+      star.offsetHeight; // Trigger reflow
+      
+      // Animation duration 12-18 seconds - star visible for ~1 second within this
+      const duration = 12 + Math.random() * 6;
+      star.style.animation = `shooting-star-random ${duration}s ease-in-out infinite`;
+    };
+    
+    // Initial positioning after delay
+    setTimeout(() => {
+      repositionStar();
+      
+      // Reposition every 25-45 seconds (gentle pacing)
+      const intervalId = setInterval(() => {
+        repositionStar();
+      }, 25000 + Math.random() * 20000);
+      
+      shootingStarIntervals.push(intervalId);
+    }, initialDelay);
+  }
+  
+  // Remove frequency visual elements
+  function removeFrequencyVisuals(container) {
+    // Clear shooting star intervals
+    shootingStarIntervals.forEach(id => clearInterval(id));
+    shootingStarIntervals = [];
+    
+    const visualClasses = [
+      'freq-galaxy-bg', 'freq-nebula-bg', 'freq-star', 'freq-star-accent', 
+      'freq-nebula', 'freq-dust', 'freq-aura', 'freq-shooting-star'
+    ];
+    visualClasses.forEach(cls => {
+      const elements = container.querySelectorAll('.' + cls);
+      elements.forEach(el => el.remove());
+    });
+    // Reset CSS custom properties
+    container.style.removeProperty('--freq-pulse-duration');
+    container.style.removeProperty('--freq-intensity');
+    container.style.removeProperty('--nebula-drift');
+  }
+  
+  // Update galaxy visuals based on current binaural beat
+  function updateFrequencyVisuals(container, binauralHz, phaseProgress) {
+    if (!container) return;
+    
+    // Calculate breathing duration based on binaural frequency
+    // Lower frequency = slower, deeper breathing effect
+    // Maps binaural Hz to a calm, slow animation range
+    // Delta (0.5-4): very slow 12-8s, Theta (4-8): slow 8-6s, Alpha (8-12): moderate 6-5s, Beta (12+): 5-4s
+    let pulseDuration;
+    if (binauralHz <= 1) {
+      pulseDuration = 12;
+    } else if (binauralHz <= 4) {
+      pulseDuration = 12 - ((binauralHz - 1) / 3) * 4; // 12 -> 8
+    } else if (binauralHz <= 8) {
+      pulseDuration = 8 - ((binauralHz - 4) / 4) * 2; // 8 -> 6
+    } else if (binauralHz <= 12) {
+      pulseDuration = 6 - ((binauralHz - 8) / 4) * 1; // 6 -> 5
+    } else {
+      pulseDuration = Math.max(4, 5 - (binauralHz - 12) * 0.05); // 5 -> 4
+    }
+    
+    // Calculate subtle intensity based on frequency band
+    // Keep everything gentle - range from 0.5 to 0.85
+    let intensity;
+    if (binauralHz < 4) {
+      // Delta: very soft, dreamy
+      intensity = 0.5 + (binauralHz / 4) * 0.1; // 0.5 - 0.6
+    } else if (binauralHz < 8) {
+      // Theta: slightly more visible
+      intensity = 0.6 + ((binauralHz - 4) / 4) * 0.1; // 0.6 - 0.7
+    } else if (binauralHz < 12) {
+      // Alpha: moderate presence
+      intensity = 0.7 + ((binauralHz - 8) / 4) * 0.1; // 0.7 - 0.8
+    } else {
+      // Beta: gentle cap
+      intensity = 0.8 + Math.min((binauralHz - 12) / 20, 0.05); // 0.8 - 0.85
+    }
+    
+    // Apply CSS custom properties - all very smooth
+    container.style.setProperty('--freq-pulse-duration', `${pulseDuration}s`);
+    container.style.setProperty('--freq-intensity', intensity.toFixed(2));
+  }
+  
   // Start program
   async function startProgram(programId) {
     const program = RELAXATION_PROGRAMS[programId];
     if (!program) return;
+    
+    // Stop any running dynamic journey first (defined later in the script)
+    if (typeof window.stopDynamicJourneyFn === 'function') {
+      window.stopDynamicJourneyFn();
+    }
     
     currentProgram = program;
     currentPhaseIndex = -1; // Will be set to 0 on first update
@@ -4568,6 +4748,9 @@
     programDisplay.style.display = 'block';
     programSection.classList.add('is-running');
     document.getElementById('programCurrentName').textContent = program.name;
+    
+    // Create frequency-responsive visual elements
+    createFrequencyVisuals(programDisplay);
     
     // Create phase markers
     createPhaseMarkers(program);
@@ -4622,7 +4805,8 @@
     
     currentProgram = null;
     
-    // Hide program display
+    // Hide program display and clean up visuals
+    removeFrequencyVisuals(programDisplay);
     programDisplay.style.display = 'none';
     programSection.classList.remove('is-running');
     
@@ -4673,6 +4857,875 @@
       if (card && card.dataset.program) {
         programSelect.value = card.dataset.program;
         programSelect.dispatchEvent(new Event('change'));
+      }
+    });
+  }
+
+  // ===== DYNAMIC BINAURAL JOURNEYS =====
+  
+  // Harmonic interval ratios for consonant, pleasant frequencies
+  const HARMONIC_INTERVALS = {
+    unison:       { ratio: 1/1,   name: 'Unison',        consonance: 1.0 },
+    octave:       { ratio: 2/1,   name: 'Octave',        consonance: 0.95 },
+    fifth:        { ratio: 3/2,   name: 'Perfect Fifth', consonance: 0.9 },
+    fourth:       { ratio: 4/3,   name: 'Perfect Fourth', consonance: 0.85 },
+    majorThird:   { ratio: 5/4,   name: 'Major Third',   consonance: 0.8 },
+    minorThird:   { ratio: 6/5,   name: 'Minor Third',   consonance: 0.75 },
+    majorSixth:   { ratio: 5/3,   name: 'Major Sixth',   consonance: 0.78 },
+    minorSixth:   { ratio: 8/5,   name: 'Minor Sixth',   consonance: 0.7 },
+    majorSecond:  { ratio: 9/8,   name: 'Major Second',  consonance: 0.5 },
+    minorSeventh: { ratio: 16/9,  name: 'Minor Seventh', consonance: 0.45 },
+    majorSeventh: { ratio: 15/8,  name: 'Major Seventh', consonance: 0.4 }
+  };
+  
+  // Chord progressions using harmonic intervals (for harmonic journeys)
+  const HARMONIC_PROGRESSIONS = {
+    peaceful: ['unison', 'fifth', 'majorThird', 'fourth', 'unison'],
+    uplifting: ['unison', 'majorThird', 'fifth', 'octave', 'fifth', 'majorThird'],
+    dreamy: ['unison', 'fourth', 'minorThird', 'fifth', 'majorSixth', 'fourth'],
+    cosmic: ['unison', 'fifth', 'octave', 'fifth', 'fourth', 'majorThird', 'unison'],
+    oceanic: ['unison', 'fourth', 'fifth', 'majorThird', 'fourth', 'unison'],
+    ethereal: ['unison', 'majorSixth', 'fifth', 'fourth', 'majorThird', 'fifth', 'octave']
+  };
+  
+  // Helper: Smooth interpolation between two values
+  function smoothInterpolate(from, to, progress, easing = 'sine') {
+    let t = Math.max(0, Math.min(1, progress));
+    switch (easing) {
+      case 'sine': t = (1 - Math.cos(t * Math.PI)) / 2; break;
+      case 'quad': t = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; break;
+      case 'cubic': t = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; break;
+      default: break;
+    }
+    return from + (to - from) * t;
+  }
+  
+  // Helper: Get interval-based frequencies with smooth transitions
+  function getHarmonicFrequencies(baseHz, progression, phaseProgress, binauralHz) {
+    const intervals = progression.map(name => HARMONIC_INTERVALS[name]);
+    const segmentCount = intervals.length - 1;
+    const segmentIndex = Math.min(Math.floor(phaseProgress * segmentCount), segmentCount - 1);
+    const segmentProgress = (phaseProgress * segmentCount) % 1;
+    
+    const fromInterval = intervals[segmentIndex];
+    const toInterval = intervals[segmentIndex + 1] || intervals[segmentIndex];
+    
+    // Smoothly interpolate between interval ratios
+    const currentRatio = smoothInterpolate(fromInterval.ratio, toInterval.ratio, segmentProgress);
+    
+    // Create harmonically related frequencies
+    const leftHz = baseHz;
+    const rightHz = baseHz * currentRatio;
+    
+    // Add the binaural beat offset to one channel
+    return {
+      leftHz: leftHz,
+      rightHz: rightHz + binauralHz,
+      intervalName: segmentProgress < 0.5 ? fromInterval.name : toInterval.name
+    };
+  }
+  
+  // Dynamic Journey definitions with harmonic intervals
+  const DYNAMIC_JOURNEYS = {
+    'cosmic-drift': {
+      name: '🚀 Cosmic Drift',
+      duration: 12 * 60, // 12 minutes
+      description: 'Float through space with harmonic frequency relationships',
+      phases: [
+        {
+          name: 'Launch Pad',
+          duration: 2 * 60,
+          baseHz: 180,
+          binauralHz: 10,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'harmonic-drift', 
+            harmonicSpread: 0.02, // subtle harmonic movement
+            waveSpeed: 0.15,
+            breathCycle: 8 // seconds per breath cycle
+          },
+          description: 'Grounding in perfect fifths and unison'
+        },
+        {
+          name: 'Orbital Float',
+          duration: 2.5 * 60,
+          baseHz: 165,
+          binauralHz: 8,
+          progression: 'cosmic',
+          modulation: { 
+            type: 'harmonic-wave',
+            harmonicSpread: 0.03,
+            waveSpeed: 0.1,
+            breathCycle: 10
+          },
+          description: 'Ascending through major thirds and perfect fifths'
+        },
+        {
+          name: 'Deep Space',
+          duration: 3 * 60,
+          baseHz: 150,
+          binauralHz: 6,
+          progression: 'dreamy',
+          modulation: { 
+            type: 'harmonic-float',
+            harmonicSpread: 0.025,
+            waveSpeed: 0.08,
+            breathCycle: 12
+          },
+          description: 'Drifting through fourth and sixth intervals'
+        },
+        {
+          name: 'Nebula Dreams',
+          duration: 3 * 60,
+          baseHz: 140,
+          binauralHz: 5,
+          progression: 'ethereal',
+          modulation: { 
+            type: 'harmonic-shimmer',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.12,
+            breathCycle: 14
+          },
+          description: 'Cascading through the overtone series'
+        },
+        {
+          name: 'Re-entry',
+          duration: 1.5 * 60,
+          baseHz: 170,
+          binauralHz: 8,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'harmonic-return',
+            harmonicSpread: 0.015,
+            waveSpeed: 0.2,
+            breathCycle: 6
+          },
+          description: 'Gentle descent back to grounding unison'
+        }
+      ]
+    },
+    'neural-symphony': {
+      name: '🎻 Neural Symphony',
+      duration: 10 * 60, // 10 minutes
+      description: 'A symphony of harmonic intervals like a neural orchestra',
+      phases: [
+        {
+          name: 'Prelude',
+          duration: 2 * 60,
+          baseHz: 196, // G3 - orchestral tuning
+          binauralHz: 10,
+          progression: 'uplifting',
+          modulation: { 
+            type: 'symphony-intro',
+            harmonicSpread: 0.015,
+            waveSpeed: 0.18,
+            breathCycle: 6
+          },
+          description: 'Opening with unison, rising to major third'
+        },
+        {
+          name: 'Allegro',
+          duration: 2.5 * 60,
+          baseHz: 220, // A3
+          binauralHz: 12,
+          progression: 'uplifting',
+          modulation: { 
+            type: 'symphony-allegro',
+            harmonicSpread: 0.025,
+            waveSpeed: 0.25,
+            breathCycle: 4
+          },
+          description: 'Lively dance through fifths and octaves'
+        },
+        {
+          name: 'Adagio',
+          duration: 3 * 60,
+          baseHz: 174.6, // F3 - warm, deep
+          binauralHz: 7,
+          progression: 'dreamy',
+          modulation: { 
+            type: 'symphony-adagio',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.08,
+            breathCycle: 16
+          },
+          description: 'Slow, beautiful major sixth passages'
+        },
+        {
+          name: 'Crescendo',
+          duration: 2.5 * 60,
+          baseHz: 196, // Back to G3
+          binauralHz: 10,
+          progression: 'cosmic',
+          modulation: { 
+            type: 'symphony-crescendo',
+            harmonicSpread: 0.03,
+            waveSpeed: 0.15,
+            breathCycle: 5
+          },
+          description: 'Building through the harmonic series to finale'
+        }
+      ]
+    },
+    'tidal-waves': {
+      name: '🌊 Tidal Waves',
+      duration: 14 * 60, // 14 minutes
+      description: 'Ocean rhythms flowing through harmonic intervals',
+      phases: [
+        {
+          name: 'Shore Calm',
+          duration: 2 * 60,
+          baseHz: 174.6, // F3 - Solfeggio 174Hz nearby
+          binauralHz: 10,
+          progression: 'oceanic',
+          modulation: { 
+            type: 'tide-gentle',
+            harmonicSpread: 0.015,
+            waveSpeed: 0.1,
+            breathCycle: 10,
+            tideDepth: 0.3
+          },
+          description: 'Calm waters, gentle unison and fourth'
+        },
+        {
+          name: 'Rising Tide',
+          duration: 3 * 60,
+          baseHz: 164.8, // E3
+          binauralHz: 8,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'tide-rising',
+            harmonicSpread: 0.025,
+            waveSpeed: 0.08,
+            breathCycle: 12,
+            tideDepth: 0.5
+          },
+          description: 'Swelling through perfect fifths and fourths'
+        },
+        {
+          name: 'Deep Current',
+          duration: 4 * 60,
+          baseHz: 146.8, // D3 - deep
+          binauralHz: 6,
+          progression: 'dreamy',
+          modulation: { 
+            type: 'tide-deep',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.05,
+            breathCycle: 18,
+            tideDepth: 0.7
+          },
+          description: 'Submerged in major sixths and minor thirds'
+        },
+        {
+          name: 'Oceanic Drift',
+          duration: 3 * 60,
+          baseHz: 138.6, // C#3
+          binauralHz: 5,
+          progression: 'ethereal',
+          modulation: { 
+            type: 'tide-float',
+            harmonicSpread: 0.018,
+            waveSpeed: 0.04,
+            breathCycle: 20,
+            tideDepth: 0.6
+          },
+          description: 'Floating through the overtone spectrum'
+        },
+        {
+          name: 'Gentle Return',
+          duration: 2 * 60,
+          baseHz: 164.8, // E3
+          binauralHz: 8,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'tide-return',
+            harmonicSpread: 0.012,
+            waveSpeed: 0.12,
+            breathCycle: 8,
+            tideDepth: 0.3
+          },
+          description: 'Tide carries you back on perfect intervals'
+        }
+      ]
+    },
+    'aurora-borealis': {
+      name: '🌈 Aurora Borealis',
+      duration: 11 * 60, // 11 minutes
+      description: 'Shimmering harmonic cascades like northern lights',
+      phases: [
+        {
+          name: 'Twilight',
+          duration: 2 * 60,
+          baseHz: 185,
+          binauralHz: 10,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'aurora-twilight',
+            harmonicSpread: 0.01,
+            waveSpeed: 0.15,
+            shimmerRate: 0.3
+          },
+          description: 'Sky darkens, subtle fifth and unison hints'
+        },
+        {
+          name: 'First Light',
+          duration: 2 * 60,
+          baseHz: 175,
+          binauralHz: 8,
+          progression: 'uplifting',
+          modulation: { 
+            type: 'aurora-emerge',
+            harmonicSpread: 0.025,
+            waveSpeed: 0.12,
+            shimmerRate: 0.5
+          },
+          description: 'Ribbons of major thirds appear'
+        },
+        {
+          name: 'Dancing Curtains',
+          duration: 3 * 60,
+          baseHz: 165,
+          binauralHz: 7,
+          progression: 'ethereal',
+          modulation: { 
+            type: 'aurora-dance',
+            harmonicSpread: 0.04,
+            waveSpeed: 0.08,
+            shimmerRate: 0.8
+          },
+          description: 'Sixths and fifths weave across the sky'
+        },
+        {
+          name: 'Peak Display',
+          duration: 2.5 * 60,
+          baseHz: 155,
+          binauralHz: 6,
+          progression: 'cosmic',
+          modulation: { 
+            type: 'aurora-peak',
+            harmonicSpread: 0.035,
+            waveSpeed: 0.1,
+            shimmerRate: 1.0
+          },
+          description: 'Full spectrum of harmonic intervals'
+        },
+        {
+          name: 'Dawn',
+          duration: 1.5 * 60,
+          baseHz: 175,
+          binauralHz: 8,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'aurora-fade',
+            harmonicSpread: 0.015,
+            waveSpeed: 0.18,
+            shimmerRate: 0.2
+          },
+          description: 'Gentle return to grounding fifths'
+        }
+      ]
+    },
+    'quantum-pulse': {
+      name: '⚛️ Quantum Pulse',
+      duration: 9 * 60, // 9 minutes
+      description: 'Rhythmic harmonic patterns in the quantum realm',
+      phases: [
+        {
+          name: 'Initialization',
+          duration: 2 * 60,
+          baseHz: 196, // G3
+          binauralHz: 12,
+          progression: 'uplifting',
+          modulation: { 
+            type: 'quantum-init',
+            harmonicSpread: 0.02,
+            waveSpeed: 0.3,
+            pulseRate: 0.5
+          },
+          description: 'Activating with major thirds and fifths'
+        },
+        {
+          name: 'Superposition',
+          duration: 2.5 * 60,
+          baseHz: 185,
+          binauralHz: 10,
+          progression: 'cosmic',
+          modulation: { 
+            type: 'quantum-super',
+            harmonicSpread: 0.03,
+            waveSpeed: 0.2,
+            pulseRate: 0.7
+          },
+          description: 'Multiple harmonic states overlapping'
+        },
+        {
+          name: 'Entanglement',
+          duration: 2.5 * 60,
+          baseHz: 174.6,
+          binauralHz: 7,
+          progression: 'ethereal',
+          modulation: { 
+            type: 'quantum-entangle',
+            harmonicSpread: 0.025,
+            waveSpeed: 0.15,
+            pulseRate: 0.9
+          },
+          description: 'Perfect intervals dance in quantum lock'
+        },
+        {
+          name: 'Coherence',
+          duration: 2 * 60,
+          baseHz: 196,
+          binauralHz: 10,
+          progression: 'peaceful',
+          modulation: { 
+            type: 'quantum-coherent',
+            harmonicSpread: 0.015,
+            waveSpeed: 0.25,
+            pulseRate: 0.4
+          },
+          description: 'Perfect alignment in harmonic coherence'
+        }
+      ]
+    }
+  };
+  
+  // Dynamic Journey state
+  let dynamicJourneyRunning = false;
+  let dynamicJourneyStartTime = null;
+  let dynamicJourneyAnimationFrame = null;
+  let currentDynamicJourney = null;
+  let currentDynamicPhaseIndex = 0;
+  let dynamicModulationOffset = 0;
+  
+  // Phase transition settings - slow crossfade between phases
+  const PHASE_TRANSITION_DURATION = 8; // 8 seconds of crossfade between phases
+  let previousPhaseEndFreqs = null; // Store last frequencies of previous phase for crossfading
+  let phaseTransitionStartTime = null; // When the current phase started (for transition calc)
+  
+  // DOM elements for dynamic journeys
+  const dynamicJourneySelect = document.getElementById('dynamicJourneySelect');
+  const dynamicJourneyStart = document.getElementById('dynamicJourneyStart');
+  const dynamicJourneyStop = document.getElementById('dynamicJourneyStop');
+  const dynamicJourneyDisplay = document.getElementById('dynamicJourneyDisplay');
+  const dynamicJourneysSection = document.querySelector('.dynamic-journeys-section');
+  const dynamicJourneyInfoCards = document.getElementById('dynamicJourneyInfoCards');
+  const dynamicJourneysToggle = document.getElementById('dynamicJourneysToggle');
+  const dynamicJourneysContent = document.getElementById('dynamicJourneysContent');
+  
+  // Calculate harmonically modulated frequencies based on phase progression
+  function calculateHarmonicFrequencies(phase, phaseElapsed, totalPhaseTime) {
+    const { baseHz, binauralHz, progression: progName, modulation } = phase;
+    const progression = HARMONIC_PROGRESSIONS[progName] || HARMONIC_PROGRESSIONS.peaceful;
+    const phaseProgress = Math.min(phaseElapsed / totalPhaseTime, 1);
+    
+    // Get base harmonic frequencies from interval progression
+    const harmonic = getHarmonicFrequencies(baseHz, progression, phaseProgress, binauralHz);
+    
+    // Apply additional modulation for organic movement
+    const mod = modulation || { type: 'default', harmonicSpread: 0.02, waveSpeed: 0.1 };
+    const time = phaseElapsed;
+    const spread = mod.harmonicSpread || 0.02;
+    const speed = mod.waveSpeed || 0.1;
+    const breathCycle = mod.breathCycle || 8;
+    
+    // Breathing modulation - slow, organic pulsing
+    const breathPhase = (time / breathCycle) * Math.PI * 2;
+    const breathMod = Math.sin(breathPhase) * spread * baseHz;
+    
+    // Secondary harmonic movement - adds subtle variation
+    const secondaryPhase = time * speed * Math.PI * 2;
+    
+    let leftMod = 0;
+    let rightMod = 0;
+    
+    switch (mod.type) {
+      case 'harmonic-drift':
+        // Gentle wandering within harmonic bounds
+        leftMod = breathMod + baseHz * spread * 0.5 * Math.sin(secondaryPhase * 0.7);
+        rightMod = breathMod + baseHz * spread * 0.5 * Math.cos(secondaryPhase * 0.5);
+        break;
+        
+      case 'harmonic-wave':
+        // Wave-like movement through harmonics
+        leftMod = breathMod + baseHz * spread * Math.sin(secondaryPhase);
+        rightMod = breathMod + baseHz * spread * Math.sin(secondaryPhase + Math.PI * 0.25);
+        break;
+        
+      case 'harmonic-float':
+        // Floating, dreamlike movement
+        leftMod = breathMod * 1.2 + baseHz * spread * 0.3 * Math.sin(secondaryPhase * 0.5);
+        rightMod = breathMod * 1.2 + baseHz * spread * 0.3 * Math.cos(secondaryPhase * 0.3);
+        break;
+        
+      case 'harmonic-shimmer':
+        // Subtle shimmering
+        const shimmer = Math.sin(secondaryPhase * 3) * 0.3;
+        leftMod = breathMod + baseHz * spread * shimmer;
+        rightMod = breathMod + baseHz * spread * shimmer * Math.cos(secondaryPhase);
+        break;
+        
+      case 'harmonic-return':
+        // Gradually settling movement
+        const decay = 1 - phaseProgress * 0.7;
+        leftMod = breathMod * decay + baseHz * spread * 0.5 * Math.sin(secondaryPhase) * decay;
+        rightMod = breathMod * decay + baseHz * spread * 0.5 * Math.cos(secondaryPhase) * decay;
+        break;
+        
+      case 'symphony-intro':
+      case 'symphony-allegro':
+        // Orchestral movement - more structured
+        const allegro = mod.type === 'symphony-allegro' ? 1.5 : 1;
+        leftMod = breathMod + baseHz * spread * Math.sin(secondaryPhase * allegro);
+        rightMod = breathMod + baseHz * spread * Math.sin(secondaryPhase * allegro + Math.PI / 3);
+        break;
+        
+      case 'symphony-adagio':
+        // Slow, beautiful movement
+        leftMod = breathMod * 1.5;
+        rightMod = breathMod * 1.5 + baseHz * spread * 0.2 * Math.sin(secondaryPhase * 0.3);
+        break;
+        
+      case 'symphony-crescendo':
+        // Building intensity
+        const crescendo = Math.min(phaseProgress * 2, 1);
+        leftMod = breathMod * (1 + crescendo) + baseHz * spread * Math.sin(secondaryPhase) * crescendo;
+        rightMod = breathMod * (1 + crescendo) + baseHz * spread * Math.cos(secondaryPhase) * crescendo;
+        break;
+        
+      case 'tide-gentle':
+      case 'tide-rising':
+      case 'tide-deep':
+      case 'tide-float':
+      case 'tide-return':
+        // Tidal movements - organic, rhythmic
+        const tideDepth = mod.tideDepth || 0.5;
+        const tidePhase = (time / 15) * Math.PI * 2; // 15 second tide cycle
+        const tideMod = Math.sin(tidePhase) * tideDepth;
+        leftMod = breathMod * (1 + tideMod * 0.5) + baseHz * spread * Math.sin(secondaryPhase * 0.5);
+        rightMod = breathMod * (1 + tideMod * 0.5) + baseHz * spread * Math.sin(secondaryPhase * 0.5 + Math.PI * 0.3);
+        break;
+        
+      case 'aurora-twilight':
+      case 'aurora-emerge':
+      case 'aurora-dance':
+      case 'aurora-peak':
+      case 'aurora-fade':
+        // Aurora movements - shimmering, dancing
+        const shimmerRate = mod.shimmerRate || 0.5;
+        const auroraPhase = secondaryPhase * shimmerRate;
+        const dance = Math.sin(auroraPhase) * Math.cos(auroraPhase * 0.618);
+        leftMod = breathMod + baseHz * spread * dance;
+        rightMod = breathMod + baseHz * spread * Math.sin(auroraPhase * 1.3) * Math.cos(auroraPhase * 0.8);
+        break;
+        
+      case 'quantum-init':
+      case 'quantum-super':
+      case 'quantum-entangle':
+      case 'quantum-coherent':
+        // Quantum movements - precise, pulsing
+        const pulseRate = mod.pulseRate || 0.5;
+        const quantumPhase = secondaryPhase * (1 + pulseRate);
+        const pulse = Math.pow(Math.sin(quantumPhase), 2);
+        leftMod = breathMod * 0.7 + baseHz * spread * pulse;
+        rightMod = breathMod * 0.7 + baseHz * spread * Math.pow(Math.cos(quantumPhase), 2);
+        break;
+        
+      default:
+        leftMod = breathMod;
+        rightMod = breathMod;
+    }
+    
+    return {
+      leftHz: harmonic.leftHz + leftMod,
+      rightHz: harmonic.rightHz + rightMod,
+      intervalName: harmonic.intervalName
+    };
+  }
+  
+  // Toggle dynamic journeys section visibility
+  if (dynamicJourneysToggle && dynamicJourneysContent && dynamicJourneysSection) {
+    dynamicJourneysToggle.addEventListener('click', () => {
+      const isCollapsed = dynamicJourneysSection.classList.contains('collapsed');
+      
+      if (isCollapsed) {
+        dynamicJourneysSection.classList.remove('collapsed');
+        dynamicJourneysContent.hidden = false;
+        dynamicJourneysToggle.setAttribute('aria-expanded', 'true');
+      } else {
+        if (!dynamicJourneyRunning) {
+          dynamicJourneysSection.classList.add('collapsed');
+          dynamicJourneysContent.hidden = true;
+          dynamicJourneysToggle.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
+  }
+  
+  // Format time for display
+  function formatDynamicTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+  
+  // Track current harmonic interval for display
+  let currentHarmonicInterval = '';
+  
+  // Smooth easing function for phase transitions (ease-in-out cubic)
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+  
+  // Calculate the ending frequencies of a phase (for transition blending)
+  function getPhaseEndFrequencies(phase) {
+    // Get frequencies at the very end of the phase
+    return calculateHarmonicFrequencies(phase, phase.duration * 0.99, phase.duration);
+  }
+  
+  // Update dynamic journey display
+  function updateDynamicJourneyDisplay() {
+    if (!dynamicJourneyRunning || !dynamicJourneyStartTime) return;
+    
+    const elapsed = (Date.now() - dynamicJourneyStartTime) / 1000;
+    const journey = currentDynamicJourney;
+    
+    if (elapsed >= journey.duration) {
+      stopDynamicJourney();
+      return;
+    }
+    
+    // Update elapsed time
+    document.getElementById('dynamicJourneyElapsed').textContent = formatDynamicTime(elapsed);
+    
+    // Update progress
+    const progress = (elapsed / journey.duration) * 100;
+    document.getElementById('dynamicJourneyProgressFill').style.width = `${progress}%`;
+    
+    // Find current phase
+    let phaseTime = 0;
+    let phaseIndex = 0;
+    for (let i = 0; i < journey.phases.length; i++) {
+      if (elapsed < phaseTime + journey.phases[i].duration) {
+        phaseIndex = i;
+        break;
+      }
+      phaseTime += journey.phases[i].duration;
+    }
+    
+    const phase = journey.phases[phaseIndex];
+    const phaseElapsed = elapsed - phaseTime;
+    const phaseDuration = phase.duration;
+    
+    // Calculate harmonic frequencies using the new system
+    const frequencies = calculateHarmonicFrequencies(phase, phaseElapsed, phaseDuration);
+    let leftHz = frequencies.leftHz;
+    let rightHz = frequencies.rightHz;
+    
+    // Handle phase transition - detect when phase changes
+    if (phaseIndex !== currentDynamicPhaseIndex) {
+      // Store the previous phase's ending frequencies for crossfade
+      if (currentDynamicPhaseIndex >= 0 && currentDynamicPhaseIndex < journey.phases.length) {
+        const prevPhase = journey.phases[currentDynamicPhaseIndex];
+        previousPhaseEndFreqs = getPhaseEndFrequencies(prevPhase);
+      }
+      phaseTransitionStartTime = elapsed;
+      currentDynamicPhaseIndex = phaseIndex;
+      
+      document.getElementById('dynamicPhaseBadge').textContent = `Phase ${phaseIndex + 1}`;
+      document.getElementById('dynamicPhaseName').textContent = phase.name;
+      document.getElementById('dynamicPhaseDescription').textContent = phase.description;
+    }
+    
+    // Apply slow crossfade transition between phases
+    if (previousPhaseEndFreqs && phaseTransitionStartTime !== null) {
+      const transitionElapsed = elapsed - phaseTransitionStartTime;
+      
+      if (transitionElapsed < PHASE_TRANSITION_DURATION) {
+        // Calculate transition progress with easing
+        const transitionProgress = easeInOutCubic(transitionElapsed / PHASE_TRANSITION_DURATION);
+        
+        // Crossfade between previous phase end frequencies and current phase frequencies
+        leftHz = previousPhaseEndFreqs.leftHz + (leftHz - previousPhaseEndFreqs.leftHz) * transitionProgress;
+        rightHz = previousPhaseEndFreqs.rightHz + (rightHz - previousPhaseEndFreqs.rightHz) * transitionProgress;
+      } else {
+        // Transition complete, clear the previous frequencies
+        previousPhaseEndFreqs = null;
+        phaseTransitionStartTime = null;
+      }
+    }
+    
+    const binauralHz = Math.abs(rightHz - leftHz);
+    
+    // Update harmonic interval display if changed
+    if (frequencies.intervalName !== currentHarmonicInterval) {
+      currentHarmonicInterval = frequencies.intervalName;
+    }
+    
+    // Update frequency displays (these update continuously for dynamic effect)
+    document.getElementById('dynamicPhaseFreqL').textContent = `${leftHz.toFixed(1)} Hz`;
+    document.getElementById('dynamicPhaseFreqR').textContent = `${rightHz.toFixed(1)} Hz`;
+    document.getElementById('dynamicPhaseBinaural').textContent = `${binauralHz.toFixed(2)} Hz`;
+    
+    // Update actual wheel frequencies
+    if (wheelL && wheelR) {
+      wheelL.setHz(leftHz);
+      wheelR.setHz(rightHz);
+    }
+    
+    // Update frequency-responsive visuals
+    const overallProgress = elapsed / journey.duration;
+    updateFrequencyVisuals(dynamicJourneyDisplay, binauralHz, overallProgress);
+    
+    dynamicJourneyAnimationFrame = requestAnimationFrame(updateDynamicJourneyDisplay);
+  }
+  
+  // Start dynamic journey
+  async function startDynamicJourney(journeyId) {
+    const journey = DYNAMIC_JOURNEYS[journeyId];
+    if (!journey) return;
+    
+    // Stop any running program first
+    if (programRunning) {
+      stopProgram();
+    }
+    
+    currentDynamicJourney = journey;
+    currentDynamicPhaseIndex = -1; // Will trigger phase update
+    currentHarmonicInterval = ''; // Reset harmonic tracking
+    previousPhaseEndFreqs = null; // Reset transition state
+    phaseTransitionStartTime = null;
+    dynamicJourneyRunning = true;
+    
+    // Ensure audio is ready
+    ensureAudio();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+    
+    // Set initial frequencies using the harmonic system
+    const firstPhase = journey.phases[0];
+    const initialFreqs = calculateHarmonicFrequencies(firstPhase, 0, firstPhase.duration);
+    wheelL.setHz(initialFreqs.leftHz);
+    wheelR.setHz(initialFreqs.rightHz);
+    
+    // Set up display
+    document.getElementById('dynamicJourneyCurrentName').textContent = journey.name;
+    document.getElementById('dynamicJourneyTotal').textContent = formatDynamicTime(journey.duration);
+    document.getElementById('dynamicJourneyElapsed').textContent = '00:00';
+    document.getElementById('dynamicJourneyProgressFill').style.width = '0%';
+    
+    // Create phase markers
+    const markersContainer = document.getElementById('dynamicJourneyPhaseMarkers');
+    markersContainer.innerHTML = '';
+    let cumulative = 0;
+    journey.phases.forEach((phase, i) => {
+      if (i > 0) {
+        const marker = document.createElement('div');
+        marker.className = 'phase-marker';
+        marker.style.left = `${(cumulative / journey.duration) * 100}%`;
+        markersContainer.appendChild(marker);
+      }
+      cumulative += phase.duration;
+    });
+    
+    // Update button states
+    dynamicJourneyStart.classList.add('is-playing');
+    dynamicJourneyStart.querySelector('.btn-text').textContent = 'Experiencing...';
+    dynamicJourneyStart.disabled = true;
+    dynamicJourneyStop.disabled = false;
+    dynamicJourneySelect.disabled = true;
+    
+    // Show display
+    dynamicJourneyDisplay.style.display = 'block';
+    dynamicJourneysSection.classList.add('is-running');
+    
+    // Create frequency-responsive visual elements
+    createFrequencyVisuals(dynamicJourneyDisplay);
+    
+    dynamicJourneyStartTime = Date.now();
+    
+    // Start audio playback
+    startAudio();
+    setTransportActive('play');
+    
+    // Start update loop
+    updateDynamicJourneyDisplay();
+  }
+  
+  // Stop dynamic journey
+  function stopDynamicJourney() {
+    if (!dynamicJourneyRunning && !currentDynamicJourney) return; // Already stopped
+    dynamicJourneyRunning = false;
+    dynamicJourneyStartTime = null;
+    currentDynamicJourney = null;
+    currentDynamicPhaseIndex = 0;
+    currentHarmonicInterval = '';
+    previousPhaseEndFreqs = null;
+    phaseTransitionStartTime = null;
+    
+    if (dynamicJourneyAnimationFrame) {
+      cancelAnimationFrame(dynamicJourneyAnimationFrame);
+      dynamicJourneyAnimationFrame = null;
+    }
+    
+    // Update button states
+    dynamicJourneyStart.classList.remove('is-playing');
+    dynamicJourneyStart.querySelector('.btn-text').textContent = 'Begin Experience';
+    dynamicJourneyStart.disabled = !dynamicJourneySelect.value;
+    dynamicJourneyStop.disabled = true;
+    dynamicJourneySelect.disabled = false;
+    
+    // Hide display and clean up visuals
+    removeFrequencyVisuals(dynamicJourneyDisplay);
+    dynamicJourneyDisplay.style.display = 'none';
+    dynamicJourneysSection.classList.remove('is-running');
+    
+    // Stop audio
+    stopAudio();
+  }
+  
+  // Expose stopDynamicJourney for cross-reference with relaxation programs
+  window.stopDynamicJourneyFn = stopDynamicJourney;
+  
+  // Event listeners for dynamic journeys
+  if (dynamicJourneySelect) {
+    dynamicJourneySelect.addEventListener('change', () => {
+      const value = dynamicJourneySelect.value;
+      dynamicJourneyStart.disabled = !value;
+      
+      // Highlight selected card
+      document.querySelectorAll('.info-card.dynamic').forEach(card => {
+        card.classList.toggle('active', card.dataset.journey === value);
+      });
+    });
+  }
+  
+  if (dynamicJourneyStart) {
+    dynamicJourneyStart.addEventListener('click', () => {
+      if (dynamicJourneyRunning) return;
+      
+      const journeyId = dynamicJourneySelect.value;
+      if (journeyId) {
+        startDynamicJourney(journeyId);
+      }
+    });
+  }
+  
+  if (dynamicJourneyStop) {
+    dynamicJourneyStop.addEventListener('click', () => {
+      stopDynamicJourney();
+    });
+  }
+  
+  // Info card clicks for dynamic journeys
+  if (dynamicJourneyInfoCards) {
+    dynamicJourneyInfoCards.addEventListener('click', (e) => {
+      const card = e.target.closest('.info-card.dynamic');
+      if (card && card.dataset.journey) {
+        dynamicJourneySelect.value = card.dataset.journey;
+        dynamicJourneySelect.dispatchEvent(new Event('change'));
       }
     });
   }
