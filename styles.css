@@ -5271,6 +5271,49 @@ body:not([data-theme="dark"]) .program-display .timer-total {
   color: #4b0082;
 }
 
+.phase-tag.schumann {
+  background: rgba(218, 165, 32, 0.2);
+  color: #b8860b;
+}
+
+.phase-tag.lucid {
+  background: rgba(138, 43, 226, 0.25);
+  color: #9932cc;
+  border: 1px solid rgba(138, 43, 226, 0.3);
+}
+
+.phase-tag.healing {
+  background: rgba(34, 139, 34, 0.2);
+  color: #228b22;
+}
+
+.phase-tag.zen {
+  background: rgba(107, 142, 35, 0.2);
+  color: #6b8e23;
+}
+
+.phase-tag.vortex {
+  background: rgba(255, 140, 0, 0.25);
+  color: #ff6600;
+  border: 1px solid rgba(255, 140, 0, 0.3);
+}
+
+.phase-tag.heart {
+  background: rgba(255, 105, 180, 0.2);
+  color: #db7093;
+}
+
+.phase-tag.dream {
+  background: rgba(106, 90, 205, 0.2);
+  color: #7b68ee;
+}
+
+.phase-tag.phoenix {
+  background: rgba(255, 69, 0, 0.2);
+  color: #ff4500;
+  border: 1px solid rgba(255, 69, 0, 0.25);
+}
+
 /* Program Running Animation */
 .programs-section.is-running {
   border-color: rgba(147, 112, 219, 0.5);
