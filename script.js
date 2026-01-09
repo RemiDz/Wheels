@@ -646,15 +646,42 @@
       monoOsc2._gain = gain2;
     }
   }
-  function startAudio(){
+  function startAudio(fadeIn = false){
     ensureAudio();
     const t = audioCtx.currentTime + 0.01;
+    const fadeInDuration = 0.08; // 80ms fade-in to prevent click
+    
+    // If fade-in requested, start with zero gain
+    if (fadeIn && wheel1?.gain && wheel2?.gain) {
+      try {
+        wheel1.gain.gain.setValueAtTime(0, t);
+        wheel2.gain.gain.linearRampToValueAtTime(0.25, t + fadeInDuration);
+        wheel1.gain.gain.linearRampToValueAtTime(0.25, t + fadeInDuration);
+      } catch(e) {}
+    }
+    
     if (!wheel1.started){ wheel1.osc.start(t); wheel1.started=true; }
     if (!wheel2.started){ wheel2.osc.start(t); wheel2.started=true; }
     if (!monoOsc1.started){ monoOsc1.start(t); monoOsc1.started=true; }
     if (!monoOsc2.started){ monoOsc2.start(t); monoOsc2.started=true; }
     updateOscillators();
     updateMonoOscillators();
+  }
+  
+  // Fade in audio smoothly (for use when audio is already running)
+  function fadeInAudio(duration = 0.08) {
+    if (!audioCtx || !wheel1?.gain || !wheel2?.gain) return;
+    
+    const now = audioCtx.currentTime;
+    const fadeEnd = now + duration;
+    
+    try {
+      // First set current value, then ramp to target
+      wheel1.gain.gain.setValueAtTime(0, now);
+      wheel2.gain.gain.setValueAtTime(0, now);
+      wheel1.gain.gain.linearRampToValueAtTime(0.25, fadeEnd);
+      wheel2.gain.gain.linearRampToValueAtTime(0.25, fadeEnd);
+    } catch(e) {}
   }
   function stopAudio(){
     if (!audioCtx) return;
@@ -2756,6 +2783,608 @@
   const defaultFrequency = SORTED_FREQUENCIES[0] || 0.1;
   generateOvertones(defaultFrequency);
   
+  // ===== OVERTONES DEMO =====
+  // Educational demonstration of the harmonic series
+  
+  const overtonesDemoBtn = document.getElementById('overtonesDemoBtn');
+  const overtonesDemoOverlay = document.getElementById('overtonesDemoOverlay');
+  const overtonesDemoLabel = document.getElementById('overtonesDemoLabel');
+  
+  // Overtones Demo state
+  let overtonesDemoRunning = false;
+  let overtonesDemoOscillators = [];
+  let overtonesDemoGains = [];
+  let overtonesDemoTimeouts = [];
+  let overtonesDemoMasterGain = null;
+  const OVERTONES_DEMO_FUNDAMENTAL_START = 111; // Slightly above A2 for demo effect
+  const OVERTONES_DEMO_FUNDAMENTAL_END = 110; // End at true A2
+  
+  // Store original states to restore after demo
+  let originalHarmonicMutedState = null;
+  let originalShowOvertoneHighlights = false;
+  let originalOvertonesFundamental = null;
+  
+  // Harmonic names for educational display
+  const HARMONIC_NAMES = {
+    1: "Fundamental",
+    2: "Octave (2:1)",
+    3: "Fifth (3:1)",
+    4: "2nd Octave (4:1)",
+    5: "Major Third (5:1)",
+    6: "Fifth (6:1)",
+    7: "Harmonic 7th (7:1)",
+    8: "3rd Octave (8:1)"
+  };
+  
+  // Get ordinal suffix
+  function getOrdinal(n) {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+  
+  // Update overtones demo label with animation
+  function updateOvertonesDemoLabel(text) {
+    if (!overtonesDemoLabel) return;
+    overtonesDemoLabel.classList.add('transitioning');
+    setTimeout(() => {
+      overtonesDemoLabel.textContent = text;
+      overtonesDemoLabel.classList.remove('transitioning');
+    }, 150);
+  }
+  
+  // Clear all demo visual highlights from overtone cards
+  function clearOvertonesDemoHighlights() {
+    overtonesDisplay?.querySelectorAll('.overtone-card').forEach(card => {
+      card.classList.remove('demo-current', 'demo-active', 'demo-fading', 'is-playing');
+    });
+  }
+  
+  // Highlight a specific harmonic card
+  function highlightOvertoneCard(harmonicNum, isCurrent = false) {
+    const card = overtonesDisplay?.querySelector(`[data-harmonic="${harmonicNum}"]`);
+    if (card) {
+      // Remove is-muted class (cards start muted in demo) and add is-playing
+      card.classList.remove('is-muted', 'is-filtered-out');
+      card.classList.add('is-playing');
+      
+      // Update the mute indicator icon
+      const muteIndicator = card.querySelector('.overtone-mute-indicator');
+      if (muteIndicator) muteIndicator.textContent = '🔊';
+      
+      if (isCurrent) {
+        // Remove current from all others first
+        overtonesDisplay?.querySelectorAll('.overtone-card.demo-current').forEach(c => {
+          c.classList.remove('demo-current');
+          c.classList.add('demo-active');
+        });
+        card.classList.add('demo-current');
+      } else {
+        card.classList.add('demo-active');
+      }
+    }
+  }
+  
+  // Fade out highlight for a harmonic card
+  function fadeOutOvertoneCard(harmonicNum) {
+    const card = overtonesDisplay?.querySelector(`[data-harmonic="${harmonicNum}"]`);
+    if (card) {
+      card.classList.remove('demo-current', 'demo-active', 'is-playing');
+      card.classList.add('demo-fading', 'is-muted');
+      
+      // Update the mute indicator icon
+      const muteIndicator = card.querySelector('.overtone-mute-indicator');
+      if (muteIndicator) muteIndicator.textContent = '🔇';
+    }
+  }
+  
+  // Create a harmonic oscillator for the demo
+  function createDemoHarmonic(harmonicNum, fadeInDuration = 0.8) {
+    if (!audioCtx) return;
+    
+    const freq = currentOvertonesFundamental * harmonicNum;
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    
+    // Start silent
+    gain.gain.value = 0;
+    
+    osc.connect(gain);
+    gain.connect(overtonesDemoMasterGain);
+    
+    osc.start();
+    
+    // Natural harmonic amplitude rolloff (1/n but adjusted for audibility)
+    const targetGain = Math.min(0.25, 0.4 / harmonicNum);
+    
+    // Smooth fade in
+    gain.gain.linearRampToValueAtTime(targetGain, audioCtx.currentTime + fadeInDuration);
+    
+    overtonesDemoOscillators[harmonicNum] = osc;
+    overtonesDemoGains[harmonicNum] = gain;
+    
+    // Unmute this harmonic in the state so it gets highlighted on piano
+    harmonicMutedState[harmonicNum - 1] = false;
+    
+    // Update piano key highlighting with proper overtone colors
+    updateOvertoneHighlights();
+  }
+  
+  // Fade out a demo harmonic
+  function fadeOutDemoHarmonic(harmonicNum, duration = 0.8) {
+    const gain = overtonesDemoGains[harmonicNum];
+    if (gain && audioCtx) {
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+      
+      // Mute this harmonic so it disappears from piano highlighting
+      harmonicMutedState[harmonicNum - 1] = true;
+      updateOvertoneHighlights();
+      
+      // Clean up after fade
+      const timeoutId = setTimeout(() => {
+        try {
+          overtonesDemoOscillators[harmonicNum]?.stop();
+        } catch (e) {}
+        overtonesDemoOscillators[harmonicNum] = null;
+        overtonesDemoGains[harmonicNum] = null;
+      }, duration * 1000 + 100);
+      overtonesDemoTimeouts.push(timeoutId);
+    }
+  }
+  
+  // Set level of existing demo harmonic (for timbre exploration)
+  function setDemoHarmonicLevel(harmonicNum, level, rampDuration = 0.5) {
+    const gain = overtonesDemoGains[harmonicNum];
+    if (gain && audioCtx) {
+      gain.gain.linearRampToValueAtTime(level, audioCtx.currentTime + rampDuration);
+    }
+  }
+  
+  // Wait helper
+  function demoWait(ms) {
+    return new Promise(resolve => {
+      const timeoutId = setTimeout(resolve, ms);
+      overtonesDemoTimeouts.push(timeoutId);
+    });
+  }
+  
+  // Animate fundamental frequency change (smooth transition)
+  function animateFundamentalChange(fromFreq, toFreq, duration) {
+    return new Promise(resolve => {
+      if (!overtonesDemoRunning) {
+        resolve();
+        return;
+      }
+      
+      const startTime = performance.now();
+      
+      function animate(currentTime) {
+        if (!overtonesDemoRunning) {
+          resolve();
+          return;
+        }
+        
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Ease in-out for smooth transition
+        const eased = -(Math.cos(Math.PI * progress) - 1) / 2;
+        
+        // Calculate current fundamental
+        const currentFundamental = fromFreq + (toFreq - fromFreq) * eased;
+        
+        // Update the fundamental frequency
+        currentOvertonesFundamental = currentFundamental;
+        
+        // Update all oscillator frequencies
+        for (let h = 1; h <= 8; h++) {
+          const osc = overtonesDemoOscillators[h];
+          if (osc && audioCtx) {
+            const newFreq = currentFundamental * h;
+            try {
+              osc.frequency.setValueAtTime(newFreq, audioCtx.currentTime);
+            } catch (e) {
+              osc.frequency.value = newFreq;
+            }
+          }
+        }
+        
+        // Update overtone display (throttled)
+        updateOvertones();
+        
+        // Update piano key highlighting
+        updateOvertoneHighlights();
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          // Ensure we end exactly at target
+          currentOvertonesFundamental = toFreq;
+          updateOvertones();
+          updateOvertoneHighlights();
+          resolve();
+        }
+      }
+      
+      requestAnimationFrame(animate);
+    });
+  }
+  
+  // Stop all demo audio
+  function stopOvertonesDemoAudio() {
+    // Clear all timeouts
+    overtonesDemoTimeouts.forEach(t => clearTimeout(t));
+    overtonesDemoTimeouts = [];
+    
+    // Fade out and stop all oscillators
+    overtonesDemoOscillators.forEach((osc, i) => {
+      if (osc) {
+        try {
+          const gain = overtonesDemoGains[i];
+          if (gain && audioCtx) {
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+          }
+          setTimeout(() => {
+            try { osc.stop(); } catch (e) {}
+          }, 250);
+        } catch (e) {}
+      }
+    });
+    
+    overtonesDemoOscillators = [];
+    overtonesDemoGains = [];
+    
+    // Disconnect master gain
+    if (overtonesDemoMasterGain) {
+      setTimeout(() => {
+        try { overtonesDemoMasterGain.disconnect(); } catch (e) {}
+        overtonesDemoMasterGain = null;
+      }, 300);
+    }
+  }
+  
+  // Main demo sequence - "The Harmonic Sunrise"
+  // A gentle, meditative exploration of the overtone series
+  async function runOvertonesDemo() {
+    if (!overtonesDemoRunning) return;
+    
+    // Setup audio
+    ensureAudio();
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+    
+    // Create master gain for demo - start at 0 for gentle fade in
+    overtonesDemoMasterGain = audioCtx.createGain();
+    overtonesDemoMasterGain.gain.value = 0;
+    overtonesDemoMasterGain.connect(audioCtx.destination);
+    
+    // Generate overtones display at 110 Hz (A2 - a warm, pleasant pitch)
+    generateOvertones(OVERTONES_DEMO_FUNDAMENTAL_END);
+    
+    // ========== PHASE 1: "Stillness" - The Pure Tone ==========
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("From silence... a single tone emerges");
+    
+    // Create fundamental with very gentle fade in
+    highlightOvertoneCard(1, true);
+    createDemoHarmonic(1, 2.5); // 2.5 second fade in
+    
+    // Fade master gain up gently
+    overtonesDemoMasterGain.gain.linearRampToValueAtTime(1.0, audioCtx.currentTime + 2.5);
+    await demoWait(5000);
+    
+    // ========== PHASE 2: "The Octave" - Perfect Consonance ==========
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("The Octave — two becoming one");
+    highlightOvertoneCard(2, true);
+    createDemoHarmonic(2, 1.5);
+    await demoWait(4500);
+    
+    // ========== PHASE 3: "The Fifth" - Nature's Harmony ==========
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("The Perfect Fifth — nature's favorite interval");
+    highlightOvertoneCard(3, true);
+    createDemoHarmonic(3, 1.5);
+    await demoWait(4500);
+    
+    // ========== PHASE 4: "Growing Light" - Building Warmth ==========
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("The Double Octave — resonance deepens");
+    highlightOvertoneCard(4, true);
+    createDemoHarmonic(4, 1.2);
+    await demoWait(3500);
+    
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("The Major Third — sweetness enters");
+    highlightOvertoneCard(5, true);
+    createDemoHarmonic(5, 1.2);
+    await demoWait(3500);
+    
+    // ========== PHASE 5: "The Subtle Colors" - Higher Harmonics ==========
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("The higher harmonics... subtle colors of sound");
+    highlightOvertoneCard(6, true);
+    createDemoHarmonic(6, 1.0);
+    await demoWait(2500);
+    
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("The Seventh — the mysterious 'blue note'");
+    highlightOvertoneCard(7, true);
+    createDemoHarmonic(7, 1.0);
+    await demoWait(3000);
+    
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("The Triple Octave — completing the series");
+    highlightOvertoneCard(8, true);
+    createDemoHarmonic(8, 1.0);
+    await demoWait(3000);
+    
+    // ========== PHASE 6: "Full Spectrum" - Appreciation ==========
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("The Complete Harmonic Series — the DNA of sound");
+    await demoWait(4000);
+    
+    // ========== PHASE 7: "The Frequency Dance" - Gentle Shifting ==========
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("Watch the frequencies shift together...");
+    await animateFundamentalChange(OVERTONES_DEMO_FUNDAMENTAL_END, OVERTONES_DEMO_FUNDAMENTAL_START, 6000);
+    await demoWait(2000);
+    
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("...and return home");
+    await animateFundamentalChange(OVERTONES_DEMO_FUNDAMENTAL_START, OVERTONES_DEMO_FUNDAMENTAL_END, 6000);
+    await demoWait(2000);
+    
+    // ========== PHASE 8: "Timbre Exploration" ==========
+    
+    // Warm sound (reduce higher harmonics)
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("Warm — like a flute or soft voice");
+    for (let h = 4; h <= 8; h++) {
+      setDemoHarmonicLevel(h, 0.02, 1.0);
+      harmonicMutedState[h - 1] = true;
+      const card = overtonesDisplay?.querySelector(`[data-harmonic="${h}"]`);
+      if (card) {
+        card.classList.remove('is-playing', 'demo-active');
+        card.classList.add('demo-fading', 'is-muted');
+        const muteIndicator = card.querySelector('.overtone-mute-indicator');
+        if (muteIndicator) muteIndicator.textContent = '🔇';
+      }
+    }
+    updateOvertoneHighlights();
+    await demoWait(4000);
+    
+    // Restore gradually
+    if (!overtonesDemoRunning) return;
+    for (let h = 4; h <= 8; h++) {
+      const targetGain = Math.min(0.25, 0.4 / h);
+      setDemoHarmonicLevel(h, targetGain, 0.8);
+      harmonicMutedState[h - 1] = false;
+      const card = overtonesDisplay?.querySelector(`[data-harmonic="${h}"]`);
+      if (card) {
+        card.classList.remove('demo-fading', 'is-muted');
+        card.classList.add('demo-active', 'is-playing');
+        const muteIndicator = card.querySelector('.overtone-mute-indicator');
+        if (muteIndicator) muteIndicator.textContent = '🔊';
+      }
+    }
+    updateOvertoneHighlights();
+    await demoWait(1500);
+    
+    // Hollow sound (odd harmonics only)
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("Hollow — like a clarinet");
+    [2, 4, 6, 8].forEach(h => {
+      setDemoHarmonicLevel(h, 0, 1.0);
+      harmonicMutedState[h - 1] = true;
+      const card = overtonesDisplay?.querySelector(`[data-harmonic="${h}"]`);
+      if (card) {
+        card.classList.remove('is-playing', 'demo-active');
+        card.classList.add('demo-fading', 'is-muted');
+        const muteIndicator = card.querySelector('.overtone-mute-indicator');
+        if (muteIndicator) muteIndicator.textContent = '🔇';
+      }
+    });
+    updateOvertoneHighlights();
+    await demoWait(4000);
+    
+    // Restore all
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("Full spectrum restored");
+    [2, 4, 6, 8].forEach(h => {
+      const targetGain = Math.min(0.25, 0.4 / h);
+      setDemoHarmonicLevel(h, targetGain, 1.0);
+      harmonicMutedState[h - 1] = false;
+      const card = overtonesDisplay?.querySelector(`[data-harmonic="${h}"]`);
+      if (card) {
+        card.classList.remove('demo-fading', 'is-muted');
+        card.classList.add('demo-active', 'is-playing');
+        const muteIndicator = card.querySelector('.overtone-mute-indicator');
+        if (muteIndicator) muteIndicator.textContent = '🔊';
+      }
+    });
+    updateOvertoneHighlights();
+    await demoWait(3000);
+    
+    // ========== PHASE 9: "Sunset" - Gentle Farewell ==========
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("The harmonics fade... one by one");
+    
+    // Fade out from highest to lowest, slowly and peacefully
+    for (let h = 8; h >= 2; h--) {
+      if (!overtonesDemoRunning) return;
+      fadeOutDemoHarmonic(h, 1.5);
+      fadeOutOvertoneCard(h);
+      await demoWait(1200);
+    }
+    
+    // Linger on fundamental
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("Returning to the source");
+    await demoWait(3000);
+    
+    // Final fade to silence
+    if (!overtonesDemoRunning) return;
+    updateOvertonesDemoLabel("Into stillness...");
+    fadeOutDemoHarmonic(1, 3.0);
+    fadeOutOvertoneCard(1);
+    await demoWait(4000);
+    
+    // Demo complete
+    endOvertonesDemo();
+  }
+  
+  // Start overtones demo
+  function startOvertonesDemo() {
+    if (overtonesDemoRunning) return;
+    
+    // Stop any existing harmonic playback
+    stopHarmonicOscillators();
+    
+    // Stop main demo if running
+    if (typeof stopDemo === 'function' && demoRunning) {
+      stopDemo();
+    }
+    
+    overtonesDemoRunning = true;
+    
+    // Save original states to restore later
+    originalHarmonicMutedState = [...harmonicMutedState];
+    originalShowOvertoneHighlights = showOvertoneHighlights;
+    originalOvertonesFundamental = currentOvertonesFundamental;
+    
+    // Set all harmonics to muted initially (they'll be unmuted one by one)
+    harmonicMutedState = Array(16).fill(true);
+    
+    // Enable overtone highlighting mode for proper piano key colors
+    showOvertoneHighlights = true;
+    
+    // Update button state
+    if (overtonesDemoBtn) {
+      overtonesDemoBtn.classList.add('is-running');
+    }
+    
+    // Show overlay
+    if (overtonesDemoOverlay) {
+      overtonesDemoOverlay.hidden = false;
+    }
+    
+    // Clear any existing highlights
+    clearOvertonesDemoHighlights();
+    clearOvertoneHighlights();
+    
+    // Run the demo
+    runOvertonesDemo();
+  }
+  
+  // Restore original overtone states after demo
+  function restoreOvertoneStates() {
+    // Restore original mute states
+    if (originalHarmonicMutedState) {
+      harmonicMutedState = [...originalHarmonicMutedState];
+      originalHarmonicMutedState = null;
+    }
+    
+    // Restore original showOvertoneHighlights state
+    showOvertoneHighlights = originalShowOvertoneHighlights;
+    
+    // Update the overtone toggle button visual state
+    const overtoneHighlightToggle = document.getElementById('overtoneHighlightToggle');
+    if (overtoneHighlightToggle) {
+      if (showOvertoneHighlights) {
+        overtoneHighlightToggle.classList.add('is-active');
+      } else {
+        overtoneHighlightToggle.classList.remove('is-active');
+      }
+    }
+    
+    // Restore original fundamental and regenerate overtone cards to default state
+    if (originalOvertonesFundamental !== null) {
+      generateOvertones(originalOvertonesFundamental);
+      originalOvertonesFundamental = null;
+    }
+    
+    // Clear all piano key overtone highlights
+    clearOvertoneHighlights();
+  }
+  
+  // Stop overtones demo (interrupted)
+  function stopOvertonesDemo() {
+    if (!overtonesDemoRunning) return;
+    
+    overtonesDemoRunning = false;
+    
+    // Stop audio
+    stopOvertonesDemoAudio();
+    
+    // Update button state
+    if (overtonesDemoBtn) {
+      overtonesDemoBtn.classList.remove('is-running');
+    }
+    
+    // Hide overlay
+    if (overtonesDemoOverlay) {
+      overtonesDemoOverlay.hidden = true;
+    }
+    
+    // Clear overtone card highlights
+    clearOvertonesDemoHighlights();
+    
+    // Restore original states
+    restoreOvertoneStates();
+  }
+  
+  // End overtones demo (completed naturally)
+  function endOvertonesDemo() {
+    overtonesDemoRunning = false;
+    
+    // Update button state
+    if (overtonesDemoBtn) {
+      overtonesDemoBtn.classList.remove('is-running');
+    }
+    
+    // Show completion message
+    updateOvertonesDemoLabel("✨ Demo Complete");
+    
+    // Hide overlay after a moment
+    setTimeout(() => {
+      if (overtonesDemoOverlay) {
+        overtonesDemoOverlay.hidden = true;
+      }
+      clearOvertonesDemoHighlights();
+      restoreOvertoneStates();
+    }, 2000);
+  }
+  
+  // Wire up demo button
+  if (overtonesDemoBtn) {
+    overtonesDemoBtn.addEventListener('click', () => {
+      if (overtonesDemoRunning) {
+        stopOvertonesDemo();
+      } else {
+        startOvertonesDemo();
+      }
+    });
+  }
+  
+  // Stop overtones demo when replay is clicked
+  if (overtonesReplayBtn) {
+    const originalReplayHandler = overtonesReplayBtn.onclick;
+    overtonesReplayBtn.addEventListener('click', () => {
+      if (overtonesDemoRunning) {
+        stopOvertonesDemo();
+      }
+    });
+  }
+  
+  // Expose for cross-reference
+  window.stopOvertonesDemoFn = stopOvertonesDemo;
+  
   // Note system toggle button
   const noteSystemToggle = document.getElementById('noteSystemToggle');
   noteSystemToggle?.addEventListener('click', () => {
@@ -3343,12 +3972,50 @@
     // Set flag to prevent auto-play on reset
     isProgrammaticChange = true;
     
+    // === STOP ALL RUNNING JOURNEYS AND DEMOS ===
+    // Stop main Demo
+    if (typeof window.stopDemoFn === 'function') {
+      window.stopDemoFn();
+    }
+    // Stop Quick Start
+    if (typeof window.stopQuickStartFn === 'function') {
+      window.stopQuickStartFn();
+    }
+    // Stop Guided Journeys (programs)
+    if (typeof stopProgram === 'function') {
+      stopProgram(true);
+    }
+    // Stop Dynamic Journeys
+    if (typeof window.stopDynamicJourneyFn === 'function') {
+      window.stopDynamicJourneyFn();
+    }
+    // Stop Overtones Demo
+    if (typeof stopOvertonesDemo === 'function') {
+      stopOvertonesDemo();
+    }
+    // Stop Music Theory Demo
+    if (typeof stopTheoryDemo === 'function') {
+      stopTheoryDemo();
+    }
+    
+    // === RESET WHEELS ===
     wheelL.reset();
     wheelR.reset();
     if (presetSelect) presetSelect.value = '';
     if (binauralPresetSelect) binauralPresetSelect.value = '';
+    
+    // === RESET PAN CONTROLS TO DEFAULTS ===
+    setPan('wheelL', -100);
+    setPan('wheelR', 100);
+    const panSliderL = document.querySelector('.pan-slider[data-wheel="wheelL"]');
+    const panSliderR = document.querySelector('.pan-slider[data-wheel="wheelR"]');
+    if (panSliderL) panSliderL.value = -100;
+    if (panSliderR) panSliderR.value = 100;
+    updatePanValues();
+    
     // Reset mono volume to 0%
     updateMonoVolume(0);
+    
     // Reset fine-tune offset and rotation
     fineTuneOffset = 0;
     fineTuneRotation = 0;
@@ -3360,16 +4027,64 @@
     updatePitchBendDisplay();
     updatePitchBendScrollPosition();
     
+    // === RESET HARMONIC FILTERS ===
+    harmonicFilterMode = 'all';
+    const harmonicToggle = document.getElementById('harmonicOnlyToggle');
+    const dissonantToggle = document.getElementById('dissonantOnlyToggle');
+    if (harmonicToggle) harmonicToggle.classList.remove('is-active');
+    if (dissonantToggle) dissonantToggle.classList.remove('is-active');
+    
     // Reset harmonic mute states, volumes, and pans
     harmonicMutedState = Array(16).fill(false);
     harmonicVolumes = Array(16).fill(50);
     harmonicPans = Array(16).fill(0);
+    
+    // === RESET OVERTONE HIGHLIGHTS ===
+    showOvertoneHighlights = false;
+    const overtoneToggle = document.getElementById('overtoneHighlightToggle');
+    if (overtoneToggle) {
+      overtoneToggle.classList.remove('is-active');
+    }
+    
+    // Restore wheel mute states (they get force-muted when overtones are on)
+    wheelLMuted = false;
+    wheelRMuted = false;
+    updateMuteButtons();
+    
+    // Clear piano key overtone highlights
+    pianoKeys.forEach(key => {
+      if (key.element) {
+        key.element.classList.remove('is-overtone', 'is-left', 'is-right', 'school-demo-active', 'school-demo-filling');
+        key.element.style.removeProperty('--overtone-highlight');
+        key.element.style.removeProperty('--overtone-opacity');
+        key.element.style.removeProperty('--left-highlight');
+        key.element.style.removeProperty('--right-highlight');
+        key.element.style.removeProperty('--left-fill');
+        key.element.removeAttribute('data-overtone-count');
+        key.element.style.removeProperty('background');
+      }
+    });
+    
+    // Clear frequency labels from piano
+    const freqLabelsContainer = document.querySelector('.freq-labels-container');
+    if (freqLabelsContainer) {
+      freqLabelsContainer.innerHTML = '';
+    }
     
     // Reset overtones to default frequency (same as wheel default)
     const defaultFrequency = SORTED_FREQUENCIES[0] || 0.1;
     currentOvertonesFundamental = defaultFrequency;
     activeOvertoneKey = null;
     generateOvertones(defaultFrequency);
+    
+    // === RESET JOURNEY SELECTS ===
+    const programSelect = document.getElementById('programSelect');
+    const dynamicJourneySelect = document.getElementById('dynamicJourneySelect');
+    if (programSelect) programSelect.value = '';
+    if (dynamicJourneySelect) dynamicJourneySelect.value = '';
+    
+    // Reset transport state
+    setTransportActive('stop');
     
     // Reset flag after a short delay
     setTimeout(() => { isProgrammaticChange = false; }, 100);
@@ -3543,6 +4258,17 @@
         <text x="55" y="28" font-size="7" fill="#40e0d0" font-weight="bold">2×</text>
       </svg>`,
       demoType: 'octave'
+    },
+    intervals: {
+      title: 'Intervals',
+      text: 'The distance between two notes, measured in semitones. Perfect 5th (7 semitones) sounds powerful—the "power chord." Major 3rd (4 semitones) sounds happy and bright. Minor 3rd (3 semitones) sounds sad. Perfect 4th (5 semitones) sounds stable. These interval "flavors" are the building blocks of chords and melodies.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <circle cx="20" cy="20" r="6" fill="#9370db" opacity="0.8"/>
+        <circle cx="50" cy="12" r="6" fill="#40e0d0" opacity="0.8"/>
+        <path d="M26 18 L44 14" stroke="#ff69b4" stroke-width="2" stroke-dasharray="3,2"/>
+        <text x="65" y="18" font-size="8" fill="#ff69b4" font-weight="bold">5th</text>
+      </svg>`,
+      demoType: 'intervals'
     }
   };
 
@@ -3613,6 +4339,10 @@
       case 'octave':
         demoBtn.innerHTML = '🔊 Octaves';
         demoBtn.addEventListener('click', () => playOctaveDemo(demoBtn));
+        break;
+      case 'intervals':
+        demoBtn.innerHTML = '🔊 Play Intervals';
+        demoBtn.addEventListener('click', () => playIntervalsDemo(demoBtn));
         break;
     }
     
@@ -4114,12 +4844,713 @@
     playNext();
   }
 
+  // INTERVALS DEMO: Play common musical intervals with fill animation
+  function playIntervalsDemo(btn) {
+    stopSchoolDemo();
+    clearSchoolFillingKey();
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    const rootC = 261.63; // C4
+    // Intervals: [name, semitones, color1, color2]
+    const intervals = [
+      { name: 'Minor 2nd', semitones: 1, color1: '#e74c3c', color2: '#c0392b' },
+      { name: 'Major 3rd', semitones: 4, color1: '#f39c12', color2: '#f1c40f' },
+      { name: 'Minor 3rd', semitones: 3, color1: '#9b59b6', color2: '#8e44ad' },
+      { name: 'Perfect 4th', semitones: 5, color1: '#27ae60', color2: '#2ecc71' },
+      { name: 'Perfect 5th', semitones: 7, color1: '#1abc9c', color2: '#16a085' },
+      { name: 'Octave', semitones: 12, color1: '#9370db', color2: '#9370db' }
+    ];
+    let index = 0;
+    let intervalFilledKeys = [];
+
+    function clearIntervalFillsLocal() {
+      intervalFilledKeys.forEach(el => {
+        el.classList.remove('is-left', 'is-right', 'school-demo-filling');
+        el.style.removeProperty('--left-fill');
+        el.style.removeProperty('--left-highlight');
+        el.style.removeProperty('--right-fill');
+        el.style.removeProperty('--right-highlight');
+      });
+      intervalFilledKeys = [];
+    }
+
+    function playNextInterval() {
+      clearSchoolKeyHighlights();
+      clearIntervalFillsLocal();
+      
+      if (index >= intervals.length) {
+        btn.classList.remove('playing');
+        return;
+      }
+      
+      const interval = intervals[index];
+      const freq2 = rootC * Math.pow(2, interval.semitones / 12);
+      
+      // Fill keys with colors based on frequency
+      const keySpan1 = getKeySpanForFrequency(rootC);
+      const keySpan2 = getKeySpanForFrequency(freq2);
+      
+      if (keySpan1?.key?.element) {
+        const keyEl1 = keySpan1.key.element;
+        keyEl1.classList.add('is-left', 'school-demo-filling');
+        keyEl1.style.setProperty('--left-fill', keySpan1.ratio.toFixed(3));
+        keyEl1.style.setProperty('--left-highlight', interval.color1);
+        intervalFilledKeys.push(keyEl1);
+      }
+      
+      if (keySpan2?.key?.element) {
+        const keyEl2 = keySpan2.key.element;
+        keyEl2.classList.add('is-right', 'school-demo-filling');
+        keyEl2.style.setProperty('--right-fill', keySpan2.ratio.toFixed(3));
+        keyEl2.style.setProperty('--right-highlight', interval.color2);
+        intervalFilledKeys.push(keyEl2);
+      }
+      
+      // Play root note
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.value = rootC;
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      gain1.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain1.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05);
+      gain1.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.9);
+      osc1.start();
+      osc1.stop(audioCtx.currentTime + 1);
+      
+      // Play interval note
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = freq2;
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      gain2.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain2.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05);
+      gain2.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.9);
+      osc2.start();
+      osc2.stop(audioCtx.currentTime + 1);
+      
+      index++;
+      schoolDemoTimeout = setTimeout(playNextInterval, 1200);
+    }
+    playNextInterval();
+  }
+
+  // ===== MUSIC THEORY DEMO =====
+  
+  const theoryDemoBtn = document.getElementById('theoryDemoBtn');
+  const theoryDemoOverlay = document.getElementById('theoryDemoOverlay');
+  const theoryDemoLabel = document.getElementById('theoryDemoLabel');
+  const theoryDemoBtnText = theoryDemoBtn?.querySelector('.demo-text');
+  
+  let theoryDemoRunning = false;
+  let theoryDemoTimeouts = [];
+  let theoryDemoOscillators = [];
+  let theoryDemoGains = [];
+  
+  function updateTheoryDemoLabel(text) {
+    if (theoryDemoLabel) {
+      theoryDemoLabel.textContent = text;
+    }
+    if (theoryDemoOverlay) {
+      theoryDemoOverlay.hidden = false;
+    }
+  }
+  
+  function clearTheoryDemoLabel() {
+    if (theoryDemoOverlay) {
+      theoryDemoOverlay.hidden = true;
+    }
+  }
+  
+  function theoryDemoWait(ms) {
+    return new Promise(resolve => {
+      const timeout = setTimeout(resolve, ms);
+      theoryDemoTimeouts.push(timeout);
+    });
+  }
+  
+  function stopTheoryDemo() {
+    theoryDemoRunning = false;
+    
+    // Clear all timeouts
+    theoryDemoTimeouts.forEach(t => clearTimeout(t));
+    theoryDemoTimeouts = [];
+    
+    // Stop all oscillators
+    theoryDemoOscillators.forEach(osc => {
+      try { osc.stop(); osc.disconnect(); } catch(e) {}
+    });
+    theoryDemoOscillators = [];
+    
+    // Disconnect gains
+    theoryDemoGains.forEach(gain => {
+      try { gain.disconnect(); } catch(e) {}
+    });
+    theoryDemoGains = [];
+    
+    // Clear school demo state
+    stopSchoolDemo();
+    clearSchoolKeyHighlights();
+    
+    // Update UI
+    if (theoryDemoBtn) {
+      theoryDemoBtn.classList.remove('is-running');
+    }
+    if (theoryDemoBtnText) {
+      theoryDemoBtnText.textContent = 'Demo';
+    }
+    clearTheoryDemoLabel();
+  }
+  
+  function endTheoryDemo() {
+    theoryDemoRunning = false;
+    
+    if (theoryDemoBtn) {
+      theoryDemoBtn.classList.remove('is-running');
+    }
+    if (theoryDemoBtnText) {
+      theoryDemoBtnText.textContent = 'Demo';
+    }
+    
+    updateTheoryDemoLabel("✨ Demo Complete — Explore the topics above!");
+    
+    setTimeout(() => {
+      clearTheoryDemoLabel();
+      clearSchoolKeyHighlights();
+    }, 3000);
+  }
+  
+  async function runTheoryDemo() {
+    if (!theoryDemoRunning) return;
+    
+    ensureSchoolAudio();
+    
+    // Helper to play a single note with highlight
+    function playNote(freq, duration, volume = 0.22) {
+      clearSchoolKeyHighlights();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration - 0.1);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+      theoryDemoOscillators.push(osc);
+      theoryDemoGains.push(gain);
+      highlightSchoolKey(freq);
+    }
+    
+    // Helper to create sustained note
+    function sustainNote(freq, volume = 0.2) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.15);
+      osc.start();
+      theoryDemoOscillators.push(osc);
+      theoryDemoGains.push(gain);
+      highlightSchoolKey(freq);
+      return { osc, gain };
+    }
+    
+    // Helper to fade out
+    function fadeOut(noteObj, duration = 0.4) {
+      if (noteObj?.gain) {
+        noteObj.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+        setTimeout(() => { try { noteObj.osc.stop(); } catch(e) {} }, duration * 1000 + 50);
+      }
+    }
+    
+    // ========== INTRO ==========
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("🎓 Welcome to Music Theory");
+    await theoryDemoWait(2500);
+    
+    // ========== 1. TONE ==========
+    if (!theoryDemoRunning) return;
+    clearSchoolKeyHighlights();
+    updateTheoryDemoLabel("TONE — A single pure sound");
+    await theoryDemoWait(800);
+    const toneNote = sustainNote(440, 0.25);
+    await theoryDemoWait(2500);
+    fadeOut(toneNote, 0.5);
+    await theoryDemoWait(1000);
+    
+    // ========== 2. FREQUENCY ==========
+    if (!theoryDemoRunning) return;
+    clearSchoolKeyHighlights();
+    clearSchoolFillingKey();
+    updateTheoryDemoLabel("FREQUENCY — Low pitch to high pitch");
+    await theoryDemoWait(800);
+    
+    // Sweep from low to high: A3 → A4 with fill animation like playFrequencyDemo
+    const startFreq = 220;
+    const endFreq = 440;
+    const sweepDuration = 4000;
+    
+    const sweepOsc = audioCtx.createOscillator();
+    const sweepGain = audioCtx.createGain();
+    sweepOsc.type = 'sine';
+    sweepOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+    sweepOsc.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + sweepDuration / 1000);
+    sweepOsc.connect(sweepGain);
+    sweepGain.connect(audioCtx.destination);
+    sweepGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    sweepGain.gain.linearRampToValueAtTime(0.22, audioCtx.currentTime + 0.1);
+    sweepGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + sweepDuration / 1000 + 0.2);
+    sweepOsc.start();
+    sweepOsc.stop(audioCtx.currentTime + sweepDuration / 1000 + 0.5);
+    theoryDemoOscillators.push(sweepOsc);
+    theoryDemoGains.push(sweepGain);
+    
+    // Fill animation - same as playFrequencyDemo
+    const sweepStartTime = performance.now();
+    let lastFillingKey = null;
+    
+    function getFreqColor(progress) {
+      const r = Math.round(120 + progress * 135);
+      const g = Math.round(80 - progress * 30);
+      const b = Math.round(200 - progress * 120);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+    
+    function animateFreqFill() {
+      if (!theoryDemoRunning) return;
+      const elapsed = performance.now() - sweepStartTime;
+      const progress = Math.min(1, elapsed / sweepDuration);
+      
+      // Calculate current frequency (exponential interpolation)
+      const currentFreq = startFreq * Math.pow(endFreq / startFreq, progress);
+      
+      // Find which key this frequency falls on
+      const keySpan = getKeySpanForFrequency(currentFreq);
+      if (!keySpan?.key?.element) {
+        if (progress < 1) requestAnimationFrame(animateFreqFill);
+        return;
+      }
+      
+      const keyEl = keySpan.key.element;
+      const fillRatio = keySpan.ratio;
+      const color = getFreqColor(progress);
+      
+      // If we moved to a new key, clear the previous one
+      if (lastFillingKey && lastFillingKey !== keyEl) {
+        lastFillingKey.classList.remove('is-left', 'school-demo-filling');
+        lastFillingKey.style.removeProperty('--left-fill');
+        lastFillingKey.style.removeProperty('--left-highlight');
+      }
+      
+      // Setup current key with fill
+      if (lastFillingKey !== keyEl) {
+        keyEl.classList.add('is-left', 'school-demo-filling');
+        keyEl.classList.remove('is-overtone');
+        schoolCurrentFillingKey = keyEl;
+        lastFillingKey = keyEl;
+      }
+      
+      // Update fill level and color
+      keyEl.style.setProperty('--left-fill', fillRatio.toFixed(3));
+      keyEl.style.setProperty('--left-highlight', color);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateFreqFill);
+      }
+    }
+    
+    requestAnimationFrame(animateFreqFill);
+    await theoryDemoWait(sweepDuration + 500);
+    
+    // Clean up fill animation
+    if (lastFillingKey) {
+      lastFillingKey.classList.remove('is-left', 'school-demo-filling');
+      lastFillingKey.style.removeProperty('--left-fill');
+      lastFillingKey.style.removeProperty('--left-highlight');
+    }
+    clearSchoolFillingKey();
+    clearSchoolKeyHighlights();
+    await theoryDemoWait(800);
+    
+    // ========== 3. NOTE ==========
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("NOTE — Named pitches: A, B, C...");
+    await theoryDemoWait(800);
+    
+    playNote(440, 0.6, 0.22); // A
+    await theoryDemoWait(700);
+    if (!theoryDemoRunning) return;
+    
+    playNote(493.88, 0.6, 0.22); // B
+    await theoryDemoWait(700);
+    if (!theoryDemoRunning) return;
+    
+    playNote(523.25, 0.6, 0.22); // C
+    await theoryDemoWait(1000);
+    clearSchoolKeyHighlights();
+    
+    // ========== 4. OCTAVE ==========
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("OCTAVE — Same note, double frequency");
+    await theoryDemoWait(800);
+    
+    playNote(220, 0.7, 0.2); // A3
+    await theoryDemoWait(800);
+    if (!theoryDemoRunning) return;
+    
+    playNote(440, 0.7, 0.2); // A4
+    await theoryDemoWait(800);
+    if (!theoryDemoRunning) return;
+    
+    playNote(880, 0.7, 0.2); // A5
+    await theoryDemoWait(1000);
+    
+    // All together
+    if (!theoryDemoRunning) return;
+    clearSchoolKeyHighlights();
+    updateTheoryDemoLabel("OCTAVE — All three A's together");
+    await theoryDemoWait(500);
+    const oct1 = sustainNote(220, 0.12);
+    const oct2 = sustainNote(440, 0.12);
+    const oct3 = sustainNote(880, 0.1);
+    await theoryDemoWait(2500);
+    fadeOut(oct1, 0.5);
+    fadeOut(oct2, 0.5);
+    fadeOut(oct3, 0.5);
+    await theoryDemoWait(1000);
+    
+    // ========== 5. SCALE ==========
+    if (!theoryDemoRunning) return;
+    clearSchoolKeyHighlights();
+    updateTheoryDemoLabel("SCALE — C Major: Do Re Mi Fa Sol La Ti Do");
+    await theoryDemoWait(800);
+    
+    const scaleNotes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+    for (const freq of scaleNotes) {
+      if (!theoryDemoRunning) return;
+      playNote(freq, 0.35, 0.22);
+      await theoryDemoWait(380);
+    }
+    await theoryDemoWait(800);
+    clearSchoolKeyHighlights();
+    
+    // ========== 6. INTERVALS ==========
+    // Helper to fill keys for interval with proper colors
+    function fillIntervalKeys(freq1, freq2, color1, color2) {
+      clearSchoolKeyHighlights();
+      clearSchoolFillingKey();
+      
+      const keySpan1 = getKeySpanForFrequency(freq1);
+      const keySpan2 = getKeySpanForFrequency(freq2);
+      
+      if (keySpan1?.key?.element) {
+        const keyEl1 = keySpan1.key.element;
+        keyEl1.classList.add('is-left', 'school-demo-filling');
+        keyEl1.style.setProperty('--left-fill', keySpan1.ratio.toFixed(3));
+        keyEl1.style.setProperty('--left-highlight', color1);
+      }
+      
+      if (keySpan2?.key?.element) {
+        const keyEl2 = keySpan2.key.element;
+        keyEl2.classList.add('is-right', 'school-demo-filling');
+        keyEl2.style.setProperty('--right-fill', keySpan2.ratio.toFixed(3));
+        keyEl2.style.setProperty('--right-highlight', color2);
+      }
+    }
+    
+    function clearIntervalFills() {
+      document.querySelectorAll('.school-demo-filling').forEach(el => {
+        el.classList.remove('is-left', 'is-right', 'school-demo-filling');
+        el.style.removeProperty('--left-fill');
+        el.style.removeProperty('--left-highlight');
+        el.style.removeProperty('--right-fill');
+        el.style.removeProperty('--right-highlight');
+      });
+    }
+    
+    // Helper to play interval with fill animation
+    function playIntervalWithFill(freq1, freq2, duration, color1, color2, vol = 0.15) {
+      clearIntervalFills();
+      fillIntervalKeys(freq1, freq2, color1, color2);
+      
+      // Note 1
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.value = freq1;
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      gain1.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain1.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+      gain1.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration - 0.1);
+      osc1.start();
+      osc1.stop(audioCtx.currentTime + duration);
+      theoryDemoOscillators.push(osc1);
+      theoryDemoGains.push(gain1);
+      
+      // Note 2
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = freq2;
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      gain2.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain2.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+      gain2.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration - 0.1);
+      osc2.start();
+      osc2.stop(audioCtx.currentTime + duration);
+      theoryDemoOscillators.push(osc2);
+      theoryDemoGains.push(gain2);
+    }
+    
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("INTERVALS — The distance between two notes");
+    await theoryDemoWait(1500);
+    
+    // C4 = 261.63 Hz as root note
+    const rootC = 261.63;
+    
+    // Minor 2nd (1 semitone) - dissonant, tense - red/orange for dissonance
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("INTERVAL — Minor 2nd (tense, dissonant)");
+    await theoryDemoWait(600);
+    playIntervalWithFill(rootC, rootC * Math.pow(2, 1/12), 1.2, '#e74c3c', '#c0392b');
+    await theoryDemoWait(1500);
+    
+    // Major 3rd (4 semitones) - happy, bright - yellow/gold
+    if (!theoryDemoRunning) return;
+    clearIntervalFills();
+    updateTheoryDemoLabel("INTERVAL — Major 3rd (happy, bright)");
+    await theoryDemoWait(600);
+    playIntervalWithFill(rootC, rootC * Math.pow(2, 4/12), 1.2, '#f39c12', '#f1c40f');
+    await theoryDemoWait(1500);
+    
+    // Minor 3rd (3 semitones) - sad, dark - blue/purple
+    if (!theoryDemoRunning) return;
+    clearIntervalFills();
+    updateTheoryDemoLabel("INTERVAL — Minor 3rd (sad, melancholic)");
+    await theoryDemoWait(600);
+    playIntervalWithFill(rootC, rootC * Math.pow(2, 3/12), 1.2, '#9b59b6', '#8e44ad');
+    await theoryDemoWait(1500);
+    
+    // Perfect 4th (5 semitones) - stable, church-like - green
+    if (!theoryDemoRunning) return;
+    clearIntervalFills();
+    updateTheoryDemoLabel("INTERVAL — Perfect 4th (stable, pure)");
+    await theoryDemoWait(600);
+    playIntervalWithFill(rootC, rootC * Math.pow(2, 5/12), 1.2, '#27ae60', '#2ecc71');
+    await theoryDemoWait(1500);
+    
+    // Perfect 5th (7 semitones) - powerful, open - cyan/teal
+    if (!theoryDemoRunning) return;
+    clearIntervalFills();
+    updateTheoryDemoLabel("INTERVAL — Perfect 5th (powerful, the 'power chord')");
+    await theoryDemoWait(600);
+    playIntervalWithFill(rootC, rootC * Math.pow(2, 7/12), 1.2, '#1abc9c', '#16a085');
+    await theoryDemoWait(1500);
+    
+    // Octave (12 semitones) - same note, perfect consonance - matching purple
+    if (!theoryDemoRunning) return;
+    clearIntervalFills();
+    updateTheoryDemoLabel("INTERVAL — Octave (perfect unity)");
+    await theoryDemoWait(600);
+    playIntervalWithFill(rootC, rootC * 2, 1.2, '#9370db', '#9370db');
+    await theoryDemoWait(1500);
+    
+    clearIntervalFills();
+    clearSchoolKeyHighlights();
+    await theoryDemoWait(500);
+    
+    // ========== 7. HARMONICS ==========
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("HARMONICS — Building sound with multiples");
+    await theoryDemoWait(1000);
+    
+    const fund = 220;
+    clearSchoolKeyHighlights();
+    const h1 = sustainNote(fund * 1, 0.25);
+    await theoryDemoWait(800);
+    if (!theoryDemoRunning) return;
+    
+    const h2 = sustainNote(fund * 2, 0.12);
+    await theoryDemoWait(800);
+    if (!theoryDemoRunning) return;
+    
+    const h3 = sustainNote(fund * 3, 0.08);
+    await theoryDemoWait(800);
+    if (!theoryDemoRunning) return;
+    
+    const h4 = sustainNote(fund * 4, 0.06);
+    await theoryDemoWait(1500);
+    
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("HARMONICS — Rich, complex tone");
+    await theoryDemoWait(2000);
+    
+    fadeOut(h4, 0.6);
+    fadeOut(h3, 0.6);
+    fadeOut(h2, 0.6);
+    fadeOut(h1, 0.6);
+    await theoryDemoWait(1200);
+    clearSchoolKeyHighlights();
+    
+    // ========== 8. VIBRATIONS ==========
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("VIBRATIONS — Sound waves pulsing");
+    await theoryDemoWait(800);
+    
+    const vibOsc = audioCtx.createOscillator();
+    const vibGain = audioCtx.createGain();
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    
+    vibOsc.type = 'sine';
+    vibOsc.frequency.value = 440;
+    lfo.type = 'sine';
+    lfo.frequency.value = 6;
+    lfoGain.gain.value = 12;
+    
+    lfo.connect(lfoGain);
+    lfoGain.connect(vibOsc.frequency);
+    vibOsc.connect(vibGain);
+    vibGain.connect(audioCtx.destination);
+    vibGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    vibGain.gain.linearRampToValueAtTime(0.22, audioCtx.currentTime + 0.1);
+    
+    vibOsc.start();
+    lfo.start();
+    theoryDemoOscillators.push(vibOsc, lfo);
+    theoryDemoGains.push(vibGain, lfoGain);
+    highlightSchoolKey(440);
+    
+    await theoryDemoWait(2500);
+    vibGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+    await theoryDemoWait(800);
+    clearSchoolKeyHighlights();
+    
+    // ========== 9. TIMBRE ==========
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("TIMBRE — Different wave shapes");
+    await theoryDemoWait(1200);
+    
+    const waves = [
+      { type: 'sine', name: 'Sine (pure)' },
+      { type: 'triangle', name: 'Triangle (soft)' },
+      { type: 'sawtooth', name: 'Sawtooth (bright)' },
+      { type: 'square', name: 'Square (hollow)' }
+    ];
+    
+    for (const wave of waves) {
+      if (!theoryDemoRunning) return;
+      clearSchoolKeyHighlights();
+      updateTheoryDemoLabel(`TIMBRE — ${wave.name}`);
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = wave.type;
+      osc.frequency.value = 440;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(wave.type === 'sawtooth' ? 0.1 : 0.15, audioCtx.currentTime + 0.05);
+      osc.start();
+      theoryDemoOscillators.push(osc);
+      theoryDemoGains.push(gain);
+      highlightSchoolKey(440);
+      
+      await theoryDemoWait(1100);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+      await theoryDemoWait(400);
+    }
+    clearSchoolKeyHighlights();
+    
+    // ========== FINALE ==========
+    if (!theoryDemoRunning) return;
+    updateTheoryDemoLabel("🎵 A little melody to finish...");
+    await theoryDemoWait(1200);
+    
+    // Simple melody
+    const melody = [
+      { f: 261.63, d: 0.35 },
+      { f: 261.63, d: 0.35 },
+      { f: 392.00, d: 0.35 },
+      { f: 392.00, d: 0.35 },
+      { f: 440.00, d: 0.35 },
+      { f: 440.00, d: 0.35 },
+      { f: 392.00, d: 0.7 }
+    ];
+    
+    for (const n of melody) {
+      if (!theoryDemoRunning) return;
+      playNote(n.f, n.d + 0.1, 0.25);
+      await theoryDemoWait(n.d * 1000 + 80);
+    }
+    
+    await theoryDemoWait(1200);
+    clearSchoolKeyHighlights();
+    
+    endTheoryDemo();
+  }
+  
+  function startTheoryDemo() {
+    if (theoryDemoRunning) return;
+    
+    // Stop any existing school demos
+    stopSchoolDemo();
+    hideConceptExplanation();
+    
+    // Stop other demos if running
+    if (typeof stopDemo === 'function' && demoRunning) {
+      stopDemo();
+    }
+    if (typeof stopOvertonesDemo === 'function' && overtonesDemoRunning) {
+      stopOvertonesDemo();
+    }
+    
+    theoryDemoRunning = true;
+    
+    if (theoryDemoBtn) {
+      theoryDemoBtn.classList.add('is-running');
+    }
+    if (theoryDemoBtnText) {
+      theoryDemoBtnText.textContent = 'Stop';
+    }
+    
+    runTheoryDemo();
+  }
+  
+  // Theory demo button event listener
+  if (theoryDemoBtn) {
+    theoryDemoBtn.addEventListener('click', () => {
+      if (theoryDemoRunning) {
+        stopTheoryDemo();
+      } else {
+        startTheoryDemo();
+      }
+    });
+  }
+
   // Event listeners for music school dropdown
   if (conceptSelect) {
     // Reset to default on page load (browsers sometimes remember form values)
     conceptSelect.value = '';
     
     conceptSelect.addEventListener('change', () => {
+      // Stop theory demo if running when user selects a concept
+      if (theoryDemoRunning) {
+        stopTheoryDemo();
+      }
       const concept = conceptSelect.value;
       if (concept) {
         showConceptExplanation(concept);
@@ -4590,31 +6021,8 @@
   const programStart = document.getElementById('programStart');
   const programStop = document.getElementById('programStop');
   const programDisplay = document.getElementById('programDisplay');
-  const programSection = document.querySelector('.programs-section');
+  const programSection = document.getElementById('guidedPanel'); // Now using panel instead of section
   const programInfoCards = document.getElementById('programInfoCards');
-  const programsToggle = document.getElementById('programsToggle');
-  const programsContent = document.getElementById('programsContent');
-  
-  // Toggle programs section visibility
-  if (programsToggle && programsContent && programSection) {
-    programsToggle.addEventListener('click', () => {
-      const isCollapsed = programSection.classList.contains('collapsed');
-      
-      if (isCollapsed) {
-        // Expand
-        programSection.classList.remove('collapsed');
-        programsContent.hidden = false;
-        programsToggle.setAttribute('aria-expanded', 'true');
-      } else {
-        // Collapse (only if no program is running)
-        if (!programRunning) {
-          programSection.classList.add('collapsed');
-          programsContent.hidden = true;
-          programsToggle.setAttribute('aria-expanded', 'false');
-        }
-      }
-    });
-  }
   
   // Format time as MM:SS
   function formatTime(seconds) {
@@ -4967,8 +6375,8 @@
     wheelL.setHz(firstPhase.leftHz);
     wheelR.setHz(firstPhase.rightHz);
     
-    // Start audio
-    startAudio();
+    // Start audio with fade-in to prevent click
+    startAudio(true);
     setTransportActive('play');
     
     // Show program display
@@ -5907,10 +7315,8 @@
   const dynamicJourneyStart = document.getElementById('dynamicJourneyStart');
   const dynamicJourneyStop = document.getElementById('dynamicJourneyStop');
   const dynamicJourneyDisplay = document.getElementById('dynamicJourneyDisplay');
-  const dynamicJourneysSection = document.querySelector('.dynamic-journeys-section');
+  const dynamicJourneysSection = document.getElementById('dynamicPanel'); // Now using panel instead of section
   const dynamicJourneyInfoCards = document.getElementById('dynamicJourneyInfoCards');
-  const dynamicJourneysToggle = document.getElementById('dynamicJourneysToggle');
-  const dynamicJourneysContent = document.getElementById('dynamicJourneysContent');
   
   // Calculate harmonically modulated frequencies based on phase progression
   function calculateHarmonicFrequencies(phase, phaseElapsed, totalPhaseTime) {
@@ -6042,24 +7448,6 @@
     };
   }
   
-  // Toggle dynamic journeys section visibility
-  if (dynamicJourneysToggle && dynamicJourneysContent && dynamicJourneysSection) {
-    dynamicJourneysToggle.addEventListener('click', () => {
-      const isCollapsed = dynamicJourneysSection.classList.contains('collapsed');
-      
-      if (isCollapsed) {
-        dynamicJourneysSection.classList.remove('collapsed');
-        dynamicJourneysContent.hidden = false;
-        dynamicJourneysToggle.setAttribute('aria-expanded', 'true');
-      } else {
-        if (!dynamicJourneyRunning) {
-          dynamicJourneysSection.classList.add('collapsed');
-          dynamicJourneysContent.hidden = true;
-          dynamicJourneysToggle.setAttribute('aria-expanded', 'false');
-        }
-      }
-    });
-  }
   
   // Format time for display
   function formatDynamicTime(seconds) {
@@ -6244,8 +7632,8 @@
     
     dynamicJourneyStartTime = Date.now();
     
-    // Start audio playback
-    startAudio();
+    // Start audio playback with fade-in to prevent click
+    startAudio(true);
     setTransportActive('play');
     
     // Start update loop
@@ -6328,6 +7716,1139 @@
     });
   }
 
+  // ===== QUICK START PRESETS =====
+  // One-click buttons for "I need to focus" / "I need to relax" / "I can't sleep"
+  
+  const experiencesSection = document.getElementById('experiencesSection');
+  const quickStartDisplay = document.getElementById('quickStartDisplay');
+  const qsCurrentName = document.getElementById('qsCurrentName');
+  const qsElapsed = document.getElementById('qsElapsed');
+  const qsTotal = document.getElementById('qsTotal');
+  const qsProgressFill = document.getElementById('qsProgressFill');
+  const qsPhaseMarkers = document.getElementById('qsPhaseMarkers');
+  const qsLabel = document.getElementById('qsLabel');
+  const qsBrainwave = document.getElementById('qsBrainwave');
+  const qsStopBtn = document.getElementById('qsStopBtn');
+  const quickStartBtns = document.querySelectorAll('.quick-start-btn');
+  
+  // Quick start state
+  let quickStartRunning = false;
+  let quickStartCurrentPreset = null;
+  let quickStartCurrentStep = 0;
+  let quickStartAnimationFrame = null;
+  let quickStartStepTimeout = null;
+  let quickStartStartTime = null;
+  let quickStartTotalDuration = 0;
+  
+  // Easing functions for smooth animations
+  const qsEasing = {
+    easeInOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+    easeOutExpo: (t) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t),
+    easeInOutCubic: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+  };
+  
+  // FOCUS PRESET - Beta waves (14-30 Hz) for mental clarity and concentration
+  // 5 minutes total - Starts with calming alpha, builds up to beta for peak focus
+  const FOCUS_SEQUENCE = [
+    { left: 200, right: 210, duration: 30000, label: "Centering Mind", brainwave: "Alpha 10 Hz" },
+    { left: 200, right: 212, duration: 35000, label: "Clearing Thoughts", brainwave: "Alpha 12 Hz" },
+    { left: 200, right: 214, duration: 40000, label: "Building Focus", brainwave: "Low Beta 14 Hz" },
+    { left: 200, right: 218, duration: 45000, label: "Mental Clarity", brainwave: "Beta 18 Hz" },
+    { left: 200, right: 220, duration: 45000, label: "Deep Concentration", brainwave: "Beta 20 Hz" },
+    { left: 200, right: 225, duration: 50000, label: "Peak Performance", brainwave: "Beta 25 Hz" },
+    { left: 200, right: 218, duration: 30000, label: "Sustained Focus", brainwave: "Beta 18 Hz" },
+    { left: 200, right: 215, duration: 25000, label: "Optimal Zone", brainwave: "Beta 15 Hz" },
+  ];
+  
+  // RELAX PRESET - Alpha/Theta waves (6-12 Hz) for calm and peace
+  // 5 minutes total - Gentle descent from awareness to deep relaxation
+  const RELAX_SEQUENCE = [
+    { left: 136, right: 148, duration: 35000, label: "Settling In", brainwave: "Alpha 12 Hz" },
+    { left: 136, right: 146, duration: 40000, label: "Releasing Tension", brainwave: "Alpha 10 Hz" },
+    { left: 136, right: 144, duration: 40000, label: "Deep Breathing", brainwave: "Alpha 8 Hz" },
+    { left: 136, right: 143, duration: 45000, label: "Inner Peace", brainwave: "Theta 7 Hz" },
+    { left: 136, right: 142, duration: 45000, label: "Calm Awareness", brainwave: "Theta 6 Hz" },
+    { left: 136, right: 143.83, duration: 40000, label: "Earth Resonance", brainwave: "Schumann 7.83 Hz" },
+    { left: 136, right: 144, duration: 30000, label: "Peaceful Mind", brainwave: "Alpha 8 Hz" },
+    { left: 136, right: 146, duration: 25000, label: "Gentle Return", brainwave: "Alpha 10 Hz" },
+  ];
+  
+  // SLEEP PRESET - Delta/Theta waves (0.5-6 Hz) for deep rest
+  // 5 minutes total - Progressive descent into delta for sleep preparation
+  const SLEEP_SEQUENCE = [
+    { left: 100, right: 110, leftPan: -100, rightPan: 100, duration: 25000, label: "Winding Down", brainwave: "Alpha 10 Hz" },
+    { left: 100, right: 108, leftPan: -80, rightPan: 80, duration: 30000, label: "Letting Go", brainwave: "Alpha 8 Hz" },
+    { left: 100, right: 106, leftPan: -60, rightPan: 60, duration: 35000, label: "Deep Calm", brainwave: "Theta 6 Hz" },
+    { left: 100, right: 104, leftPan: -50, rightPan: 50, duration: 40000, label: "Drifting Off", brainwave: "Theta 4 Hz" },
+    { left: 100, right: 103, leftPan: -40, rightPan: 40, duration: 45000, label: "Sleep Gateway", brainwave: "Delta 3 Hz" },
+    { left: 100, right: 102, leftPan: -30, rightPan: 30, duration: 45000, label: "Deep Rest", brainwave: "Delta 2 Hz" },
+    { left: 100, right: 101, leftPan: -20, rightPan: 20, duration: 40000, label: "Dreamland", brainwave: "Delta 1 Hz" },
+    { left: 100, right: 100.5, leftPan: -10, rightPan: 10, duration: 40000, label: "Deep Sleep", brainwave: "Deep Delta 0.5 Hz" },
+  ];
+  
+  // DEEP MEDITATION - Theta-focused for profound meditative states
+  // 6 minutes - Gentle theta journey with subtle spatial movement
+  const MEDITATION_SEQUENCE = [
+    { left: 136, right: 146, leftPan: -100, rightPan: 100, duration: 35000, label: "Grounding", brainwave: "Alpha 10 Hz" },
+    { left: 136, right: 144, leftPan: -90, rightPan: 90, duration: 40000, label: "Breath Awareness", brainwave: "Alpha 8 Hz" },
+    { left: 136, right: 143, leftPan: -70, rightPan: 70, duration: 45000, label: "Inner Stillness", brainwave: "Theta 7 Hz" },
+    { left: 136, right: 142, leftPan: -50, rightPan: 50, duration: 50000, label: "Deep Presence", brainwave: "Theta 6 Hz" },
+    { left: 136, right: 141, leftPan: -30, rightPan: 30, duration: 50000, label: "Pure Awareness", brainwave: "Theta 5 Hz" },
+    { left: 136, right: 143.83, leftPan: -40, rightPan: 40, duration: 45000, label: "Earth Connection", brainwave: "Schumann 7.83 Hz" },
+    { left: 136, right: 144, leftPan: -60, rightPan: 60, duration: 40000, label: "Integration", brainwave: "Alpha 8 Hz" },
+    { left: 136, right: 146, leftPan: -100, rightPan: 100, duration: 35000, label: "Gentle Return", brainwave: "Alpha 10 Hz" },
+  ];
+  
+  // THETA DREAMS - Creative theta for visualization and dreams
+  // 5 minutes - Deep theta with flowing spatial audio
+  const THETA_SEQUENCE = [
+    { left: 111, right: 121, leftPan: -100, rightPan: 100, duration: 30000, label: "Settling Mind", brainwave: "Alpha 10 Hz" },
+    { left: 111, right: 119, leftPan: -80, rightPan: 80, duration: 35000, label: "Softening", brainwave: "Alpha 8 Hz" },
+    { left: 111, right: 118, leftPan: -60, rightPan: 70, duration: 40000, label: "Dream Gateway", brainwave: "Theta 7 Hz" },
+    { left: 111, right: 117, leftPan: -50, rightPan: 60, duration: 45000, label: "Theta Immersion", brainwave: "Theta 6 Hz" },
+    { left: 111, right: 116, leftPan: -40, rightPan: 50, duration: 50000, label: "Deep Theta", brainwave: "Theta 5 Hz" },
+    { left: 111, right: 115, leftPan: -30, rightPan: 40, duration: 45000, label: "Subconscious", brainwave: "Theta 4 Hz" },
+    { left: 111, right: 117, leftPan: -50, rightPan: 60, duration: 35000, label: "Rising", brainwave: "Theta 6 Hz" },
+    { left: 111, right: 119, leftPan: -80, rightPan: 90, duration: 30000, label: "Awakening", brainwave: "Alpha 8 Hz" },
+  ];
+  
+  // BRAIN MASSAGE - Ultra-low delta for deep recovery
+  // 6 minutes - Very slow waves with gentle, soothing pan movements
+  const MASSAGE_SEQUENCE = [
+    { left: 80, right: 88, leftPan: -100, rightPan: 100, duration: 35000, label: "Settling In", brainwave: "Alpha 8 Hz" },
+    { left: 80, right: 86, leftPan: -70, rightPan: 70, duration: 40000, label: "Softening Mind", brainwave: "Theta 6 Hz" },
+    { left: 80, right: 84, leftPan: -50, rightPan: 50, duration: 50000, label: "Deep Soothing", brainwave: "Theta 4 Hz" },
+    { left: 80, right: 83, leftPan: -30, rightPan: 30, duration: 55000, label: "Neural Calm", brainwave: "Delta 3 Hz" },
+    { left: 80, right: 82, leftPan: -20, rightPan: 20, duration: 55000, label: "Brain Rest", brainwave: "Delta 2 Hz" },
+    { left: 80, right: 81.5, leftPan: -10, rightPan: 10, duration: 50000, label: "Deep Massage", brainwave: "Delta 1.5 Hz" },
+    { left: 80, right: 83, leftPan: -30, rightPan: 30, duration: 40000, label: "Gentle Rise", brainwave: "Delta 3 Hz" },
+    { left: 80, right: 86, leftPan: -60, rightPan: 60, duration: 35000, label: "Refreshed", brainwave: "Theta 6 Hz" },
+  ];
+  
+  // DELTA DIVE - Deepest delta for cellular recovery
+  // 5 minutes - Progressive descent to very deep delta
+  const DELTA_SEQUENCE = [
+    { left: 90, right: 98, leftPan: -100, rightPan: 100, duration: 30000, label: "Preparation", brainwave: "Alpha 8 Hz" },
+    { left: 90, right: 96, leftPan: -80, rightPan: 80, duration: 35000, label: "Deepening", brainwave: "Theta 6 Hz" },
+    { left: 90, right: 94, leftPan: -60, rightPan: 60, duration: 40000, label: "Theta Border", brainwave: "Theta 4 Hz" },
+    { left: 90, right: 93, leftPan: -40, rightPan: 40, duration: 45000, label: "Delta Entry", brainwave: "Delta 3 Hz" },
+    { left: 90, right: 92, leftPan: -30, rightPan: 30, duration: 50000, label: "Deep Delta", brainwave: "Delta 2 Hz" },
+    { left: 90, right: 91, leftPan: -20, rightPan: 20, duration: 50000, label: "Ultra Deep", brainwave: "Delta 1 Hz" },
+    { left: 90, right: 90.5, leftPan: -10, rightPan: 10, duration: 45000, label: "Cellular Rest", brainwave: "Deep Delta 0.5 Hz" },
+    { left: 90, right: 93, leftPan: -40, rightPan: 40, duration: 35000, label: "Gentle Return", brainwave: "Delta 3 Hz" },
+  ];
+  
+  // STRESS RELIEF - Alpha-theta border for anxiety release
+  // 5 minutes - Calming frequencies with stabilizing pan
+  const STRESS_SEQUENCE = [
+    { left: 150, right: 162, leftPan: -100, rightPan: 100, duration: 30000, label: "Acknowledging", brainwave: "Alpha 12 Hz" },
+    { left: 150, right: 160, leftPan: -90, rightPan: 90, duration: 35000, label: "Breath Sync", brainwave: "Alpha 10 Hz" },
+    { left: 150, right: 158, leftPan: -70, rightPan: 70, duration: 40000, label: "Releasing", brainwave: "Alpha 8 Hz" },
+    { left: 150, right: 157, leftPan: -50, rightPan: 50, duration: 45000, label: "Letting Go", brainwave: "Theta 7 Hz" },
+    { left: 150, right: 156, leftPan: -40, rightPan: 40, duration: 45000, label: "Peace", brainwave: "Theta 6 Hz" },
+    { left: 150, right: 157.83, leftPan: -50, rightPan: 50, duration: 40000, label: "Earth Ground", brainwave: "Schumann 7.83 Hz" },
+    { left: 150, right: 158, leftPan: -70, rightPan: 70, duration: 35000, label: "Stability", brainwave: "Alpha 8 Hz" },
+    { left: 150, right: 160, leftPan: -100, rightPan: 100, duration: 30000, label: "Renewed", brainwave: "Alpha 10 Hz" },
+  ];
+  
+  // LUCID REST - Theta-delta for conscious relaxation
+  // 5 minutes - Hovering at theta-delta border for aware rest
+  const LUCID_SEQUENCE = [
+    { left: 120, right: 130, leftPan: -100, rightPan: 100, duration: 30000, label: "Settling", brainwave: "Alpha 10 Hz" },
+    { left: 120, right: 128, leftPan: -80, rightPan: 80, duration: 35000, label: "Deepening", brainwave: "Alpha 8 Hz" },
+    { left: 120, right: 126, leftPan: -60, rightPan: 60, duration: 40000, label: "Theta Entry", brainwave: "Theta 6 Hz" },
+    { left: 120, right: 125, leftPan: -50, rightPan: 50, duration: 45000, label: "Lucid Theta", brainwave: "Theta 5 Hz" },
+    { left: 120, right: 124, leftPan: -40, rightPan: 40, duration: 45000, label: "Aware Rest", brainwave: "Theta 4 Hz" },
+    { left: 120, right: 123.5, leftPan: -35, rightPan: 35, duration: 45000, label: "Border State", brainwave: "Theta 3.5 Hz" },
+    { left: 120, right: 125, leftPan: -50, rightPan: 50, duration: 35000, label: "Rising", brainwave: "Theta 5 Hz" },
+    { left: 120, right: 128, leftPan: -80, rightPan: 80, duration: 30000, label: "Emergence", brainwave: "Alpha 8 Hz" },
+  ];
+  
+  // 8D IMMERSION - Full surround sound spatial experience
+  // 6 minutes - Rotating sound field with alpha-theta for immersive relaxation
+  const IMMERSION_SEQUENCE = [
+    { left: 144, right: 154, leftPan: -100, rightPan: 100, duration: 35000, label: "Centering", brainwave: "Alpha 10 Hz" },
+    { left: 144, right: 152, leftPan: -50, rightPan: -50, duration: 40000, label: "Left Embrace", brainwave: "Alpha 8 Hz" },
+    { left: 144, right: 151, leftPan: 50, rightPan: 50, duration: 40000, label: "Right Flow", brainwave: "Theta 7 Hz" },
+    { left: 144, right: 150, leftPan: -70, rightPan: 70, duration: 45000, label: "Wide Field", brainwave: "Theta 6 Hz" },
+    { left: 144, right: 150, leftPan: 70, rightPan: -70, duration: 45000, label: "Surround Swap", brainwave: "Theta 6 Hz" },
+    { left: 144, right: 150, leftPan: 0, rightPan: 0, duration: 40000, label: "Center Focus", brainwave: "Theta 6 Hz" },
+    { left: 144, right: 151, leftPan: -30, rightPan: 30, duration: 40000, label: "Gentle Return", brainwave: "Theta 7 Hz" },
+    { left: 144, right: 154, leftPan: -100, rightPan: 100, duration: 35000, label: "Grounded", brainwave: "Alpha 10 Hz" },
+  ];
+  
+  // HEARTBEAT SYNC - Healthy resting heart rhythm entrainment
+  // 5 minutes - Steady 60 BPM (healthy resting heart rate) with calming binaural beats
+  // Based on coherent heart rhythm for HRV optimization and stress reduction
+  const HEARTBEAT_SEQUENCE = [
+    // Phase 1: Attunement - Match healthy 60 BPM rhythm
+    { left: 136, right: 146, leftPan: -100, rightPan: 100, duration: 20000, label: "Heart Attunement", brainwave: "Alpha 10 Hz" },
+    { left: 136, right: 144, leftPan: -90, rightPan: 90, duration: 20000, label: "Rhythm Sync", brainwave: "Alpha 8 Hz" },
+    // Phase 2: Coherence - Theta for heart-brain coherence  
+    { left: 136, right: 143, leftPan: -80, rightPan: 80, duration: 25000, label: "Heart Coherence", brainwave: "Theta 7 Hz" },
+    { left: 136, right: 142, leftPan: -70, rightPan: 70, duration: 25000, label: "Steady Rhythm", brainwave: "Theta 6 Hz" },
+    // Phase 3: Deep Calm - Lower theta for parasympathetic activation
+    { left: 136, right: 141, leftPan: -60, rightPan: 60, duration: 30000, label: "Calm Heart", brainwave: "Theta 5 Hz" },
+    { left: 136, right: 140, leftPan: -50, rightPan: 50, duration: 30000, label: "Rest & Digest", brainwave: "Theta 4 Hz" },
+    // Phase 4: Integration - Gentle return with heart-centered awareness
+    { left: 136, right: 141, leftPan: -60, rightPan: 60, duration: 25000, label: "Heart Center", brainwave: "Theta 5 Hz" },
+    { left: 136, right: 143.83, leftPan: -80, rightPan: 80, duration: 25000, label: "Earth Heart", brainwave: "Schumann 7.83 Hz" },
+    { left: 136, right: 144, leftPan: -100, rightPan: 100, duration: 20000, label: "Balanced Heart", brainwave: "Alpha 8 Hz" },
+  ];
+  
+  // COSMIC BREATH - Rising/falling frequencies with expanding/contracting spatial field
+  // 6 minutes - Simulates deep breathing with audio that "inhales" and "exhales"
+  // Frequencies rise on inhale, fall on exhale; pan expands and contracts
+  const BREATH_SEQUENCE = [
+    // Breath 1 - Normal pace (4 sec inhale, 4 sec exhale)
+    { left: 120, right: 120, leftPan: -30, rightPan: 30, duration: 4000, label: "Inhale ↑", brainwave: "Centering" },
+    { left: 120, right: 130, leftPan: -100, rightPan: 100, duration: 4000, label: "Full Breath", brainwave: "Alpha 10 Hz" },
+    { left: 120, right: 120, leftPan: -30, rightPan: 30, duration: 4000, label: "Exhale ↓", brainwave: "Release" },
+    { left: 120, right: 128, leftPan: -100, rightPan: 100, duration: 4000, label: "Empty", brainwave: "Alpha 8 Hz" },
+    // Breath 2 - Slowing (5 sec cycles)
+    { left: 120, right: 120, leftPan: -20, rightPan: 20, duration: 5000, label: "Deep Inhale ↑", brainwave: "Expanding" },
+    { left: 120, right: 128, leftPan: -100, rightPan: 100, duration: 5000, label: "Full Breath", brainwave: "Alpha 8 Hz" },
+    { left: 120, right: 120, leftPan: -20, rightPan: 20, duration: 5000, label: "Long Exhale ↓", brainwave: "Releasing" },
+    { left: 120, right: 127, leftPan: -100, rightPan: 100, duration: 5000, label: "Stillness", brainwave: "Theta 7 Hz" },
+    // Breath 3 - Deep breathing (6 sec cycles)
+    { left: 120, right: 120, leftPan: -10, rightPan: 10, duration: 6000, label: "Ocean Inhale ↑", brainwave: "Deep Draw" },
+    { left: 120, right: 127, leftPan: -100, rightPan: 100, duration: 6000, label: "Wave Peak", brainwave: "Theta 7 Hz" },
+    { left: 120, right: 120, leftPan: -10, rightPan: 10, duration: 6000, label: "Ocean Exhale ↓", brainwave: "Ebb" },
+    { left: 120, right: 126, leftPan: -100, rightPan: 100, duration: 6000, label: "Calm Sea", brainwave: "Theta 6 Hz" },
+    // Breath 4 - Very slow, meditative (7 sec cycles)
+    { left: 120, right: 120, leftPan: 0, rightPan: 0, duration: 7000, label: "Cosmic Inhale ↑", brainwave: "One" },
+    { left: 120, right: 126, leftPan: -100, rightPan: 100, duration: 7000, label: "Universe", brainwave: "Theta 6 Hz" },
+    { left: 120, right: 120, leftPan: 0, rightPan: 0, duration: 7000, label: "Cosmic Exhale ↓", brainwave: "Infinite" },
+    { left: 120, right: 125, leftPan: -50, rightPan: 50, duration: 7000, label: "Pure Being", brainwave: "Theta 5 Hz" },
+  ];
+
+  // MYSTERY MODE - Generates a unique random sequence each time (safe template)
+  // Creates varied experiences while following brainwave safety guidelines
+  function generateMysterySequence() {
+    const sequence = [];
+    
+    // Safe frequency ranges for base (left channel)
+    const baseFrequencies = [100, 110, 120, 130, 136, 144, 150, 160];
+    const baseFreq = baseFrequencies[Math.floor(Math.random() * baseFrequencies.length)];
+    
+    // Random journey type determines the overall arc
+    const journeyTypes = ['relaxation', 'meditation', 'exploration', 'grounding'];
+    const journeyType = journeyTypes[Math.floor(Math.random() * journeyTypes.length)];
+    
+    // Brainwave targets based on journey type
+    let brainwaveArc;
+    switch (journeyType) {
+      case 'relaxation':
+        brainwaveArc = [10, 8, 7, 6, 5, 6, 8, 10]; // Alpha to theta and back
+        break;
+      case 'meditation':
+        brainwaveArc = [10, 8, 6, 5, 4, 5, 7, 10]; // Deeper theta focus
+        break;
+      case 'exploration':
+        brainwaveArc = [12, 10, 8, 10, 7, 8, 10, 12]; // Varied alpha-theta
+        break;
+      case 'grounding':
+        brainwaveArc = [10, 7.83, 6, 7.83, 5, 7.83, 8, 10]; // Schumann resonance focus
+        break;
+    }
+    
+    // Random labels for mystery effect
+    const mysteryLabels = [
+      ['Entering...', 'Shifting...', 'Deepening...', 'Floating...', 'Drifting...', 'Rising...', 'Emerging...', 'Returning...'],
+      ['Portal Open', 'Descent', 'Inner Space', 'Void', 'Stillness', 'Ascent', 'Light', 'Home'],
+      ['Wave 1', 'Wave 2', 'Wave 3', 'Wave 4', 'Wave 5', 'Wave 6', 'Wave 7', 'Wave 8'],
+      ['Phase α', 'Phase β', 'Phase γ', 'Phase δ', 'Phase ε', 'Phase ζ', 'Phase η', 'Phase θ']
+    ];
+    const labelSet = mysteryLabels[Math.floor(Math.random() * mysteryLabels.length)];
+    
+    // Generate 8 phases with safe transitions
+    for (let i = 0; i < 8; i++) {
+      const binauralBeat = brainwaveArc[i];
+      const rightFreq = baseFreq + binauralBeat;
+      
+      // Randomize duration between 20-40 seconds per phase
+      const duration = 20000 + Math.floor(Math.random() * 20000);
+      
+      // Generate safe pan values - gradual narrowing then widening
+      // Middle phases have narrower pan (more centered feel)
+      const panIntensity = i < 4 ? (100 - i * 15) : (40 + (i - 4) * 15);
+      const leftPan = -panIntensity + Math.floor(Math.random() * 20 - 10);
+      const rightPan = panIntensity + Math.floor(Math.random() * 20 - 10);
+      
+      // Brainwave label
+      let brainwaveLabel;
+      if (binauralBeat >= 12) brainwaveLabel = `Alpha ${binauralBeat} Hz`;
+      else if (binauralBeat >= 8) brainwaveLabel = `Alpha ${binauralBeat} Hz`;
+      else if (binauralBeat === 7.83) brainwaveLabel = 'Schumann 7.83 Hz';
+      else if (binauralBeat >= 4) brainwaveLabel = `Theta ${binauralBeat} Hz`;
+      else brainwaveLabel = `Delta ${binauralBeat} Hz`;
+      
+      sequence.push({
+        left: baseFreq,
+        right: rightFreq,
+        leftPan: Math.max(-100, Math.min(100, leftPan)),
+        rightPan: Math.max(-100, Math.min(100, rightPan)),
+        duration: duration,
+        label: labelSet[i],
+        brainwave: brainwaveLabel
+      });
+    }
+    
+    return sequence;
+  }
+
+  const QUICK_START_PRESETS = {
+    focus: { sequence: FOCUS_SEQUENCE, name: "Focus Mode", color: "#f59e0b" },
+    relax: { sequence: RELAX_SEQUENCE, name: "Relaxation", color: "#34d399" },
+    sleep: { sequence: SLEEP_SEQUENCE, name: "Sleep Prep", color: "#818cf8" },
+    meditation: { sequence: MEDITATION_SEQUENCE, name: "Deep Meditation", color: "#a78bfa" },
+    theta: { sequence: THETA_SEQUENCE, name: "Theta Dreams", color: "#c084fc" },
+    massage: { sequence: MASSAGE_SEQUENCE, name: "Brain Massage", color: "#f472b6" },
+    delta: { sequence: DELTA_SEQUENCE, name: "Delta Dive", color: "#60a5fa" },
+    stress: { sequence: STRESS_SEQUENCE, name: "Stress Relief", color: "#4ade80" },
+    lucid: { sequence: LUCID_SEQUENCE, name: "Lucid Rest", color: "#22d3d8" },
+    immersion: { sequence: IMMERSION_SEQUENCE, name: "8D Immersion", color: "#fb923c" },
+    heartbeat: { sequence: HEARTBEAT_SEQUENCE, name: "Heartbeat Sync", color: "#ef4444" },
+    breath: { sequence: BREATH_SEQUENCE, name: "Cosmic Breath", color: "#06b6d4" },
+    quantum: { sequence: null, name: "Quantum", color: "#8b5cf6", isRandom: true },
+  };
+  
+  // Get total duration of a sequence
+  function getSequenceDuration(sequence) {
+    return sequence.reduce((total, step) => total + step.duration, 0);
+  }
+  
+  // Create phase markers for the progress bar
+  function createQSPhaseMarkers(sequence, totalDuration) {
+    if (!qsPhaseMarkers) return;
+    
+    // Clear existing markers
+    qsPhaseMarkers.innerHTML = '';
+    
+    // Create markers at each phase boundary (skip first phase)
+    let cumulative = 0;
+    sequence.forEach((step, i) => {
+      if (i > 0) {
+        const marker = document.createElement('div');
+        marker.className = 'qs-phase-marker';
+        marker.style.left = `${(cumulative / totalDuration) * 100}%`;
+        marker.title = step.label;
+        qsPhaseMarkers.appendChild(marker);
+      }
+      cumulative += step.duration;
+    });
+  }
+  
+  // Format time as MM:SS
+  function formatQSTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  
+  // Update status bar UI
+  function updateQuickStartOverlay(label, brainwave, stepIndex, totalSteps, progress, elapsedMs) {
+    if (qsLabel) qsLabel.textContent = label;
+    if (qsBrainwave) qsBrainwave.textContent = brainwave;
+    if (qsProgressFill) qsProgressFill.style.width = `${progress * 100}%`;
+    if (qsElapsed && typeof elapsedMs === 'number') qsElapsed.textContent = formatQSTime(elapsedMs);
+    if (qsTotal) qsTotal.textContent = formatQSTime(quickStartTotalDuration);
+  }
+  
+  // Update button progress bar
+  function updateButtonProgress(preset, progress) {
+    const btn = document.querySelector(`.quick-start-btn[data-preset="${preset}"]`);
+    if (btn) {
+      const progressBar = btn.querySelector('.qsb-progress');
+      if (progressBar) {
+        progressBar.style.width = `${progress * 100}%`;
+      }
+    }
+  }
+  
+  // Helper to update pan slider UI for Quick Start
+  function updateQSPanSliderUI(wheelId, panValue) {
+    const slider = document.querySelector(`.pan-slider[data-wheel="${wheelId}"]`);
+    if (slider) {
+      slider.value = panValue;
+    }
+  }
+  
+  // Animate wheels smoothly between frequencies (with optional pan support)
+  function animateQuickStartWheels(fromLeft, toLeft, fromRight, toRight, duration, onComplete, fromLeftPan, toLeftPan, fromRightPan, toRightPan) {
+    const startTime = performance.now();
+    const hasPan = typeof fromLeftPan === 'number' && typeof toLeftPan === 'number';
+    
+    // Set audio targets at start for smooth ramping
+    if (audioCtx && wheel1 && wheel2) {
+      const now = audioCtx.currentTime;
+      const rampDuration = duration / 1000;
+      
+      try {
+        wheel1.osc.frequency.cancelScheduledValues(now);
+        wheel1.osc.frequency.setValueAtTime(wheel1.osc.frequency.value, now);
+        wheel1.osc.frequency.linearRampToValueAtTime(toLeft, now + rampDuration);
+        
+        wheel2.osc.frequency.cancelScheduledValues(now);
+        wheel2.osc.frequency.setValueAtTime(wheel2.osc.frequency.value, now);
+        wheel2.osc.frequency.linearRampToValueAtTime(toRight, now + rampDuration);
+      } catch (e) {
+        setFreq(wheel1.osc, toLeft);
+        setFreq(wheel2.osc, toRight);
+      }
+    }
+    
+    function animate(currentTime) {
+      if (!quickStartRunning) return;
+      
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = qsEasing.easeInOutCubic(progress);
+      
+      // Calculate current frequencies
+      const leftFreq = fromLeft + (toLeft - fromLeft) * eased;
+      const rightFreq = fromRight + (toRight - fromRight) * eased;
+      
+      // Update wheel visuals
+      wheelL.setHz(leftFreq);
+      wheelR.setHz(rightFreq);
+      
+      // Animate pan if values provided
+      if (hasPan) {
+        const leftPan = fromLeftPan + (toLeftPan - fromLeftPan) * eased;
+        const rightPan = fromRightPan + (toRightPan - fromRightPan) * eased;
+        setPan('wheelL', Math.round(leftPan));
+        setPan('wheelR', Math.round(rightPan));
+        updateQSPanSliderUI('wheelL', Math.round(leftPan));
+        updateQSPanSliderUI('wheelR', Math.round(rightPan));
+      }
+      
+      // Update live info display
+      updateLiveInfo();
+      
+      if (progress < 1 && quickStartRunning) {
+        quickStartAnimationFrame = requestAnimationFrame(animate);
+      } else if (progress >= 1) {
+        wheelL.setHz(toLeft);
+        wheelR.setHz(toRight);
+        if (hasPan) {
+          setPan('wheelL', toLeftPan);
+          setPan('wheelR', toRightPan);
+          updateQSPanSliderUI('wheelL', toLeftPan);
+          updateQSPanSliderUI('wheelR', toRightPan);
+        }
+        updateLiveInfo();
+        if (onComplete) onComplete();
+      }
+    }
+    
+    quickStartAnimationFrame = requestAnimationFrame(animate);
+  }
+  
+  // Play a single step in the sequence
+  function playQuickStartStep(preset, stepIndex) {
+    const presetData = QUICK_START_PRESETS[preset];
+    if (!presetData || !quickStartRunning || stepIndex >= presetData.sequence.length) {
+      endQuickStart();
+      return;
+    }
+    
+    const sequence = presetData.sequence;
+    const step = sequence[stepIndex];
+    quickStartCurrentStep = stepIndex;
+    
+    // Calculate overall progress
+    let elapsedDuration = 0;
+    for (let i = 0; i < stepIndex; i++) {
+      elapsedDuration += sequence[i].duration;
+    }
+    const overallProgress = elapsedDuration / quickStartTotalDuration;
+    
+    // Update overlay UI
+    updateQuickStartOverlay(step.label, step.brainwave, stepIndex, sequence.length, overallProgress, elapsedDuration);
+    
+    // Get current frequencies
+    const currentLeft = wheelL.getHz();
+    const currentRight = wheelR.getHz();
+    
+    // Get current pan values (convert from -1..1 to -100..100)
+    const currentLeftPan = Math.round(wheelLPan * 100);
+    const currentRightPan = Math.round(wheelRPan * 100);
+    
+    // Check if step has pan values
+    const hasPan = typeof step.leftPan === 'number' && typeof step.rightPan === 'number';
+    
+    // Animate to target frequencies (and optionally pan)
+    animateQuickStartWheels(
+      currentLeft, step.left,
+      currentRight, step.right,
+      step.duration,
+      () => {
+        // Update progress during the step
+        const stepProgress = (elapsedDuration + step.duration) / quickStartTotalDuration;
+        updateQuickStartOverlay(step.label, step.brainwave, stepIndex, sequence.length, stepProgress);
+        updateButtonProgress(preset, stepProgress);
+        
+        // Move to next step
+        quickStartStepTimeout = setTimeout(() => {
+          playQuickStartStep(preset, stepIndex + 1);
+        }, 500);
+      },
+      hasPan ? currentLeftPan : undefined,
+      hasPan ? step.leftPan : undefined,
+      hasPan ? currentRightPan : undefined,
+      hasPan ? step.rightPan : undefined
+    );
+    
+    // Update progress during animation
+    const progressUpdateInterval = setInterval(() => {
+      if (!quickStartRunning || quickStartCurrentStep !== stepIndex) {
+        clearInterval(progressUpdateInterval);
+        return;
+      }
+      
+      const now = performance.now();
+      const stepElapsed = now - (quickStartStartTime + elapsedDuration);
+      const currentElapsed = elapsedDuration + Math.min(stepElapsed, step.duration);
+      const currentProgress = currentElapsed / quickStartTotalDuration;
+      
+      updateButtonProgress(preset, currentProgress);
+      
+      // Update elapsed time and progress bar
+      if (qsElapsed) qsElapsed.textContent = formatQSTime(currentElapsed);
+      if (qsProgressFill) qsProgressFill.style.width = `${currentProgress * 100}%`;
+    }, 100);
+  }
+  
+  // Start a quick start preset
+  function startQuickStart(preset) {
+    if (quickStartRunning) {
+      stopQuickStart();
+    }
+    
+    const presetData = QUICK_START_PRESETS[preset];
+    if (!presetData) return;
+    
+    // Stop any other running modes
+    if (demoRunning && typeof stopDemo === 'function') {
+      stopDemo();
+    }
+    if (programRunning) {
+      stopProgram(true);
+    }
+    if (dynamicJourneyRunning) {
+      stopDynamicJourney();
+    }
+    
+    // For mystery mode, generate a fresh random sequence each time
+    if (presetData.isRandom) {
+      presetData.sequence = generateMysterySequence();
+    }
+    
+    quickStartRunning = true;
+    quickStartCurrentPreset = preset;
+    quickStartCurrentStep = 0;
+    quickStartStartTime = performance.now();
+    quickStartTotalDuration = getSequenceDuration(presetData.sequence);
+    
+    // Update button state
+    quickStartBtns.forEach(btn => {
+      btn.classList.remove('is-playing');
+      const progressBar = btn.querySelector('.qsb-progress');
+      if (progressBar) progressBar.style.width = '0%';
+    });
+    
+    const activeBtn = document.querySelector(`.quick-start-btn[data-preset="${preset}"]`);
+    if (activeBtn) {
+      activeBtn.classList.add('is-playing');
+    }
+    
+    // Show status bar and set preset name
+    if (quickStartDisplay) {
+      quickStartDisplay.hidden = false;
+    }
+    if (qsCurrentName) {
+      qsCurrentName.textContent = presetData.name;
+    }
+    if (qsTotal) {
+      qsTotal.textContent = formatQSTime(quickStartTotalDuration);
+    }
+    if (qsProgressFill) {
+      qsProgressFill.style.width = '0%';
+    }
+    
+    // Create phase markers
+    createQSPhaseMarkers(presetData.sequence, quickStartTotalDuration);
+    
+    // Ensure audio is playing with fade-in to prevent click
+    ensureAudio();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    
+    // Use fade-in to prevent click sound
+    startAudio(true);
+    setTransportActive('play');
+    
+    // Start the sequence
+    playQuickStartStep(preset, 0);
+  }
+  
+  // Stop quick start
+  function stopQuickStart() {
+    if (!quickStartRunning) return;
+    
+    quickStartRunning = false;
+    quickStartCurrentPreset = null;
+    
+    // Cancel animations and timeouts
+    if (quickStartAnimationFrame) {
+      cancelAnimationFrame(quickStartAnimationFrame);
+      quickStartAnimationFrame = null;
+    }
+    if (quickStartStepTimeout) {
+      clearTimeout(quickStartStepTimeout);
+      quickStartStepTimeout = null;
+    }
+    
+    // Update button states
+    quickStartBtns.forEach(btn => {
+      btn.classList.remove('is-playing');
+      const progressBar = btn.querySelector('.qsb-progress');
+      if (progressBar) progressBar.style.width = '0%';
+    });
+    
+    // Hide status bar
+    if (quickStartDisplay) {
+      quickStartDisplay.hidden = true;
+    }
+    
+    // Reset pan to defaults
+    setPan('wheelL', -100);
+    setPan('wheelR', 100);
+    updateQSPanSliderUI('wheelL', -100);
+    updateQSPanSliderUI('wheelR', 100);
+    
+    // Stop audio playback
+    stopAudio();
+    setTransportActive('stop');
+  }
+  
+  // End quick start (completed naturally) - loops back to start for continuous experience
+  function endQuickStart() {
+    const wasPreset = quickStartCurrentPreset;
+    
+    if (!wasPreset || !quickStartRunning) {
+      quickStartRunning = false;
+      quickStartBtns.forEach(btn => btn.classList.remove('is-playing'));
+      if (quickStartDisplay) quickStartDisplay.hidden = true;
+      return;
+    }
+    
+    // Show transition message before looping
+    if (qsLabel) {
+      qsLabel.textContent = "✨ Cycling...";
+      if (qsBrainwave) qsBrainwave.textContent = "Continuous session";
+    }
+    
+    // Reset progress and loop the sequence
+    updateButtonProgress(wasPreset, 0);
+    quickStartCurrentStep = 0;
+    quickStartStartTime = performance.now();
+    
+    // Brief pause then restart
+    quickStartStepTimeout = setTimeout(() => {
+      if (quickStartRunning && quickStartCurrentPreset === wasPreset) {
+        playQuickStartStep(wasPreset, 0);
+      }
+    }, 1500);
+  }
+  
+  // Event listeners for quick start buttons
+  quickStartBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.preset;
+      if (quickStartRunning && quickStartCurrentPreset === preset) {
+        stopQuickStart();
+      } else {
+        startQuickStart(preset);
+      }
+    });
+  });
+  
+  // Stop button in status bar
+  if (qsStopBtn) {
+    qsStopBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      stopQuickStart();
+    });
+  }
+  
+  // Stop quick start when transport controls are clicked
+  const transportStop = document.getElementById('stop');
+  const transportReset = document.getElementById('reset');
+  
+  if (transportStop) {
+    transportStop.addEventListener('click', () => {
+      if (quickStartRunning) {
+        stopQuickStart();
+      }
+    });
+  }
+  
+  if (transportReset) {
+    transportReset.addEventListener('click', () => {
+      if (quickStartRunning) {
+        stopQuickStart();
+      }
+    });
+  }
+  
+  // Stop quick start when user manually interacts with wheels
+  function handleQuickStartWheelInteraction() {
+    if (quickStartRunning) {
+      stopQuickStart();
+    }
+  }
+  
+  // Expose stopQuickStart for cross-reference
+  window.stopQuickStartFn = stopQuickStart;
+
+  // ===== DEMO MODE =====
+  // Choreographed showcase of Nestorium's capabilities
+  
+  const demoBtn = document.getElementById('demoBtn');
+  const demoOverlay = document.getElementById('demoOverlay');
+  const demoLabel = document.getElementById('demoLabel');
+  const demoProgressDots = document.getElementById('demoProgressDots');
+  
+  // Demo sequence - a musical journey through harmonic intervals with spatial audio (~2 minutes)
+  // Pan values: -100 = full left, 0 = center, 100 = full right
+  const DEMO_SEQUENCE = [
+    // Standard stereo separation
+    { left: 256, right: 256, leftPan: -100, rightPan: 100, duration: 6000, label: "Unison (1:1)" },
+    { left: 256, right: 384, leftPan: -100, rightPan: 100, duration: 7000, label: "Perfect Fifth (2:3)" },
+    // Spatial crossover - swap channels
+    { left: 288, right: 432, leftPan: 50, rightPan: -50, duration: 6000, label: "Spatial Crossover ✦" },
+    { left: 320, right: 400, leftPan: -100, rightPan: 100, duration: 7000, label: "Major Third (4:5)" },
+    // Center focus - both in middle
+    { left: 256, right: 512, leftPan: -30, rightPan: 30, duration: 7500, label: "Center Focus ✦" },
+    { left: 384, right: 512, leftPan: -100, rightPan: 100, duration: 6000, label: "Perfect Fourth (3:4)" },
+    // Rotating sound field
+    { left: 320, right: 384, leftPan: 100, rightPan: -100, duration: 7000, label: "Inverted Field ✦" },
+    { left: 300, right: 500, leftPan: -100, rightPan: 100, duration: 7000, label: "Major Sixth (3:5)" },
+    // Wide panorama sweep
+    { left: 200, right: 600, leftPan: -100, rightPan: 100, duration: 4000, label: "Wide Sweep" },
+    { left: 200, right: 600, leftPan: 100, rightPan: -100, duration: 4000, label: "Spatial Rotation ✦" },
+    // Centered experience
+    { left: 432, right: 432, leftPan: 0, rightPan: 0, duration: 7500, label: "Centered Unison ✦" },
+    { left: 7.83, right: 7.83, leftPan: -50, rightPan: 50, duration: 7000, label: "Schumann Resonance" },
+    { left: 432, right: 440, leftPan: -100, rightPan: 100, duration: 7000, label: "432 Hz vs 440 Hz" },
+    { left: 256, right: 264, leftPan: -100, rightPan: 100, duration: 7000, label: "Alpha Binaural (8 Hz)" },
+    // Return to defaults
+    { left: 256, right: 256, leftPan: -100, rightPan: 100, duration: 5000, label: "Return to Unison" },
+    // Fade out to silence (using very low freq to avoid oscillator issues)
+    { left: 1, right: 1, leftPan: -100, rightPan: 100, duration: 4000, label: "Fading Out..." },
+  ];
+  
+  // Default wheel values for reset
+  const DEMO_DEFAULTS = {
+    leftFreq: 256,
+    rightFreq: 256,
+    leftPan: -100,
+    rightPan: 100
+  };
+  
+  // Demo state
+  let demoRunning = false;
+  let demoCurrentStep = 0;
+  let demoAnimationFrame = null;
+  let demoStepTimeout = null;
+  
+  // Easing functions
+  const demoEasing = {
+    easeInOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+    easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
+    easeInOutQuad: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
+  };
+  
+  // Initialize progress dots
+  function initDemoProgressDots() {
+    if (!demoProgressDots) return;
+    demoProgressDots.innerHTML = '';
+    for (let i = 0; i < DEMO_SEQUENCE.length; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'demo-progress-dot';
+      dot.dataset.step = i;
+      demoProgressDots.appendChild(dot);
+    }
+  }
+  
+  // Update progress dots
+  function updateDemoProgressDots(currentStep) {
+    if (!demoProgressDots) return;
+    const dots = demoProgressDots.querySelectorAll('.demo-progress-dot');
+    dots.forEach((dot, idx) => {
+      dot.classList.remove('active', 'completed');
+      if (idx < currentStep) {
+        dot.classList.add('completed');
+      } else if (idx === currentStep) {
+        dot.classList.add('active');
+      }
+    });
+  }
+  
+  // Update demo label with animation
+  function updateDemoLabel(text) {
+    if (!demoLabel) return;
+    demoLabel.classList.add('transitioning');
+    setTimeout(() => {
+      demoLabel.textContent = text;
+      demoLabel.classList.remove('transitioning');
+    }, 200);
+  }
+  
+  // Helper to update pan slider UI
+  function updatePanSliderUI(wheelId, panValue) {
+    const slider = document.querySelector(`.pan-slider[data-wheel="${wheelId}"]`);
+    if (slider) {
+      slider.value = panValue;
+    }
+  }
+  
+  // Animate both wheels simultaneously with smooth interpolation (including pan)
+  function animateDemoWheels(fromLeft, toLeft, fromRight, toRight, fromLeftPan, toLeftPan, fromRightPan, toRightPan, duration, onComplete) {
+    const startTime = performance.now();
+    
+    // Set audio targets at start for smooth ramping
+    if (audioCtx && wheel1 && wheel2) {
+      const now = audioCtx.currentTime;
+      const rampDuration = duration / 1000;
+      
+      // Cancel any scheduled ramps and set current values
+      try {
+        wheel1.osc.frequency.cancelScheduledValues(now);
+        wheel1.osc.frequency.setValueAtTime(wheel1.osc.frequency.value, now);
+        wheel1.osc.frequency.linearRampToValueAtTime(toLeft, now + rampDuration);
+        
+        wheel2.osc.frequency.cancelScheduledValues(now);
+        wheel2.osc.frequency.setValueAtTime(wheel2.osc.frequency.value, now);
+        wheel2.osc.frequency.linearRampToValueAtTime(toRight, now + rampDuration);
+      } catch (e) {
+        // Fallback: set immediately
+        setFreq(wheel1.osc, toLeft);
+        setFreq(wheel2.osc, toRight);
+      }
+    }
+    
+    function animate(currentTime) {
+      if (!demoRunning) return;
+      
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = demoEasing.easeInOutSine(progress);
+      
+      // Calculate current frequencies
+      const leftFreq = fromLeft + (toLeft - fromLeft) * eased;
+      const rightFreq = fromRight + (toRight - fromRight) * eased;
+      
+      // Calculate current pan values
+      const leftPan = fromLeftPan + (toLeftPan - fromLeftPan) * eased;
+      const rightPan = fromRightPan + (toRightPan - fromRightPan) * eased;
+      
+      // Update wheel visuals (setHz updates both visual position and display)
+      wheelL.setHz(leftFreq);
+      wheelR.setHz(rightFreq);
+      
+      // Update pan values and UI
+      setPan('wheelL', Math.round(leftPan));
+      setPan('wheelR', Math.round(rightPan));
+      updatePanSliderUI('wheelL', Math.round(leftPan));
+      updatePanSliderUI('wheelR', Math.round(rightPan));
+      
+      // Update live info display
+      updateLiveInfo();
+      
+      if (progress < 1 && demoRunning) {
+        demoAnimationFrame = requestAnimationFrame(animate);
+      } else if (progress >= 1) {
+        // Ensure we land exactly on target
+        wheelL.setHz(toLeft);
+        wheelR.setHz(toRight);
+        setPan('wheelL', toLeftPan);
+        setPan('wheelR', toRightPan);
+        updatePanSliderUI('wheelL', toLeftPan);
+        updatePanSliderUI('wheelR', toRightPan);
+        updateLiveInfo();
+        if (onComplete) onComplete();
+      }
+    }
+    
+    demoAnimationFrame = requestAnimationFrame(animate);
+  }
+  
+  // Play a single demo step
+  function playDemoStep(stepIndex) {
+    if (!demoRunning || stepIndex >= DEMO_SEQUENCE.length) {
+      endDemo();
+      return;
+    }
+    
+    const step = DEMO_SEQUENCE[stepIndex];
+    demoCurrentStep = stepIndex;
+    
+    // Update UI
+    updateDemoLabel(step.label);
+    updateDemoProgressDots(stepIndex);
+    
+    // Get current frequencies
+    const currentLeft = wheelL.getHz();
+    const currentRight = wheelR.getHz();
+    
+    // Get current pan values (convert from -1..1 to -100..100)
+    const currentLeftPan = Math.round(wheelLPan * 100);
+    const currentRightPan = Math.round(wheelRPan * 100);
+    
+    // Animate to target frequencies and pan positions
+    animateDemoWheels(
+      currentLeft, step.left,
+      currentRight, step.right,
+      currentLeftPan, step.leftPan,
+      currentRightPan, step.rightPan,
+      step.duration,
+      () => {
+        // Brief pause at each step for the interval to be appreciated
+        demoStepTimeout = setTimeout(() => {
+          playDemoStep(stepIndex + 1);
+        }, 500);
+      }
+    );
+  }
+  
+  // Start demo
+  function startDemo() {
+    if (demoRunning) return;
+    
+    // Stop any running programs or journeys
+    if (programRunning) {
+      stopProgram(true);
+    }
+    if (dynamicJourneyRunning) {
+      stopDynamicJourney();
+    }
+    if (quickStartRunning) {
+      stopQuickStart();
+    }
+    
+    demoRunning = true;
+    demoCurrentStep = 0;
+    
+    // Update button state
+    if (demoBtn) {
+      demoBtn.classList.add('is-running');
+      demoBtn.querySelector('.demo-btn-text').textContent = 'Stop';
+    }
+    
+    // Show overlay
+    if (demoOverlay) {
+      demoOverlay.hidden = false;
+    }
+    
+    // Initialize progress dots
+    initDemoProgressDots();
+    
+    // Ensure audio is playing
+    ensureAudio();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    startAudio();
+    setTransportActive('play');
+    
+    // Start the sequence
+    playDemoStep(0);
+  }
+  
+  // Stop demo
+  function stopDemo() {
+    if (!demoRunning) return;
+    
+    demoRunning = false;
+    
+    // Cancel any pending animations or timeouts
+    if (demoAnimationFrame) {
+      cancelAnimationFrame(demoAnimationFrame);
+      demoAnimationFrame = null;
+    }
+    if (demoStepTimeout) {
+      clearTimeout(demoStepTimeout);
+      demoStepTimeout = null;
+    }
+    
+    // Update button state
+    if (demoBtn) {
+      demoBtn.classList.remove('is-running');
+      demoBtn.querySelector('.demo-btn-text').textContent = 'Demo';
+    }
+    
+    // Hide overlay
+    if (demoOverlay) {
+      demoOverlay.hidden = true;
+    }
+    
+    // Audio continues playing at last frequency
+  }
+  
+  // End demo (completed naturally)
+  function endDemo() {
+    demoRunning = false;
+    
+    // Update button state
+    if (demoBtn) {
+      demoBtn.classList.remove('is-running');
+      demoBtn.querySelector('.demo-btn-text').textContent = 'Demo';
+    }
+    
+    // Show completion briefly
+    if (demoLabel) {
+      updateDemoLabel('✨ Demo Complete');
+    }
+    
+    // Update all dots to completed
+    if (demoProgressDots) {
+      const dots = demoProgressDots.querySelectorAll('.demo-progress-dot');
+      dots.forEach(dot => {
+        dot.classList.remove('active');
+        dot.classList.add('completed');
+      });
+    }
+    
+    // Stop audio playback
+    stopAudio();
+    setTransportActive('stop');
+    
+    // Reset pan controls to defaults (doesn't trigger audio)
+    setPan('wheelL', DEMO_DEFAULTS.leftPan);
+    setPan('wheelR', DEMO_DEFAULTS.rightPan);
+    updatePanSliderUI('wheelL', DEMO_DEFAULTS.leftPan);
+    updatePanSliderUI('wheelR', DEMO_DEFAULTS.rightPan);
+    
+    // Hide overlay after a moment
+    setTimeout(() => {
+      if (demoOverlay) {
+        demoOverlay.hidden = true;
+      }
+    }, 2000);
+  }
+  
+  // Toggle demo on button click
+  if (demoBtn) {
+    demoBtn.addEventListener('click', () => {
+      if (demoRunning) {
+        stopDemo();
+      } else {
+        startDemo();
+      }
+    });
+  }
+  
+  // Stop demo when other transport controls are clicked
+  const stopBtn = document.getElementById('stop');
+  const resetBtn = document.getElementById('reset');
+  
+  if (stopBtn) {
+    const originalStopHandler = stopBtn.onclick;
+    stopBtn.addEventListener('click', () => {
+      if (demoRunning) {
+        stopDemo();
+      }
+    });
+  }
+  
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      if (demoRunning) {
+        stopDemo();
+      }
+    });
+  }
+  
+  // Stop demo if user manually drags wheels
+  const wheelLElement = document.getElementById('wheelL');
+  const wheelRElement = document.getElementById('wheelR');
+  
+  function handleManualWheelInteraction() {
+    if (demoRunning) {
+      stopDemo();
+    }
+    if (quickStartRunning) {
+      stopQuickStart();
+    }
+  }
+  
+  if (wheelLElement) {
+    wheelLElement.addEventListener('pointerdown', (e) => {
+      // Only stop if user is dragging the pointer
+      if (e.target.closest('.pointer') || e.target.closest('.inner-pointer') || e.target.closest('.inner-circle')) {
+        handleManualWheelInteraction();
+      }
+    });
+  }
+  
+  if (wheelRElement) {
+    wheelRElement.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.pointer') || e.target.closest('.inner-pointer') || e.target.closest('.inner-circle')) {
+        handleManualWheelInteraction();
+      }
+    });
+  }
+  
+  // Expose stopDemo for cross-reference
+  window.stopDemoFn = stopDemo;
+
+  // ===== EXPERIENCES SECTION TABS =====
+  // Tab switching for Quick Start / Guided Journeys / Dynamic Journeys
+  
+  const experiencesTabs = document.querySelectorAll('.experience-tab');
+  const experiencesPanels = document.querySelectorAll('.experience-panel');
+  
+  function switchExperienceTab(tabId) {
+    // Update tab buttons
+    experiencesTabs.forEach(tab => {
+      const isActive = tab.dataset.tab === tabId;
+      tab.classList.toggle('active', isActive);
+      tab.setAttribute('aria-selected', isActive);
+    });
+    
+    // Update panels
+    experiencesPanels.forEach(panel => {
+      const isActive = panel.dataset.panel === tabId;
+      panel.classList.toggle('active', isActive);
+    });
+  }
+  
+  // Add click handlers to tabs
+  experiencesTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabId = tab.dataset.tab;
+      switchExperienceTab(tabId);
+    });
+  });
+  
+  // Auto-switch to relevant tab when a journey/experience is running
+  // This ensures user sees the active content
+  function autoSwitchToActiveTab() {
+    if (quickStartRunning) {
+      switchExperienceTab('quickstart');
+    } else if (programRunning) {
+      switchExperienceTab('guided');
+    } else if (dynamicJourneyRunning) {
+      switchExperienceTab('dynamic');
+    }
+  }
+  
   // PWA: register service worker
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
