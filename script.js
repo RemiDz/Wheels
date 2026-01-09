@@ -8080,24 +8080,10 @@
     const startTime = performance.now();
     const hasPan = typeof fromLeftPan === 'number' && typeof toLeftPan === 'number';
     
-    // Set audio targets at start for smooth ramping
-    if (audioCtx && wheel1 && wheel2) {
-      const now = audioCtx.currentTime;
-      const rampDuration = duration / 1000;
-      
-      try {
-        wheel1.osc.frequency.cancelScheduledValues(now);
-        wheel1.osc.frequency.setValueAtTime(wheel1.osc.frequency.value, now);
-        wheel1.osc.frequency.linearRampToValueAtTime(toLeft, now + rampDuration);
-        
-        wheel2.osc.frequency.cancelScheduledValues(now);
-        wheel2.osc.frequency.setValueAtTime(wheel2.osc.frequency.value, now);
-        wheel2.osc.frequency.linearRampToValueAtTime(toRight, now + rampDuration);
-      } catch (e) {
-        setFreq(wheel1.osc, toLeft);
-        setFreq(wheel2.osc, toRight);
-      }
-    }
+    // iOS Safari fix: Don't use linearRampToValueAtTime directly on oscillators
+    // as it conflicts with setTargetAtTime called by scheduleOscillatorSync.
+    // Let the wheel setHz + scheduleOscillatorSync handle audio updates,
+    // which is the same approach that works for binaural beat presets.
     
     function animate(currentTime) {
       if (!quickStartRunning) return;
@@ -8522,26 +8508,10 @@
   function animateDemoWheels(fromLeft, toLeft, fromRight, toRight, fromLeftPan, toLeftPan, fromRightPan, toRightPan, duration, onComplete) {
     const startTime = performance.now();
     
-    // Set audio targets at start for smooth ramping
-    if (audioCtx && wheel1 && wheel2) {
-      const now = audioCtx.currentTime;
-      const rampDuration = duration / 1000;
-      
-      // Cancel any scheduled ramps and set current values
-      try {
-        wheel1.osc.frequency.cancelScheduledValues(now);
-        wheel1.osc.frequency.setValueAtTime(wheel1.osc.frequency.value, now);
-        wheel1.osc.frequency.linearRampToValueAtTime(toLeft, now + rampDuration);
-        
-        wheel2.osc.frequency.cancelScheduledValues(now);
-        wheel2.osc.frequency.setValueAtTime(wheel2.osc.frequency.value, now);
-        wheel2.osc.frequency.linearRampToValueAtTime(toRight, now + rampDuration);
-      } catch (e) {
-        // Fallback: set immediately
-        setFreq(wheel1.osc, toLeft);
-        setFreq(wheel2.osc, toRight);
-      }
-    }
+    // iOS Safari fix: Don't use linearRampToValueAtTime directly on oscillators
+    // as it conflicts with setTargetAtTime called by scheduleOscillatorSync.
+    // Let the wheel setHz + scheduleOscillatorSync handle audio updates,
+    // which is the same approach that works for binaural beat presets.
     
     function animate(currentTime) {
       if (!demoRunning) return;
