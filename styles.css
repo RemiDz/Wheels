@@ -861,7 +861,96 @@ body[data-theme="dark"] .experiences-tabs {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+/* Category Navigation Pills */
+.qs-categories {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.12));
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  width: fit-content;
+  max-width: 100%;
+}
+
+button.qs-category-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 18px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  width: auto;
+  min-width: unset;
+  max-width: none;
+  flex: none;
+  box-shadow: none;
+}
+
+button.qs-category-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  transform: none;
+}
+
+button.qs-category-pill.active {
+  background: rgba(139, 92, 246, 0.2);
+  color: #fff;
+}
+
+button.qs-category-pill .pill-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+button.qs-category-pill .pill-label {
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+button.qs-category-pill .pill-badge {
+  display: none;
+}
+
+/* Category-specific active colors */
+button.qs-category-pill[data-category="sleep"].active { background: rgba(129, 140, 248, 0.25); }
+button.qs-category-pill[data-category="anxiety"].active { background: rgba(74, 222, 128, 0.2); }
+button.qs-category-pill[data-category="focus"].active { background: rgba(251, 191, 36, 0.25); }
+button.qs-category-pill[data-category="meditation"].active { background: rgba(192, 132, 252, 0.25); }
+button.qs-category-pill[data-category="body"].active { background: rgba(244, 114, 182, 0.25); }
+button.qs-category-pill[data-category="explore"].active { background: rgba(34, 211, 238, 0.25); }
+
+/* Filtered state for buttons */
+.quick-start-btn.qs-hidden {
+  display: none !important;
+}
+
+.quick-start-btn.qs-visible {
+  animation: qsFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes qsFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .quick-start-buttons {
@@ -948,6 +1037,40 @@ body[data-theme="dark"] .experiences-tabs {
   background: linear-gradient(90deg, #f59e0b, #fbbf24);
 }
 
+/* DEEP FOCUS Button - Advanced 18min flow state protocol */
+.deepFocus-btn {
+  border-color: rgba(180, 83, 9, 0.5);
+  background: rgba(120, 53, 15, 0.15);
+}
+
+.deepFocus-btn:hover {
+  border-color: rgba(217, 119, 6, 0.7);
+  background: rgba(180, 83, 9, 0.22);
+  box-shadow: 0 4px 16px rgba(180, 83, 9, 0.35), 0 0 25px rgba(245, 158, 11, 0.2);
+}
+
+.deepFocus-btn .qsb-progress {
+  background: linear-gradient(90deg, #78350f, #b45309, #f59e0b, #fbbf24);
+}
+
+.deepFocus-btn .qsb-icon {
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6));
+  animation: lightning-flicker 2s ease-in-out infinite;
+}
+
+@keyframes lightning-flicker {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6)); }
+  50% { opacity: 0.85; filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8)); }
+}
+
+.deepFocus-btn .qsb-label {
+  background: linear-gradient(135deg, #fbbf24, #fcd34d);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
 /* RELAX Button */
 .relax-btn {
   border-color: rgba(52, 211, 153, 0.3);
@@ -993,6 +1116,94 @@ body[data-theme="dark"] .experiences-tabs {
   background: linear-gradient(90deg, #a78bfa, #c4b5fd);
 }
 
+/* TRANSCENDENT Button - Advanced 25min enlightenment protocol */
+.transcendent-btn {
+  border-color: rgba(124, 58, 237, 0.5);
+  background: rgba(91, 33, 182, 0.18);
+}
+
+.transcendent-btn:hover {
+  border-color: rgba(139, 92, 246, 0.7);
+  background: rgba(124, 58, 237, 0.25);
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4), 0 0 30px rgba(167, 139, 250, 0.2);
+}
+
+.transcendent-btn .qsb-progress {
+  background: linear-gradient(90deg, #4c1d95, #7c3aed, #a78bfa, #c4b5fd);
+}
+
+.transcendent-btn .qsb-icon {
+  filter: drop-shadow(0 0 5px rgba(167, 139, 250, 0.7));
+  animation: crystal-glow 3s ease-in-out infinite;
+}
+
+@keyframes crystal-glow {
+  0%, 100% { 
+    filter: drop-shadow(0 0 5px rgba(167, 139, 250, 0.7)); 
+    transform: rotate(0deg);
+  }
+  50% { 
+    filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.9)); 
+    transform: rotate(10deg);
+  }
+}
+
+.transcendent-btn .qsb-label {
+  background: linear-gradient(135deg, #c4b5fd, #e9d5ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+/* THIRD EYE Button - 22min pineal activation protocol */
+.thirdEye-btn {
+  border-color: rgba(79, 70, 229, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(49, 46, 129, 0.2) 0%,
+    rgba(79, 70, 229, 0.15) 50%,
+    rgba(99, 102, 241, 0.1) 100%
+  );
+}
+
+.thirdEye-btn:hover {
+  border-color: rgba(99, 102, 241, 0.7);
+  background: linear-gradient(135deg, 
+    rgba(49, 46, 129, 0.3) 0%,
+    rgba(79, 70, 229, 0.25) 50%,
+    rgba(99, 102, 241, 0.18) 100%
+  );
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.45), 0 0 35px rgba(129, 140, 248, 0.25);
+}
+
+.thirdEye-btn .qsb-progress {
+  background: linear-gradient(90deg, #312e81, #4f46e5, #6366f1, #818cf8);
+}
+
+.thirdEye-btn .qsb-icon {
+  filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.8));
+  animation: eye-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes eye-pulse {
+  0%, 100% { 
+    filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.8)); 
+    transform: scale(1);
+  }
+  50% { 
+    filter: drop-shadow(0 0 12px rgba(129, 140, 248, 1)); 
+    transform: scale(1.1);
+  }
+}
+
+.thirdEye-btn .qsb-label {
+  background: linear-gradient(135deg, #a5b4fc, #c7d2fe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
 /* THETA Button */
 .theta-btn {
   border-color: rgba(192, 132, 252, 0.3);
@@ -1023,6 +1234,46 @@ body[data-theme="dark"] .experiences-tabs {
   background: linear-gradient(90deg, #f472b6, #f9a8d4);
 }
 
+/* BODY RESTORE Button - Advanced 22min healing protocol */
+.bodyRestore-btn {
+  border-color: rgba(190, 24, 93, 0.5);
+  background: rgba(131, 24, 67, 0.18);
+}
+
+.bodyRestore-btn:hover {
+  border-color: rgba(219, 39, 119, 0.7);
+  background: rgba(190, 24, 93, 0.25);
+  box-shadow: 0 4px 20px rgba(190, 24, 93, 0.4), 0 0 30px rgba(244, 114, 182, 0.2);
+}
+
+.bodyRestore-btn .qsb-progress {
+  background: linear-gradient(90deg, #831843, #be185d, #db2777, #f472b6);
+}
+
+.bodyRestore-btn .qsb-icon {
+  filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.6));
+  animation: heal-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes heal-pulse {
+  0%, 100% { 
+    filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.6)); 
+    transform: scale(1);
+  }
+  50% { 
+    filter: drop-shadow(0 0 8px rgba(219, 39, 119, 0.9)); 
+    transform: scale(1.05);
+  }
+}
+
+.bodyRestore-btn .qsb-label {
+  background: linear-gradient(135deg, #f9a8d4, #fbcfe8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
 /* DELTA Button */
 .delta-btn {
   border-color: rgba(96, 165, 250, 0.3);
@@ -1038,6 +1289,34 @@ body[data-theme="dark"] .experiences-tabs {
   background: linear-gradient(90deg, #60a5fa, #93c5fd);
 }
 
+/* DEEP SLEEP Button - Advanced 20min protocol */
+.deepSleep-btn {
+  border-color: rgba(30, 58, 95, 0.5);
+  background: rgba(15, 23, 42, 0.15);
+}
+
+.deepSleep-btn:hover {
+  border-color: rgba(56, 89, 138, 0.7);
+  background: rgba(30, 58, 95, 0.2);
+  box-shadow: 0 4px 16px rgba(30, 58, 95, 0.35), 0 0 20px rgba(99, 102, 241, 0.15);
+}
+
+.deepSleep-btn .qsb-progress {
+  background: linear-gradient(90deg, #1e3a5f, #3b5998, #4f46e5);
+}
+
+.deepSleep-btn .qsb-icon {
+  filter: drop-shadow(0 0 3px rgba(99, 102, 241, 0.5));
+}
+
+.deepSleep-btn .qsb-label {
+  background: linear-gradient(135deg, #94a3b8, #e0e7ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 600;
+}
+
 /* STRESS Button */
 .stress-btn {
   border-color: rgba(74, 222, 128, 0.3);
@@ -1051,6 +1330,34 @@ body[data-theme="dark"] .experiences-tabs {
 
 .stress-btn .qsb-progress {
   background: linear-gradient(90deg, #4ade80, #86efac);
+}
+
+/* ANXIETY RELIEF Button - Advanced 18min protocol */
+.anxietyRelief-btn {
+  border-color: rgba(5, 150, 105, 0.4);
+  background: rgba(6, 95, 70, 0.12);
+}
+
+.anxietyRelief-btn:hover {
+  border-color: rgba(16, 185, 129, 0.6);
+  background: rgba(5, 150, 105, 0.18);
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.3), 0 0 20px rgba(52, 211, 153, 0.15);
+}
+
+.anxietyRelief-btn .qsb-progress {
+  background: linear-gradient(90deg, #059669, #10b981, #34d399);
+}
+
+.anxietyRelief-btn .qsb-icon {
+  filter: drop-shadow(0 0 3px rgba(52, 211, 153, 0.5));
+}
+
+.anxietyRelief-btn .qsb-label {
+  background: linear-gradient(135deg, #6ee7b7, #a7f3d0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 600;
 }
 
 /* LUCID Button */
@@ -1113,6 +1420,62 @@ body[data-theme="dark"] .experiences-tabs {
   background: linear-gradient(90deg, #06b6d4, #22d3ee);
 }
 
+/* SPACE CLEAR Button - 18min Solfeggio room cleansing */
+.spaceClear-btn {
+  border-color: rgba(13, 148, 136, 0.5);
+  background: linear-gradient(135deg, 
+    rgba(13, 148, 136, 0.12) 0%,
+    rgba(20, 184, 166, 0.08) 50%,
+    rgba(94, 234, 212, 0.05) 100%
+  );
+}
+
+.spaceClear-btn:hover {
+  border-color: rgba(20, 184, 166, 0.7);
+  background: linear-gradient(135deg, 
+    rgba(13, 148, 136, 0.22) 0%,
+    rgba(20, 184, 166, 0.15) 50%,
+    rgba(94, 234, 212, 0.1) 100%
+  );
+  box-shadow: 0 4px 20px rgba(13, 148, 136, 0.35), 0 0 30px rgba(94, 234, 212, 0.2);
+}
+
+.spaceClear-btn .qsb-progress {
+  background: linear-gradient(90deg, #0d9488, #14b8a6, #2dd4bf, #5eead4);
+}
+
+.spaceClear-btn .qsb-icon {
+  filter: drop-shadow(0 0 5px rgba(94, 234, 212, 0.7));
+  animation: sparkle-drift 3s ease-in-out infinite;
+}
+
+@keyframes sparkle-drift {
+  0%, 100% { 
+    filter: drop-shadow(0 0 5px rgba(94, 234, 212, 0.7)); 
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.9)); 
+    transform: translateY(-2px) rotate(5deg);
+  }
+  50% { 
+    filter: drop-shadow(0 0 10px rgba(20, 184, 166, 1)); 
+    transform: translateY(0) rotate(0deg);
+  }
+  75% {
+    filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.9)); 
+    transform: translateY(-2px) rotate(-5deg);
+  }
+}
+
+.spaceClear-btn .qsb-label {
+  background: linear-gradient(135deg, #5eead4, #99f6e4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
 /* QUANTUM Button */
 .quantum-btn {
   border-color: rgba(139, 92, 246, 0.3);
@@ -1164,6 +1527,37 @@ body[data-theme="dark"] .experiences-tabs {
   box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
 }
 
+.deepFocus-btn.is-playing {
+  background: rgba(180, 83, 9, 0.3);
+  border-color: rgba(217, 119, 6, 0.8);
+  box-shadow: 0 0 30px rgba(180, 83, 9, 0.4), 0 0 50px rgba(245, 158, 11, 0.25);
+  animation: deepFocus-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes deepFocus-pulse {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(180, 83, 9, 0.4), 0 0 50px rgba(245, 158, 11, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(180, 83, 9, 0.5), 0 0 70px rgba(245, 158, 11, 0.35);
+  }
+}
+
+.deepFocus-btn.is-playing .qsb-icon {
+  animation: lightning-active 0.8s ease-in-out infinite;
+}
+
+@keyframes lightning-active {
+  0%, 100% { 
+    transform: scale(1); 
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8)); 
+  }
+  50% { 
+    transform: scale(1.2); 
+    filter: drop-shadow(0 0 12px rgba(251, 191, 36, 1)); 
+  }
+}
+
 .relax-btn.is-playing {
   background: rgba(52, 211, 153, 0.15);
   border-color: rgba(52, 211, 153, 0.6);
@@ -1182,6 +1576,104 @@ body[data-theme="dark"] .experiences-tabs {
   box-shadow: 0 0 20px rgba(167, 139, 250, 0.2);
 }
 
+.transcendent-btn.is-playing {
+  background: rgba(124, 58, 237, 0.3);
+  border-color: rgba(139, 92, 246, 0.8);
+  box-shadow: 0 0 35px rgba(124, 58, 237, 0.45), 0 0 60px rgba(167, 139, 250, 0.25);
+  animation: transcendent-aura 8s ease-in-out infinite;
+}
+
+@keyframes transcendent-aura {
+  0%, 100% {
+    box-shadow: 0 0 35px rgba(124, 58, 237, 0.45), 0 0 60px rgba(167, 139, 250, 0.25);
+    background: rgba(124, 58, 237, 0.3);
+  }
+  25% {
+    box-shadow: 0 0 45px rgba(139, 92, 246, 0.5), 0 0 80px rgba(196, 181, 253, 0.3);
+    background: rgba(139, 92, 246, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 55px rgba(167, 139, 250, 0.55), 0 0 100px rgba(233, 213, 255, 0.35);
+    background: rgba(167, 139, 250, 0.4);
+  }
+  75% {
+    box-shadow: 0 0 45px rgba(139, 92, 246, 0.5), 0 0 80px rgba(196, 181, 253, 0.3);
+    background: rgba(139, 92, 246, 0.35);
+  }
+}
+
+.transcendent-btn.is-playing .qsb-icon {
+  animation: crystal-active 4s ease-in-out infinite;
+}
+
+@keyframes crystal-active {
+  0%, 100% { 
+    transform: scale(1) rotate(0deg); 
+    filter: drop-shadow(0 0 8px rgba(167, 139, 250, 0.9)); 
+  }
+  25% { 
+    transform: scale(1.1) rotate(5deg); 
+    filter: drop-shadow(0 0 12px rgba(139, 92, 246, 1)); 
+  }
+  50% { 
+    transform: scale(1.15) rotate(0deg); 
+    filter: drop-shadow(0 0 15px rgba(196, 181, 253, 1)); 
+  }
+  75% { 
+    transform: scale(1.1) rotate(-5deg); 
+    filter: drop-shadow(0 0 12px rgba(139, 92, 246, 1)); 
+  }
+}
+
+.thirdEye-btn.is-playing {
+  background: linear-gradient(135deg, 
+    rgba(49, 46, 129, 0.35) 0%,
+    rgba(79, 70, 229, 0.3) 50%,
+    rgba(99, 102, 241, 0.25) 100%
+  );
+  border-color: rgba(99, 102, 241, 0.85);
+  box-shadow: 0 0 40px rgba(79, 70, 229, 0.5), 0 0 70px rgba(129, 140, 248, 0.3);
+  animation: thirdEye-vision 4s ease-in-out infinite;
+}
+
+@keyframes thirdEye-vision {
+  0%, 100% {
+    box-shadow: 0 0 40px rgba(79, 70, 229, 0.5), 0 0 70px rgba(129, 140, 248, 0.3);
+  }
+  25% {
+    box-shadow: 0 0 50px rgba(99, 102, 241, 0.6), 0 0 90px rgba(165, 180, 252, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 60px rgba(129, 140, 248, 0.65), 0 0 110px rgba(199, 210, 254, 0.4);
+  }
+  75% {
+    box-shadow: 0 0 50px rgba(99, 102, 241, 0.6), 0 0 90px rgba(165, 180, 252, 0.35);
+  }
+}
+
+.thirdEye-btn.is-playing .qsb-icon {
+  animation: eye-open 3s ease-in-out infinite;
+}
+
+@keyframes eye-open {
+  0%, 100% { 
+    transform: scale(1); 
+    filter: drop-shadow(0 0 10px rgba(99, 102, 241, 1)); 
+  }
+  25% { 
+    transform: scale(1.1); 
+    filter: drop-shadow(0 0 15px rgba(129, 140, 248, 1)); 
+  }
+  50% { 
+    transform: scale(1.2); 
+    filter: drop-shadow(0 0 20px rgba(199, 210, 254, 1)); 
+  }
+  75% { 
+    transform: scale(1.1); 
+    filter: drop-shadow(0 0 15px rgba(129, 140, 248, 1)); 
+  }
+}
+
 .theta-btn.is-playing {
   background: rgba(192, 132, 252, 0.15);
   border-color: rgba(192, 132, 252, 0.6);
@@ -1194,16 +1686,87 @@ body[data-theme="dark"] .experiences-tabs {
   box-shadow: 0 0 20px rgba(244, 114, 182, 0.2);
 }
 
+.bodyRestore-btn.is-playing {
+  background: rgba(190, 24, 93, 0.3);
+  border-color: rgba(219, 39, 119, 0.8);
+  box-shadow: 0 0 30px rgba(190, 24, 93, 0.45), 0 0 50px rgba(244, 114, 182, 0.25);
+  animation: bodyRestore-heal 5s ease-in-out infinite;
+}
+
+@keyframes bodyRestore-heal {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(190, 24, 93, 0.45), 0 0 50px rgba(244, 114, 182, 0.25);
+  }
+  25% {
+    box-shadow: 0 0 40px rgba(219, 39, 119, 0.5), 0 0 65px rgba(249, 168, 212, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(244, 114, 182, 0.55), 0 0 80px rgba(251, 207, 232, 0.35);
+  }
+  75% {
+    box-shadow: 0 0 40px rgba(219, 39, 119, 0.5), 0 0 65px rgba(249, 168, 212, 0.3);
+  }
+}
+
+.bodyRestore-btn.is-playing .qsb-icon {
+  animation: heal-active 3s ease-in-out infinite;
+}
+
+@keyframes heal-active {
+  0%, 100% { 
+    transform: scale(1); 
+    filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.9)); 
+  }
+  50% { 
+    transform: scale(1.15); 
+    filter: drop-shadow(0 0 15px rgba(219, 39, 119, 1)); 
+  }
+}
+
 .delta-btn.is-playing {
   background: rgba(96, 165, 250, 0.15);
   border-color: rgba(96, 165, 250, 0.6);
   box-shadow: 0 0 20px rgba(96, 165, 250, 0.2);
 }
 
+.deepSleep-btn.is-playing {
+  background: rgba(30, 58, 95, 0.3);
+  border-color: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 0 25px rgba(30, 58, 95, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);
+  animation: deepSleep-glow 4s ease-in-out infinite;
+}
+
+@keyframes deepSleep-glow {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(30, 58, 95, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(30, 58, 95, 0.5), 0 0 60px rgba(99, 102, 241, 0.3);
+  }
+}
+
 .stress-btn.is-playing {
   background: rgba(74, 222, 128, 0.15);
   border-color: rgba(74, 222, 128, 0.6);
   box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+}
+
+.anxietyRelief-btn.is-playing {
+  background: rgba(5, 150, 105, 0.25);
+  border-color: rgba(16, 185, 129, 0.7);
+  box-shadow: 0 0 25px rgba(5, 150, 105, 0.35), 0 0 40px rgba(52, 211, 153, 0.2);
+  animation: anxietyRelief-breathe 6s ease-in-out infinite;
+}
+
+@keyframes anxietyRelief-breathe {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(5, 150, 105, 0.35), 0 0 40px rgba(52, 211, 153, 0.2);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(5, 150, 105, 0.45), 0 0 55px rgba(52, 211, 153, 0.3);
+    transform: scale(1.01);
+  }
 }
 
 .lucid-btn.is-playing {
@@ -1237,6 +1800,67 @@ body[data-theme="dark"] .experiences-tabs {
   border-color: rgba(6, 182, 212, 0.6);
   box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
   animation: breath-wave 4s ease-in-out infinite;
+}
+
+.spaceClear-btn.is-playing {
+  background: linear-gradient(135deg, 
+    rgba(13, 148, 136, 0.25) 0%,
+    rgba(20, 184, 166, 0.2) 50%,
+    rgba(94, 234, 212, 0.15) 100%
+  );
+  border-color: rgba(20, 184, 166, 0.8);
+  box-shadow: 0 0 35px rgba(13, 148, 136, 0.4), 0 0 60px rgba(94, 234, 212, 0.25);
+  animation: spaceClear-cleanse 6s ease-in-out infinite;
+}
+
+@keyframes spaceClear-cleanse {
+  0%, 100% {
+    box-shadow: 0 0 35px rgba(13, 148, 136, 0.4), 0 0 60px rgba(94, 234, 212, 0.25);
+    background: linear-gradient(135deg, 
+      rgba(13, 148, 136, 0.25) 0%,
+      rgba(20, 184, 166, 0.2) 50%,
+      rgba(94, 234, 212, 0.15) 100%
+    );
+  }
+  33% {
+    box-shadow: 0 0 50px rgba(20, 184, 166, 0.5), 0 0 80px rgba(45, 212, 191, 0.3);
+    background: linear-gradient(135deg, 
+      rgba(20, 184, 166, 0.3) 0%,
+      rgba(45, 212, 191, 0.25) 50%,
+      rgba(94, 234, 212, 0.2) 100%
+    );
+  }
+  66% {
+    box-shadow: 0 0 60px rgba(45, 212, 191, 0.55), 0 0 100px rgba(153, 246, 228, 0.35);
+    background: linear-gradient(135deg, 
+      rgba(45, 212, 191, 0.35) 0%,
+      rgba(94, 234, 212, 0.28) 50%,
+      rgba(153, 246, 228, 0.2) 100%
+    );
+  }
+}
+
+.spaceClear-btn.is-playing .qsb-icon {
+  animation: sparkle-active 2s ease-in-out infinite;
+}
+
+@keyframes sparkle-active {
+  0%, 100% { 
+    transform: scale(1) rotate(0deg); 
+    filter: drop-shadow(0 0 10px rgba(94, 234, 212, 1)); 
+  }
+  25% { 
+    transform: scale(1.15) rotate(15deg); 
+    filter: drop-shadow(0 0 15px rgba(45, 212, 191, 1)); 
+  }
+  50% { 
+    transform: scale(1.2) rotate(0deg); 
+    filter: drop-shadow(0 0 20px rgba(153, 246, 228, 1)); 
+  }
+  75% { 
+    transform: scale(1.15) rotate(-15deg); 
+    filter: drop-shadow(0 0 15px rgba(45, 212, 191, 1)); 
+  }
 }
 
 .quantum-btn.is-playing {
@@ -1680,6 +2304,25 @@ body[data-theme="dark"] .demo-progress-dot.completed {
   .donate-btn {
     padding: 6px 8px;
     border-radius: 10px;
+  }
+  
+  .qs-categories {
+    gap: 2px;
+    padding: 3px 4px;
+  }
+  
+  button.qs-category-pill {
+    padding: 4px 6px;
+    font-size: 9px;
+    gap: 3px;
+  }
+  
+  button.qs-category-pill .pill-icon {
+    font-size: 9px;
+  }
+  
+  button.qs-category-pill .pill-label {
+    display: none; /* Icon only on mobile */
   }
   
   .quick-start-buttons {
