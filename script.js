@@ -7760,6 +7760,52 @@
     { left: 200, right: 215, duration: 25000, label: "Optimal Zone", brainwave: "Beta 15 Hz" },
   ];
   
+  // ADVANCED DEEP FOCUS - Scientific peak performance protocol
+  // 18 minutes total - Research-based optimal brainwave entrainment for focus & flow
+  // Based on studies: SMR (12-15 Hz) improves attention, reduces ADHD symptoms
+  // Mid-Beta (15-20 Hz) optimal for sustained analytical concentration
+  // Gamma (40 Hz) triggers peak cognitive performance and "flow state"
+  // Uses 220 Hz carrier - optimal for beta/gamma perception
+  // Includes spatial audio for enhanced engagement and reduced monotony
+  const DEEP_FOCUS_SEQUENCE = [
+    // Phase 1: Calm Foundation (3 minutes)
+    // Establish alpha baseline for calm alertness before ramping up
+    { left: 220, right: 230, leftPan: -100, rightPan: 100, duration: 45000, label: "Mind Clear", brainwave: "Alpha 10 Hz" },
+    { left: 220, right: 231, leftPan: -90, rightPan: 90, duration: 45000, label: "Alert Calm", brainwave: "Alpha 11 Hz" },
+    { left: 220, right: 232, leftPan: -80, rightPan: 80, duration: 45000, label: "Ready State", brainwave: "Alpha 12 Hz" },
+    { left: 220, right: 232.5, leftPan: -70, rightPan: 70, duration: 40000, label: "Activation", brainwave: "Alpha 12.5 Hz" },
+    
+    // Phase 2: SMR Attention Training (4 minutes)
+    // Sensorimotor rhythm (12-15 Hz) - proven to improve attention and reduce distractibility
+    { left: 220, right: 233, leftPan: -60, rightPan: 60, duration: 50000, label: "Focus Lock", brainwave: "SMR 13 Hz" },
+    { left: 220, right: 234, leftPan: -55, rightPan: 55, duration: 55000, label: "Attention Hold", brainwave: "SMR 14 Hz" },
+    { left: 220, right: 234.5, leftPan: -50, rightPan: 50, duration: 55000, label: "Laser Focus", brainwave: "SMR 14.5 Hz" },
+    { left: 220, right: 235, leftPan: -45, rightPan: 45, duration: 50000, label: "Zone Entry", brainwave: "SMR 15 Hz" },
+    
+    // Phase 3: Active Beta Concentration (4 minutes)
+    // Mid-beta (15-20 Hz) for active analytical thinking and sustained concentration
+    { left: 220, right: 236, leftPan: -40, rightPan: 40, duration: 55000, label: "Active Mind", brainwave: "Beta 16 Hz" },
+    { left: 220, right: 238, leftPan: -35, rightPan: 35, duration: 60000, label: "Deep Think", brainwave: "Beta 18 Hz" },
+    { left: 220, right: 239, leftPan: -30, rightPan: 30, duration: 60000, label: "Concentration", brainwave: "Beta 19 Hz" },
+    { left: 220, right: 240, leftPan: -25, rightPan: 25, duration: 55000, label: "Peak Beta", brainwave: "Beta 20 Hz" },
+    
+    // Phase 4: Gamma Peak Performance (4 minutes)
+    // 40 Hz gamma - associated with "flow state", peak cognition, memory consolidation
+    // Introduced gradually to avoid overstimulation
+    { left: 220, right: 245, leftPan: -20, rightPan: 20, duration: 50000, label: "Gamma Rise", brainwave: "High Beta 25 Hz" },
+    { left: 220, right: 250, leftPan: -15, rightPan: 15, duration: 55000, label: "Gamma Entry", brainwave: "Low Gamma 30 Hz" },
+    { left: 220, right: 255, leftPan: -10, rightPan: 10, duration: 60000, label: "Flow State", brainwave: "Gamma 35 Hz" },
+    { left: 220, right: 260, leftPan: -5, rightPan: 5, duration: 60000, label: "Peak Flow", brainwave: "Gamma 40 Hz" },
+    
+    // Phase 5: Sustained Optimal Focus (3 minutes)
+    // Return to stable mid-beta for sustained productive work without burnout
+    // Ends in optimal work zone so user can continue working
+    { left: 220, right: 250, leftPan: -15, rightPan: 15, duration: 45000, label: "Stabilizing", brainwave: "Low Gamma 30 Hz" },
+    { left: 220, right: 240, leftPan: -25, rightPan: 25, duration: 50000, label: "Optimal Work", brainwave: "Beta 20 Hz" },
+    { left: 220, right: 238, leftPan: -30, rightPan: 30, duration: 50000, label: "Sustained", brainwave: "Beta 18 Hz" },
+    { left: 220, right: 236, leftPan: -35, rightPan: 35, duration: 45000, label: "Productive", brainwave: "Beta 16 Hz" },
+  ];
+  
   // RELAX PRESET - Alpha/Theta waves (6-12 Hz) for calm and peace
   // 5 minutes total - Gentle descent from awareness to deep relaxation
   const RELAX_SEQUENCE = [
@@ -7786,6 +7832,49 @@
     { left: 100, right: 100.5, leftPan: -10, rightPan: 10, duration: 40000, label: "Deep Sleep", brainwave: "Deep Delta 0.5 Hz" },
   ];
   
+  // ADVANCED DEEP SLEEP - Scientific sleep induction protocol
+  // 20 minutes total - Research-based optimal brainwave entrainment for sleep
+  // Based on studies: Gradual descent through alpha→theta→delta with extended delta phases
+  // Uses lower carrier frequency (85 Hz) optimal for delta entrainment
+  // Incorporates Schumann resonance (7.83 Hz) for natural grounding
+  // Extended deep delta phases (0.5-2 Hz) for maximum entrainment effectiveness
+  const DEEP_SLEEP_SEQUENCE = [
+    // Phase 1: Grounding & Initial Relaxation (3 minutes)
+    // Gentle alpha waves to calm the mind and prepare for descent
+    { left: 85, right: 95, leftPan: -100, rightPan: 100, duration: 45000, label: "Evening Calm", brainwave: "Alpha 10 Hz" },
+    { left: 85, right: 93.83, leftPan: -90, rightPan: 90, duration: 45000, label: "Earth Grounding", brainwave: "Schumann 7.83 Hz" },
+    { left: 85, right: 93, leftPan: -80, rightPan: 80, duration: 45000, label: "Releasing Day", brainwave: "Alpha 8 Hz" },
+    { left: 85, right: 92, leftPan: -70, rightPan: 70, duration: 45000, label: "Mind Quieting", brainwave: "Theta 7 Hz" },
+    
+    // Phase 2: Theta Descent (4 minutes)
+    // Hypnagogic state - the bridge between waking and sleep
+    { left: 85, right: 91, leftPan: -60, rightPan: 60, duration: 50000, label: "Hypnagogic Entry", brainwave: "Theta 6 Hz" },
+    { left: 85, right: 90, leftPan: -50, rightPan: 50, duration: 55000, label: "Twilight State", brainwave: "Theta 5 Hz" },
+    { left: 85, right: 89, leftPan: -40, rightPan: 40, duration: 60000, label: "Dream Threshold", brainwave: "Theta 4 Hz" },
+    { left: 85, right: 88.5, leftPan: -35, rightPan: 35, duration: 55000, label: "Sleep Gateway", brainwave: "Theta 3.5 Hz" },
+    
+    // Phase 3: Delta Entry (4 minutes)
+    // Transitioning into sleep delta waves
+    { left: 85, right: 88, leftPan: -30, rightPan: 30, duration: 60000, label: "Sleep Onset", brainwave: "Delta 3 Hz" },
+    { left: 85, right: 87.5, leftPan: -25, rightPan: 25, duration: 60000, label: "Drifting Deeper", brainwave: "Delta 2.5 Hz" },
+    { left: 85, right: 87, leftPan: -20, rightPan: 20, duration: 60000, label: "Deep Descent", brainwave: "Delta 2 Hz" },
+    { left: 85, right: 86.5, leftPan: -15, rightPan: 15, duration: 60000, label: "Restorative Wave", brainwave: "Delta 1.5 Hz" },
+    
+    // Phase 4: Deep Delta Immersion (6 minutes)
+    // Extended time at optimal sleep frequencies for maximum effectiveness
+    // Research shows 0.5-2 Hz delta is most effective for deep sleep
+    { left: 85, right: 86, leftPan: -10, rightPan: 10, duration: 75000, label: "Deep Sleep", brainwave: "Delta 1 Hz" },
+    { left: 85, right: 85.75, leftPan: -8, rightPan: 8, duration: 75000, label: "Cellular Renewal", brainwave: "Delta 0.75 Hz" },
+    { left: 85, right: 85.5, leftPan: -5, rightPan: 5, duration: 75000, label: "Profound Rest", brainwave: "Deep Delta 0.5 Hz" },
+    { left: 85, right: 85.3, leftPan: -3, rightPan: 3, duration: 75000, label: "Sleep Anchor", brainwave: "Ultra Delta 0.3 Hz" },
+    
+    // Phase 5: Sleep Sustain (3 minutes)
+    // Ultra-low delta with minimal spatial movement for uninterrupted sleep
+    { left: 85, right: 85.5, leftPan: -2, rightPan: 2, duration: 60000, label: "Infinite Rest", brainwave: "Deep Delta 0.5 Hz" },
+    { left: 85, right: 85.3, leftPan: -1, rightPan: 1, duration: 60000, label: "Dream Ocean", brainwave: "Ultra Delta 0.3 Hz" },
+    { left: 85, right: 85.2, leftPan: 0, rightPan: 0, duration: 60000, label: "Stillness", brainwave: "Ultra Delta 0.2 Hz" },
+  ];
+  
   // DEEP MEDITATION - Theta-focused for profound meditative states
   // 6 minutes - Gentle theta journey with subtle spatial movement
   const MEDITATION_SEQUENCE = [
@@ -7797,6 +7886,113 @@
     { left: 136, right: 143.83, leftPan: -40, rightPan: 40, duration: 45000, label: "Earth Connection", brainwave: "Schumann 7.83 Hz" },
     { left: 136, right: 144, leftPan: -60, rightPan: 60, duration: 40000, label: "Integration", brainwave: "Alpha 8 Hz" },
     { left: 136, right: 146, leftPan: -100, rightPan: 100, duration: 35000, label: "Gentle Return", brainwave: "Alpha 10 Hz" },
+  ];
+  
+  // ADVANCED TRANSCENDENT MEDITATION - Scientific enlightenment protocol
+  // 25 minutes total - Research-based optimal brainwave entrainment for profound meditation
+  // Based on studies: Experienced meditators show increased theta + gamma bursts
+  // Alpha-theta training is proven effective for achieving deep meditative states
+  // 40 Hz gamma observed in Tibetan monks during "compassion meditation"
+  // Uses 136.1 Hz carrier - the "OM" frequency (Earth's rotation around the Sun)
+  // Schumann resonance integration for Earth synchronization
+  const TRANSCENDENT_MEDITATION_SEQUENCE = [
+    // Phase 1: Grounding & Sacred Space (4 minutes)
+    // Establish calm presence with alpha and Earth connection
+    { left: 136.1, right: 146.1, leftPan: -100, rightPan: 100, duration: 50000, label: "Sacred Space", brainwave: "Alpha 10 Hz" },
+    { left: 136.1, right: 145.1, leftPan: -90, rightPan: 90, duration: 50000, label: "Breath Anchor", brainwave: "Alpha 9 Hz" },
+    { left: 136.1, right: 143.93, leftPan: -80, rightPan: 80, duration: 55000, label: "Earth Resonance", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 144.1, leftPan: -70, rightPan: 70, duration: 50000, label: "Present Moment", brainwave: "Alpha 8 Hz" },
+    
+    // Phase 2: Alpha-Theta Descent (5 minutes)
+    // Gradual transition through the "twilight" zone - gateway to deep meditation
+    { left: 136.1, right: 143.6, leftPan: -65, rightPan: 65, duration: 55000, label: "Twilight Entry", brainwave: "Alpha-Theta 7.5 Hz" },
+    { left: 136.1, right: 143.1, leftPan: -60, rightPan: 60, duration: 60000, label: "Inner Gateway", brainwave: "Theta 7 Hz" },
+    { left: 136.1, right: 142.6, leftPan: -55, rightPan: 55, duration: 60000, label: "Consciousness Shift", brainwave: "Theta 6.5 Hz" },
+    { left: 136.1, right: 142.1, leftPan: -50, rightPan: 50, duration: 60000, label: "Deep Within", brainwave: "Theta 6 Hz" },
+    { left: 136.1, right: 141.6, leftPan: -45, rightPan: 45, duration: 55000, label: "Soul Space", brainwave: "Theta 5.5 Hz" },
+    
+    // Phase 3: Deep Theta Immersion (8 minutes)
+    // Extended time in profound theta - the core meditative experience
+    // This is where insights, visions, and deep peace occur
+    { left: 136.1, right: 141.1, leftPan: -40, rightPan: 40, duration: 65000, label: "Pure Awareness", brainwave: "Theta 5 Hz" },
+    { left: 136.1, right: 140.6, leftPan: -35, rightPan: 35, duration: 70000, label: "Infinite Mind", brainwave: "Theta 4.5 Hz" },
+    { left: 136.1, right: 140.1, leftPan: -30, rightPan: 30, duration: 75000, label: "Void", brainwave: "Deep Theta 4 Hz" },
+    { left: 136.1, right: 140.6, leftPan: -25, rightPan: 25, duration: 70000, label: "Stillness", brainwave: "Theta 4.5 Hz" },
+    { left: 136.1, right: 141.1, leftPan: -30, rightPan: 30, duration: 65000, label: "Unity", brainwave: "Theta 5 Hz" },
+    { left: 136.1, right: 143.93, leftPan: -35, rightPan: 35, duration: 60000, label: "Earth Heart", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 141.1, leftPan: -30, rightPan: 30, duration: 60000, label: "Boundless", brainwave: "Theta 5 Hz" },
+    
+    // Phase 4: Gamma Enlightenment Burst (4 minutes)
+    // Brief gamma activation - observed in advanced meditators during peak states
+    // Associated with feelings of bliss, insight, and expanded consciousness
+    { left: 136.1, right: 142.1, leftPan: -25, rightPan: 25, duration: 45000, label: "Rising Light", brainwave: "Theta 6 Hz" },
+    { left: 136.1, right: 146.1, leftPan: -20, rightPan: 20, duration: 45000, label: "Awakening", brainwave: "Alpha 10 Hz" },
+    { left: 136.1, right: 156.1, leftPan: -15, rightPan: 15, duration: 55000, label: "Insight Flash", brainwave: "Beta 20 Hz" },
+    { left: 136.1, right: 176.1, leftPan: -10, rightPan: 10, duration: 60000, label: "Enlightenment", brainwave: "Gamma 40 Hz" },
+    { left: 136.1, right: 156.1, leftPan: -15, rightPan: 15, duration: 45000, label: "Bliss Wave", brainwave: "Beta 20 Hz" },
+    
+    // Phase 5: Integration & Gentle Return (4 minutes)
+    // Gradual return through theta to alpha - integrating the experience
+    // Ends in calm, clear awareness
+    { left: 136.1, right: 146.1, leftPan: -25, rightPan: 25, duration: 45000, label: "Descending", brainwave: "Alpha 10 Hz" },
+    { left: 136.1, right: 143.93, leftPan: -35, rightPan: 35, duration: 50000, label: "Grounded Light", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 144.1, leftPan: -50, rightPan: 50, duration: 50000, label: "Integration", brainwave: "Alpha 8 Hz" },
+    { left: 136.1, right: 145.1, leftPan: -70, rightPan: 70, duration: 45000, label: "Wholeness", brainwave: "Alpha 9 Hz" },
+    { left: 136.1, right: 146.1, leftPan: -100, rightPan: 100, duration: 45000, label: "Complete", brainwave: "Alpha 10 Hz" },
+  ];
+  
+  // THIRD EYE AWAKENING - Scientific pineal gland activation protocol
+  // 22 minutes total - Research-based frequencies for inner vision and third eye opening
+  // Based on: 852 Hz & 963 Hz Solfeggio frequencies for pineal/Ajna activation
+  // Theta waves (4-7 Hz) associated with visualization and mental imagery
+  // 40 Hz Gamma creates the "illumination" effect - heightened perception
+  // 144 Hz associated with light codes and higher consciousness
+  // Uses 288 Hz carrier - octave relationship with 144 Hz and 576 Hz (crown frequencies)
+  // Progressive activation from grounding → visualization → third eye frequencies → gamma illumination
+  const THIRD_EYE_SEQUENCE = [
+    // Phase 1: Grounding & Preparation (3 minutes)
+    // Ground before ascending - essential for safe third eye work
+    // OM frequency and Schumann to anchor in body and Earth
+    { left: 136.1, right: 146.1, leftPan: -100, rightPan: 100, duration: 45000, label: "Body Anchor", brainwave: "Alpha 10 Hz" },
+    { left: 136.1, right: 143.93, leftPan: -90, rightPan: 90, duration: 50000, label: "Earth Root", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 144.1, leftPan: -80, rightPan: 80, duration: 45000, label: "Centered", brainwave: "Alpha 8 Hz" },
+    { left: 144, right: 151, leftPan: -70, rightPan: 70, duration: 45000, label: "Light Carrier", brainwave: "Theta 7 Hz" },
+    
+    // Phase 2: Theta Visualization Activation (4 minutes)
+    // Deep theta to activate inner vision and mental imagery centers
+    // Narrowing stereo field to focus attention inward
+    { left: 144, right: 150, leftPan: -60, rightPan: 60, duration: 50000, label: "Inner Gaze", brainwave: "Theta 6 Hz" },
+    { left: 144, right: 149, leftPan: -50, rightPan: 50, duration: 55000, label: "Vision Opening", brainwave: "Theta 5 Hz" },
+    { left: 144, right: 148.5, leftPan: -40, rightPan: 40, duration: 55000, label: "Mental Screen", brainwave: "Theta 4.5 Hz" },
+    { left: 144, right: 148, leftPan: -35, rightPan: 35, duration: 55000, label: "Image Formation", brainwave: "Theta 4 Hz" },
+    
+    // Phase 3: Third Eye Solfeggio Activation (6 minutes)
+    // 852 Hz (third eye) and 963 Hz (pineal/crown) - the core activation frequencies
+    // Extended time for deep resonance with the pineal gland
+    { left: 852, right: 858, leftPan: -30, rightPan: 30, duration: 60000, label: "852 Hz Ajna", brainwave: "Theta 6 Hz" },
+    { left: 852, right: 857, leftPan: -25, rightPan: 25, duration: 65000, label: "Third Eye Open", brainwave: "Theta 5 Hz" },
+    { left: 852, right: 856, leftPan: -20, rightPan: 20, duration: 60000, label: "Inner Sight", brainwave: "Theta 4 Hz" },
+    { left: 963, right: 969, leftPan: -25, rightPan: 25, duration: 60000, label: "963 Hz Pineal", brainwave: "Theta 6 Hz" },
+    { left: 963, right: 968, leftPan: -20, rightPan: 20, duration: 65000, label: "Crown Connect", brainwave: "Theta 5 Hz" },
+    { left: 963, right: 967, leftPan: -15, rightPan: 15, duration: 55000, label: "Divine Vision", brainwave: "Theta 4 Hz" },
+    
+    // Phase 4: Gamma Illumination (5 minutes)
+    // 40 Hz gamma for the "light" experience - heightened perception
+    // This creates the illumination sensation reported in third eye activation
+    { left: 288, right: 298, leftPan: -15, rightPan: 15, duration: 45000, label: "Rising Light", brainwave: "Alpha 10 Hz" },
+    { left: 288, right: 308, leftPan: -10, rightPan: 10, duration: 50000, label: "Light Intensify", brainwave: "Beta 20 Hz" },
+    { left: 288, right: 318, leftPan: -8, rightPan: 8, duration: 55000, label: "Brilliance", brainwave: "Beta 30 Hz" },
+    { left: 288, right: 328, leftPan: -5, rightPan: 5, duration: 65000, label: "Illumination", brainwave: "Gamma 40 Hz" },
+    { left: 288, right: 318, leftPan: -10, rightPan: 10, duration: 50000, label: "Radiance", brainwave: "Beta 30 Hz" },
+    
+    // Phase 5: Integration & Sustained Vision (4 minutes)
+    // Return to theta with third eye carrier - maintaining enhanced vision
+    // Gradual grounding while preserving the activated state
+    { left: 852, right: 862, leftPan: -20, rightPan: 20, duration: 50000, label: "Vision Stable", brainwave: "Alpha 10 Hz" },
+    { left: 852, right: 859.83, leftPan: -30, rightPan: 30, duration: 50000, label: "Earth Vision", brainwave: "Schumann 7.83 Hz" },
+    { left: 144, right: 151, leftPan: -50, rightPan: 50, duration: 45000, label: "Light Body", brainwave: "Theta 7 Hz" },
+    { left: 136.1, right: 143.93, leftPan: -70, rightPan: 70, duration: 45000, label: "Grounded Sight", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 144.1, leftPan: -100, rightPan: 100, duration: 40000, label: "Awakened", brainwave: "Alpha 8 Hz" },
   ];
   
   // THETA DREAMS - Creative theta for visualization and dreams
@@ -7851,6 +8047,52 @@
     { left: 150, right: 160, leftPan: -100, rightPan: 100, duration: 30000, label: "Renewed", brainwave: "Alpha 10 Hz" },
   ];
   
+  // ADVANCED ANXIETY RELIEF - Scientific anxiety dissolution protocol
+  // 18 minutes total - Research-based optimal brainwave entrainment for anxiety
+  // Based on studies: Alpha enhancement (10 Hz) is most effective for anxiety reduction
+  // Alpha-Theta crossover (7-8 Hz) enables emotional processing and release
+  // SMR (12-15 Hz) promotes calm alertness without hypervigilance
+  // Uses 136.1 Hz carrier - the "OM" frequency traditionally associated with calm
+  // Schumann resonance integration for natural grounding
+  const ANXIETY_RELIEF_SEQUENCE = [
+    // Phase 1: Safety & Grounding (3 minutes)
+    // SMR/Low Beta for alert calm, establishing safety before descent
+    { left: 136.1, right: 148.1, leftPan: -100, rightPan: 100, duration: 40000, label: "Safe Space", brainwave: "SMR 12 Hz" },
+    { left: 136.1, right: 147.1, leftPan: -90, rightPan: 90, duration: 45000, label: "Present Moment", brainwave: "Alpha 11 Hz" },
+    { left: 136.1, right: 146.1, leftPan: -80, rightPan: 80, duration: 50000, label: "Settling In", brainwave: "Alpha 10 Hz" },
+    { left: 136.1, right: 145.1, leftPan: -70, rightPan: 70, duration: 45000, label: "Body Awareness", brainwave: "Alpha 9 Hz" },
+    
+    // Phase 2: Alpha Enhancement (4 minutes)
+    // Extended 10 Hz alpha - research shows this is the "sweet spot" for anxiety reduction
+    // Multiple passes through 10 Hz with Schumann integration
+    { left: 136.1, right: 146.1, leftPan: -65, rightPan: 65, duration: 55000, label: "Alpha Wave", brainwave: "Alpha 10 Hz" },
+    { left: 136.1, right: 143.93, leftPan: -60, rightPan: 60, duration: 50000, label: "Earth Sync", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 146.1, leftPan: -55, rightPan: 55, duration: 55000, label: "Calm Alpha", brainwave: "Alpha 10 Hz" },
+    { left: 136.1, right: 145.1, leftPan: -50, rightPan: 50, duration: 50000, label: "Deepening Calm", brainwave: "Alpha 9 Hz" },
+    
+    // Phase 3: Alpha-Theta Border (5 minutes)
+    // The therapeutic "crossover" zone (7-8 Hz) - where emotional processing occurs
+    // Extended time here for maximum anxiety release and emotional integration
+    { left: 136.1, right: 144.1, leftPan: -45, rightPan: 45, duration: 55000, label: "Letting Go", brainwave: "Alpha 8 Hz" },
+    { left: 136.1, right: 143.93, leftPan: -40, rightPan: 40, duration: 60000, label: "Natural Rhythm", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 143.6, leftPan: -35, rightPan: 35, duration: 60000, label: "Crossover Zone", brainwave: "Alpha-Theta 7.5 Hz" },
+    { left: 136.1, right: 143.1, leftPan: -30, rightPan: 30, duration: 65000, label: "Release Point", brainwave: "Theta 7 Hz" },
+    { left: 136.1, right: 143.93, leftPan: -35, rightPan: 35, duration: 55000, label: "Integration", brainwave: "Schumann 7.83 Hz" },
+    
+    // Phase 4: Deep Calm Theta (3 minutes)
+    // Lower theta for profound calm - not too deep to maintain awareness
+    { left: 136.1, right: 142.1, leftPan: -30, rightPan: 30, duration: 55000, label: "Deep Calm", brainwave: "Theta 6 Hz" },
+    { left: 136.1, right: 141.1, leftPan: -25, rightPan: 25, duration: 60000, label: "Inner Peace", brainwave: "Theta 5 Hz" },
+    { left: 136.1, right: 142.1, leftPan: -30, rightPan: 30, duration: 50000, label: "Serenity", brainwave: "Theta 6 Hz" },
+    
+    // Phase 5: Stable Return (3 minutes)
+    // Gradual return to functional, calm alpha - user remains calm but alert
+    { left: 136.1, right: 143.93, leftPan: -40, rightPan: 40, duration: 50000, label: "Grounded", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 144.1, leftPan: -50, rightPan: 50, duration: 45000, label: "Rising Gently", brainwave: "Alpha 8 Hz" },
+    { left: 136.1, right: 145.1, leftPan: -60, rightPan: 60, duration: 45000, label: "Clarity", brainwave: "Alpha 9 Hz" },
+    { left: 136.1, right: 146.1, leftPan: -70, rightPan: 70, duration: 40000, label: "Renewed Calm", brainwave: "Alpha 10 Hz" },
+  ];
+  
   // LUCID REST - Theta-delta for conscious relaxation
   // 5 minutes - Hovering at theta-delta border for aware rest
   const LUCID_SEQUENCE = [
@@ -7896,6 +8138,55 @@
     { left: 136, right: 144, leftPan: -100, rightPan: 100, duration: 20000, label: "Balanced Heart", brainwave: "Alpha 8 Hz" },
   ];
   
+  // ADVANCED BODY RESTORATION - Scientific cellular healing protocol
+  // 22 minutes total - Research-based optimal brainwave entrainment for physical healing
+  // Based on studies: Delta waves (0.5-4 Hz) trigger growth hormone release
+  // Deep delta associated with cellular regeneration and tissue repair
+  // Theta activates parasympathetic "rest and digest" healing mode
+  // 10 Hz alpha shown to reduce inflammation markers
+  // Ultra-low delta (0.5-2 Hz) associated with pain reduction
+  // Uses 111 Hz carrier - associated with cell regeneration in some studies
+  const BODY_RESTORATION_SEQUENCE = [
+    // Phase 1: Relaxation & Cortisol Reduction (3 minutes)
+    // Alpha waves to reduce stress hormones and prepare body for healing
+    { left: 111, right: 121, leftPan: -100, rightPan: 100, duration: 45000, label: "Body Scan", brainwave: "Alpha 10 Hz" },
+    { left: 111, right: 120, leftPan: -90, rightPan: 90, duration: 45000, label: "Tension Release", brainwave: "Alpha 9 Hz" },
+    { left: 111, right: 119, leftPan: -80, rightPan: 80, duration: 45000, label: "Stress Dissolve", brainwave: "Alpha 8 Hz" },
+    { left: 111, right: 118.83, leftPan: -70, rightPan: 70, duration: 50000, label: "Earth Ground", brainwave: "Schumann 7.83 Hz" },
+    
+    // Phase 2: Vagus Nerve & Parasympathetic Activation (4 minutes)
+    // Theta for "rest and digest" mode - activates body's healing systems
+    { left: 111, right: 118, leftPan: -65, rightPan: 65, duration: 55000, label: "Vagus Activation", brainwave: "Theta 7 Hz" },
+    { left: 111, right: 117, leftPan: -60, rightPan: 60, duration: 60000, label: "Rest & Digest", brainwave: "Theta 6 Hz" },
+    { left: 111, right: 116, leftPan: -55, rightPan: 55, duration: 60000, label: "Immune Boost", brainwave: "Theta 5 Hz" },
+    { left: 111, right: 115, leftPan: -50, rightPan: 50, duration: 55000, label: "Healing Mode", brainwave: "Theta 4 Hz" },
+    
+    // Phase 3: Cellular Regeneration (7 minutes)
+    // Deep delta for growth hormone release and cellular repair
+    // Extended time at optimal healing frequencies
+    { left: 111, right: 114, leftPan: -45, rightPan: 45, duration: 65000, label: "Cell Renewal", brainwave: "Delta 3 Hz" },
+    { left: 111, right: 113.5, leftPan: -40, rightPan: 40, duration: 70000, label: "Deep Healing", brainwave: "Delta 2.5 Hz" },
+    { left: 111, right: 113, leftPan: -35, rightPan: 35, duration: 75000, label: "Growth Hormone", brainwave: "Delta 2 Hz" },
+    { left: 111, right: 112.5, leftPan: -30, rightPan: 30, duration: 75000, label: "Tissue Repair", brainwave: "Delta 1.5 Hz" },
+    { left: 111, right: 112, leftPan: -25, rightPan: 25, duration: 70000, label: "Regeneration", brainwave: "Delta 1 Hz" },
+    { left: 111, right: 111.75, leftPan: -20, rightPan: 20, duration: 65000, label: "Deep Restore", brainwave: "Delta 0.75 Hz" },
+    
+    // Phase 4: Pain & Inflammation Relief (4 minutes)
+    // Ultra-low delta for pain reduction, brief alpha for anti-inflammatory effect
+    { left: 111, right: 111.5, leftPan: -15, rightPan: 15, duration: 60000, label: "Pain Release", brainwave: "Ultra Delta 0.5 Hz" },
+    { left: 111, right: 112, leftPan: -20, rightPan: 20, duration: 55000, label: "Soothe", brainwave: "Delta 1 Hz" },
+    { left: 111, right: 113, leftPan: -30, rightPan: 30, duration: 50000, label: "Inflammation Ease", brainwave: "Delta 2 Hz" },
+    { left: 111, right: 121, leftPan: -40, rightPan: 40, duration: 45000, label: "Anti-Inflam Alpha", brainwave: "Alpha 10 Hz" },
+    
+    // Phase 5: Integration & Vitality (4 minutes)
+    // Gradual return through theta to alpha - feeling restored and refreshed
+    { left: 111, right: 118.83, leftPan: -50, rightPan: 50, duration: 50000, label: "Earth Vitality", brainwave: "Schumann 7.83 Hz" },
+    { left: 111, right: 118, leftPan: -60, rightPan: 60, duration: 50000, label: "Body Harmony", brainwave: "Theta 7 Hz" },
+    { left: 111, right: 119, leftPan: -70, rightPan: 70, duration: 45000, label: "Energy Rise", brainwave: "Alpha 8 Hz" },
+    { left: 111, right: 120, leftPan: -85, rightPan: 85, duration: 45000, label: "Renewed", brainwave: "Alpha 9 Hz" },
+    { left: 111, right: 121, leftPan: -100, rightPan: 100, duration: 40000, label: "Vitality", brainwave: "Alpha 10 Hz" },
+  ];
+  
   // COSMIC BREATH - Rising/falling frequencies with expanding/contracting spatial field
   // 6 minutes - Simulates deep breathing with audio that "inhales" and "exhales"
   // Frequencies rise on inhale, fall on exhale; pan expands and contracts
@@ -7920,6 +8211,58 @@
     { left: 120, right: 126, leftPan: -100, rightPan: 100, duration: 7000, label: "Universe", brainwave: "Theta 6 Hz" },
     { left: 120, right: 120, leftPan: 0, rightPan: 0, duration: 7000, label: "Cosmic Exhale ↓", brainwave: "Infinite" },
     { left: 120, right: 125, leftPan: -50, rightPan: 50, duration: 7000, label: "Pure Being", brainwave: "Theta 5 Hz" },
+  ];
+
+  // SPACE CLEARING - Sacred frequency protocol for clearing and harmonizing spaces
+  // 18 minutes total - Uses Solfeggio frequencies and sacred tones for energetic cleansing
+  // IMPORTANT: Designed for SPEAKER playback to fill and clear room spaces
+  // Based on: Ancient Solfeggio scale, Schumann resonance, 432 Hz universal harmony
+  // The carrier frequencies themselves carry the clearing effect when played through speakers
+  // Binaural components add subtle pulsing that enhances the clearing vibration
+  // Progressive sweep from grounding → clearing → transformation → purification → sealing
+  const SPACE_CLEARING_SEQUENCE = [
+    // Phase 1: Opening & Grounding (3 minutes)
+    // OM frequency (136.1 Hz) to establish sacred space, Schumann for Earth connection
+    // Wide stereo spread to fill the room corners
+    { left: 136.1, right: 143.93, leftPan: -100, rightPan: 100, duration: 50000, label: "Sacred Opening", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 143.1, leftPan: -100, rightPan: 100, duration: 50000, label: "OM Resonance", brainwave: "Theta 7 Hz" },
+    { left: 174, right: 181.83, leftPan: -100, rightPan: 100, duration: 55000, label: "Foundation Tone", brainwave: "Schumann 7.83 Hz" },
+    
+    // Phase 2: Low Frequency Clearing (3 minutes)
+    // Solfeggio 174 Hz (foundation) and 285 Hz (energy field) to clear dense energy
+    // Dynamic panning to "sweep" through the space
+    { left: 174, right: 180, leftPan: -100, rightPan: -100, duration: 35000, label: "Clearing Left", brainwave: "Theta 6 Hz" },
+    { left: 174, right: 180, leftPan: 100, rightPan: 100, duration: 35000, label: "Clearing Right", brainwave: "Theta 6 Hz" },
+    { left: 285, right: 291, leftPan: -100, rightPan: 100, duration: 50000, label: "Energy Field", brainwave: "Theta 6 Hz" },
+    { left: 285, right: 292, leftPan: 100, rightPan: -100, duration: 50000, label: "Field Sweep", brainwave: "Theta 7 Hz" },
+    
+    // Phase 3: Liberation & Transformation (4 minutes)
+    // Solfeggio 396 Hz (liberation), 417 Hz (change), 528 Hz (miracle/DNA)
+    // These are the active "clearing" frequencies - removing stagnant energy
+    { left: 396, right: 402, leftPan: -100, rightPan: 100, duration: 50000, label: "Liberation", brainwave: "Theta 6 Hz" },
+    { left: 396, right: 403.83, leftPan: -80, rightPan: 80, duration: 45000, label: "Release Fear", brainwave: "Schumann 7.83 Hz" },
+    { left: 417, right: 423, leftPan: -100, rightPan: 100, duration: 50000, label: "Facilitate Change", brainwave: "Theta 6 Hz" },
+    { left: 417, right: 425, leftPan: 80, rightPan: -80, duration: 45000, label: "Transmutation", brainwave: "Alpha 8 Hz" },
+    { left: 528, right: 534, leftPan: -100, rightPan: 100, duration: 55000, label: "Miracle Tone", brainwave: "Theta 6 Hz" },
+    
+    // Phase 4: High Frequency Purification (4 minutes)
+    // Solfeggio 639 Hz (connection), 741 Hz (awakening), 852 Hz (spiritual order)
+    // Higher frequencies to refine and brighten the space
+    { left: 639, right: 646, leftPan: -100, rightPan: 100, duration: 50000, label: "Harmonize", brainwave: "Theta 7 Hz" },
+    { left: 639, right: 647.83, leftPan: -70, rightPan: 70, duration: 45000, label: "Connection", brainwave: "Schumann 7.83 Hz" },
+    { left: 741, right: 749, leftPan: -100, rightPan: 100, duration: 50000, label: "Awakening", brainwave: "Alpha 8 Hz" },
+    { left: 741, right: 751, leftPan: 70, rightPan: -70, duration: 45000, label: "Cleanse Toxins", brainwave: "Alpha 10 Hz" },
+    { left: 852, right: 860, leftPan: -100, rightPan: 100, duration: 50000, label: "Spiritual Order", brainwave: "Alpha 8 Hz" },
+    
+    // Phase 5: Crown Activation & Sealing (4 minutes)
+    // Solfeggio 963 Hz (divine), return to 432 Hz (universal harmony), seal with Schumann
+    // This phase "seals" the cleared space with positive, harmonious energy
+    { left: 963, right: 971, leftPan: -100, rightPan: 100, duration: 50000, label: "Divine Light", brainwave: "Alpha 8 Hz" },
+    { left: 963, right: 973, leftPan: -80, rightPan: 80, duration: 50000, label: "Crown Opening", brainwave: "Alpha 10 Hz" },
+    { left: 432, right: 439.83, leftPan: -100, rightPan: 100, duration: 55000, label: "Universal Harmony", brainwave: "Schumann 7.83 Hz" },
+    { left: 432, right: 442, leftPan: -100, rightPan: 100, duration: 50000, label: "432 Hz Balance", brainwave: "Alpha 10 Hz" },
+    { left: 136.1, right: 143.93, leftPan: -100, rightPan: 100, duration: 50000, label: "OM Seal", brainwave: "Schumann 7.83 Hz" },
+    { left: 136.1, right: 143.93, leftPan: 0, rightPan: 0, duration: 40000, label: "Space Blessed", brainwave: "Schumann 7.83 Hz" },
   ];
 
   // MYSTERY MODE - Generates a unique random sequence each time (safe template)
@@ -7999,17 +8342,24 @@
 
   const QUICK_START_PRESETS = {
     focus: { sequence: FOCUS_SEQUENCE, name: "Focus Mode", color: "#f59e0b" },
+    deepFocus: { sequence: DEEP_FOCUS_SEQUENCE, name: "Deep Focus", color: "#b45309" },
     relax: { sequence: RELAX_SEQUENCE, name: "Relaxation", color: "#34d399" },
     sleep: { sequence: SLEEP_SEQUENCE, name: "Sleep Prep", color: "#818cf8" },
+    deepSleep: { sequence: DEEP_SLEEP_SEQUENCE, name: "Deep Sleep", color: "#1e3a5f" },
     meditation: { sequence: MEDITATION_SEQUENCE, name: "Deep Meditation", color: "#a78bfa" },
+    transcendent: { sequence: TRANSCENDENT_MEDITATION_SEQUENCE, name: "Transcendent", color: "#7c3aed" },
+    thirdEye: { sequence: THIRD_EYE_SEQUENCE, name: "Third Eye", color: "#4f46e5" },
     theta: { sequence: THETA_SEQUENCE, name: "Theta Dreams", color: "#c084fc" },
     massage: { sequence: MASSAGE_SEQUENCE, name: "Brain Massage", color: "#f472b6" },
+    bodyRestore: { sequence: BODY_RESTORATION_SEQUENCE, name: "Body Restore", color: "#be185d" },
     delta: { sequence: DELTA_SEQUENCE, name: "Delta Dive", color: "#60a5fa" },
     stress: { sequence: STRESS_SEQUENCE, name: "Stress Relief", color: "#4ade80" },
+    anxietyRelief: { sequence: ANXIETY_RELIEF_SEQUENCE, name: "Anxiety Relief", color: "#059669" },
     lucid: { sequence: LUCID_SEQUENCE, name: "Lucid Rest", color: "#22d3d8" },
     immersion: { sequence: IMMERSION_SEQUENCE, name: "8D Immersion", color: "#fb923c" },
     heartbeat: { sequence: HEARTBEAT_SEQUENCE, name: "Heartbeat Sync", color: "#ef4444" },
     breath: { sequence: BREATH_SEQUENCE, name: "Cosmic Breath", color: "#06b6d4" },
+    spaceClear: { sequence: SPACE_CLEARING_SEQUENCE, name: "Space Clearing", color: "#0d9488" },
     quantum: { sequence: null, name: "Quantum", color: "#8b5cf6", isRandom: true },
   };
   
@@ -8360,6 +8710,40 @@
       } else {
         startQuickStart(preset);
       }
+    });
+  });
+  
+  // Category filtering for Quick Start
+  const qsCategories = document.getElementById('qsCategories');
+  const qsCategoryPills = qsCategories ? qsCategories.querySelectorAll('.qs-category-pill') : [];
+  
+  function filterQuickStartByCategory(category) {
+    // Update active pill
+    qsCategoryPills.forEach(pill => {
+      pill.classList.toggle('active', pill.dataset.category === category);
+    });
+    
+    // Filter buttons with animation
+    quickStartBtns.forEach(btn => {
+      const categories = btn.dataset.categories ? btn.dataset.categories.split(',') : ['all'];
+      const shouldShow = category === 'all' || categories.includes(category);
+      
+      if (shouldShow) {
+        btn.classList.remove('qs-hidden');
+        btn.classList.add('qs-visible');
+        // Remove animation class after it completes
+        setTimeout(() => btn.classList.remove('qs-visible'), 300);
+      } else {
+        btn.classList.add('qs-hidden');
+        btn.classList.remove('qs-visible');
+      }
+    });
+  }
+  
+  // Category pill click handlers
+  qsCategoryPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      filterQuickStartByCategory(pill.dataset.category);
     });
   });
   
