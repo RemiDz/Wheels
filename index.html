@@ -254,80 +254,167 @@
       <!-- Quick Start Tab Content -->
       <div class="experience-panel active" id="quickstartPanel" data-panel="quickstart">
         <div class="quick-start-inner">
+          <!-- Category Navigation -->
+          <div class="qs-categories" id="qsCategories">
+            <button class="qs-category-pill active" data-category="all" title="Show all journeys">
+              <span class="pill-icon">✦</span>
+              <span class="pill-label">All</span>
+            </button>
+            <button class="qs-category-pill" data-category="sleep" title="Sleep & Rest">
+              <span class="pill-icon">🌙</span>
+              <span class="pill-label">Sleep</span>
+              <span class="pill-badge">Most Popular</span>
+            </button>
+            <button class="qs-category-pill" data-category="anxiety" title="Anxiety & Stress Relief">
+              <span class="pill-icon">🍃</span>
+              <span class="pill-label">Anxiety</span>
+            </button>
+            <button class="qs-category-pill" data-category="focus" title="Focus & Productivity">
+              <span class="pill-icon">🎯</span>
+              <span class="pill-label">Focus</span>
+            </button>
+            <button class="qs-category-pill" data-category="meditation" title="Meditation & Mindfulness">
+              <span class="pill-icon">🧘</span>
+              <span class="pill-label">Meditate</span>
+            </button>
+            <button class="qs-category-pill" data-category="body" title="Body & Wellness">
+              <span class="pill-icon">💆</span>
+              <span class="pill-label">Body</span>
+            </button>
+            <button class="qs-category-pill" data-category="explore" title="Explore & Experience">
+              <span class="pill-icon">🔮</span>
+              <span class="pill-label">Explore</span>
+            </button>
+          </div>
+
+          <!-- Quick Start Buttons Grid -->
           <div class="quick-start-buttons">
-            <button class="quick-start-btn focus-btn" data-preset="focus" aria-label="I need to focus" title="Beta waves • Mental clarity">
-              <span class="qsb-icon">🎯</span>
-              <span class="qsb-label">Focus</span>
-              <span class="qsb-hint">Mental clarity</span>
-              <span class="qsb-progress"></span>
-            </button>
-            <button class="quick-start-btn relax-btn" data-preset="relax" aria-label="I need to relax" title="Alpha waves • Calm & peace">
-              <span class="qsb-icon">🌿</span>
-              <span class="qsb-label">Relax</span>
-              <span class="qsb-hint">Calm & peace</span>
-              <span class="qsb-progress"></span>
-            </button>
-            <button class="quick-start-btn sleep-btn" data-preset="sleep" aria-label="I can't sleep" title="Delta waves • Deep rest">
+            <!-- SLEEP & REST CATEGORY - Most Popular -->
+            <button class="quick-start-btn sleep-btn" data-preset="sleep" data-categories="sleep,all" aria-label="I can't sleep" title="Delta waves • Deep rest">
               <span class="qsb-icon">🌙</span>
               <span class="qsb-label">Sleep</span>
               <span class="qsb-hint">Deep rest</span>
               <span class="qsb-progress"></span>
             </button>
-            <button class="quick-start-btn meditation-btn" data-preset="meditation" aria-label="Deep meditation" title="Theta waves • Inner stillness">
-              <span class="qsb-icon">🧘</span>
-              <span class="qsb-label">Meditate</span>
-              <span class="qsb-hint">Inner stillness</span>
-              <span class="qsb-progress"></span>
-            </button>
-            <button class="quick-start-btn theta-btn" data-preset="theta" aria-label="Theta dreams" title="Deep theta • Visualization">
-              <span class="qsb-icon">💭</span>
-              <span class="qsb-label">Theta</span>
-              <span class="qsb-hint">Dream state</span>
-              <span class="qsb-progress"></span>
-            </button>
-            <button class="quick-start-btn massage-btn" data-preset="massage" aria-label="Brain massage" title="Deep delta • Neural soothing">
-              <span class="qsb-icon">🧠</span>
-              <span class="qsb-label">Massage</span>
-              <span class="qsb-hint">Neural calm</span>
-              <span class="qsb-progress"></span>
-            </button>
-            <button class="quick-start-btn delta-btn" data-preset="delta" aria-label="Delta dive" title="Ultra delta • Deep recovery">
+            <button class="quick-start-btn delta-btn" data-preset="delta" data-categories="sleep,all" aria-label="Delta dive" title="Ultra delta • Deep recovery">
               <span class="qsb-icon">🌊</span>
               <span class="qsb-label">Delta</span>
               <span class="qsb-hint">Deep recovery</span>
               <span class="qsb-progress"></span>
             </button>
-            <button class="quick-start-btn stress-btn" data-preset="stress" aria-label="Stress relief" title="Alpha-theta • Anxiety release">
+            <button class="quick-start-btn deepSleep-btn" data-preset="deepSleep" data-categories="sleep,all" aria-label="Advanced deep sleep" title="20min • Scientific sleep induction">
+              <span class="qsb-icon">🌠</span>
+              <span class="qsb-label">Deep Sleep</span>
+              <span class="qsb-hint">20min protocol</span>
+              <span class="qsb-progress"></span>
+            </button>
+
+            <!-- ANXIETY & STRESS CATEGORY -->
+            <button class="quick-start-btn stress-btn" data-preset="stress" data-categories="anxiety,all" aria-label="Stress relief" title="Alpha-theta • Anxiety release">
               <span class="qsb-icon">🍃</span>
               <span class="qsb-label">Stress</span>
               <span class="qsb-hint">Anxiety relief</span>
               <span class="qsb-progress"></span>
             </button>
-            <button class="quick-start-btn lucid-btn" data-preset="lucid" aria-label="Lucid rest" title="Theta-delta • Aware relaxation">
+            <button class="quick-start-btn relax-btn" data-preset="relax" data-categories="anxiety,all" aria-label="I need to relax" title="Alpha waves • Calm & peace">
+              <span class="qsb-icon">🌿</span>
+              <span class="qsb-label">Relax</span>
+              <span class="qsb-hint">Calm & peace</span>
+              <span class="qsb-progress"></span>
+            </button>
+            <button class="quick-start-btn anxietyRelief-btn" data-preset="anxietyRelief" data-categories="anxiety,all" aria-label="Advanced anxiety relief" title="18min • Scientific anxiety dissolution">
+              <span class="qsb-icon">🦋</span>
+              <span class="qsb-label">Anxiety Relief</span>
+              <span class="qsb-hint">18min protocol</span>
+              <span class="qsb-progress"></span>
+            </button>
+
+            <!-- FOCUS CATEGORY -->
+            <button class="quick-start-btn focus-btn" data-preset="focus" data-categories="focus,all" aria-label="I need to focus" title="Beta waves • Mental clarity">
+              <span class="qsb-icon">🎯</span>
+              <span class="qsb-label">Focus</span>
+              <span class="qsb-hint">Mental clarity</span>
+              <span class="qsb-progress"></span>
+            </button>
+            <button class="quick-start-btn deepFocus-btn" data-preset="deepFocus" data-categories="focus,all" aria-label="Advanced deep focus" title="18min • Flow state & gamma activation">
+              <span class="qsb-icon">⚡</span>
+              <span class="qsb-label">Deep Focus</span>
+              <span class="qsb-hint">18min flow state</span>
+              <span class="qsb-progress"></span>
+            </button>
+
+            <!-- MEDITATION CATEGORY -->
+            <button class="quick-start-btn meditation-btn" data-preset="meditation" data-categories="meditation,all" aria-label="Deep meditation" title="Theta waves • Inner stillness">
+              <span class="qsb-icon">🧘</span>
+              <span class="qsb-label">Meditate</span>
+              <span class="qsb-hint">Inner stillness</span>
+              <span class="qsb-progress"></span>
+            </button>
+            <button class="quick-start-btn transcendent-btn" data-preset="transcendent" data-categories="meditation,all" aria-label="Transcendent meditation" title="25min • Theta + gamma enlightenment">
+              <span class="qsb-icon">🔮</span>
+              <span class="qsb-label">Transcendent</span>
+              <span class="qsb-hint">25min enlightenment</span>
+              <span class="qsb-progress"></span>
+            </button>
+            <button class="quick-start-btn thirdEye-btn" data-preset="thirdEye" data-categories="meditation,all" aria-label="Third eye awakening" title="22min • Pineal activation protocol">
+              <span class="qsb-icon">👁️</span>
+              <span class="qsb-label">Third Eye</span>
+              <span class="qsb-hint">22min pineal</span>
+              <span class="qsb-progress"></span>
+            </button>
+            <button class="quick-start-btn theta-btn" data-preset="theta" data-categories="meditation,all" aria-label="Theta dreams" title="Deep theta • Visualization">
+              <span class="qsb-icon">💭</span>
+              <span class="qsb-label">Theta</span>
+              <span class="qsb-hint">Dream state</span>
+              <span class="qsb-progress"></span>
+            </button>
+            <button class="quick-start-btn lucid-btn" data-preset="lucid" data-categories="meditation,all" aria-label="Lucid rest" title="Theta-delta • Aware relaxation">
               <span class="qsb-icon">✨</span>
               <span class="qsb-label">Lucid</span>
               <span class="qsb-hint">Aware rest</span>
               <span class="qsb-progress"></span>
             </button>
-            <button class="quick-start-btn immersion-btn" data-preset="immersion" aria-label="8D immersion" title="Spatial audio • Surround sound">
-              <span class="qsb-icon">🔮</span>
-              <span class="qsb-label">8D Sound</span>
-              <span class="qsb-hint">Surround audio</span>
+
+            <!-- BODY & WELLNESS CATEGORY -->
+            <button class="quick-start-btn massage-btn" data-preset="massage" data-categories="body,all" aria-label="Brain massage" title="Deep delta • Neural soothing">
+              <span class="qsb-icon">🧠</span>
+              <span class="qsb-label">Massage</span>
+              <span class="qsb-hint">Neural calm</span>
               <span class="qsb-progress"></span>
             </button>
-            <button class="quick-start-btn heartbeat-btn" data-preset="heartbeat" aria-label="Heartbeat sync" title="Pulsing rhythm • Heart sync">
+            <button class="quick-start-btn heartbeat-btn" data-preset="heartbeat" data-categories="body,all" aria-label="Heartbeat sync" title="Pulsing rhythm • Heart sync">
               <span class="qsb-icon">💓</span>
               <span class="qsb-label">Heartbeat</span>
               <span class="qsb-hint">Pulse sync</span>
               <span class="qsb-progress"></span>
             </button>
-            <button class="quick-start-btn breath-btn" data-preset="breath" aria-label="Cosmic breath" title="Breathing waves • Rise & fall">
+            <button class="quick-start-btn breath-btn" data-preset="breath" data-categories="body,all" aria-label="Cosmic breath" title="Breathing waves • Rise & fall">
               <span class="qsb-icon">🌬️</span>
               <span class="qsb-label">Breath</span>
               <span class="qsb-hint">Wave rhythm</span>
               <span class="qsb-progress"></span>
             </button>
-            <button class="quick-start-btn quantum-btn" data-preset="quantum" aria-label="Quantum journey" title="Random safe journey • Different every time">
+            <button class="quick-start-btn bodyRestore-btn" data-preset="bodyRestore" data-categories="body,all" aria-label="Body restoration" title="22min • Cellular healing protocol">
+              <span class="qsb-icon">🩹</span>
+              <span class="qsb-label">Body Restore</span>
+              <span class="qsb-hint">22min healing</span>
+              <span class="qsb-progress"></span>
+            </button>
+
+            <!-- EXPLORE & EXPERIENCE CATEGORY -->
+            <button class="quick-start-btn immersion-btn" data-preset="immersion" data-categories="explore,all" aria-label="8D immersion" title="Spatial audio • Surround sound">
+              <span class="qsb-icon">🔮</span>
+              <span class="qsb-label">8D Sound</span>
+              <span class="qsb-hint">Surround audio</span>
+              <span class="qsb-progress"></span>
+            </button>
+            <button class="quick-start-btn spaceClear-btn" data-preset="spaceClear" data-categories="explore,all" aria-label="Space clearing" title="18min • Solfeggio room cleansing">
+              <span class="qsb-icon">✨</span>
+              <span class="qsb-label">Space Clear</span>
+              <span class="qsb-hint">18min room cleanse</span>
+              <span class="qsb-progress"></span>
+            </button>
+            <button class="quick-start-btn quantum-btn" data-preset="quantum" data-categories="explore,all" aria-label="Quantum journey" title="Random safe journey • Different every time">
               <span class="qsb-icon">⚛️</span>
               <span class="qsb-label">Quantum</span>
               <span class="qsb-hint">Surprise me</span>
