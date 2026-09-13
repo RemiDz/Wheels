@@ -18,6 +18,10 @@ body[data-theme="dark"] {
   --control-fg:#e7e9ee;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.overtone-volume-control { display: flex; align-items: center; gap: 6px; padding: 2px 8px; font-size: 10px; color: var(--muted); }
+.overtone-volume-slider { min-width: 0; width: 100%; height: 24px; accent-color: var(--overtone-color); }
+.overtone-content:focus-visible { outline: 2px solid var(--overtone-color); outline-offset: -2px; }
 body { margin:0; font-family: ui-sans-serif,system-ui,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--fg); }
 
 /* ===== COMMAND CENTER (Unified Header) ===== */
@@ -2535,9 +2539,10 @@ button .ripple {
   mix-blend-mode: screen;
 }
 @keyframes ripple { to { transform: scale(8); opacity: 0; } }
-.grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:18px; align-items:stretch; }
+.grid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(200px, .65fr) minmax(0, 1fr); gap:18px; align-items:stretch; }
 @media (max-width:900px){ .grid{ grid-template-columns:1fr; } }
 .wheel-container {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2545,7 +2550,7 @@ button .ripple {
   height: 100%;
   justify-content: center;
 }
-.wheel { width:min(90vw,480px); aspect-ratio:1/1; position:relative; user-select:none; -webkit-user-select:none; -ms-user-select:none; -webkit-touch-callout:none; touch-action:none; }
+.wheel { width:min(90vw,480px); max-width:100%; flex-shrink:0; aspect-ratio:1/1; position:relative; user-select:none; -webkit-user-select:none; -ms-user-select:none; -webkit-touch-callout:none; touch-action:none; }
 .wheel, .wheel * { -webkit-tap-highlight-color: rgba(0,0,0,0); }
 .wheel .labels, .wheel .pointer, .wheel .inner-pointer, .wheel .inner-circle, .wheel .rotor {
   -webkit-user-select: none;
@@ -4247,7 +4252,7 @@ body[data-theme="dark"] .concept-dropdown {
 
 .piano-keyboard-wrapper > .piano-keyboard .piano-keyboard-inner {
   width: 100%;
-  min-width: 100%;
+  min-width: 1040px;
 }
 
 /* Pitch Bend Wheel - Left side of piano keyboard */
@@ -4628,6 +4633,7 @@ body[data-theme="dark"] .concept-dropdown {
 .piano-freq-labels {
   position: relative;
   width: 100%;
+  min-width: 1040px;
   height: 38px;
   margin-bottom: 4px;
   pointer-events: none;
@@ -5191,7 +5197,7 @@ body[data-theme="dark"] .concept-dropdown {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
     gap: 12px;
-    min-width: 400px;
+    min-width: 0;
   }
   .controls button {
     min-width: 80px;
@@ -5202,11 +5208,13 @@ body[data-theme="dark"] .concept-dropdown {
 
 /* Landscape phones/tablets: ensure wheels are side-by-side and fit */
 @media (max-width: 900px) and (orientation: landscape) {
-  .grid { grid-template-columns: 1fr 1fr; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid > .wheel-container:last-child { grid-column: 2; grid-row: 1; }
+  .grid > .mono-control-container { grid-column: 1 / -1; grid-row: 2; }
   .wheel { width: min(45vw, 360px); }
   header { align-items: center; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 10px; }
   header .brand, header .controls { flex: 0 0 auto; }
-  .controls { min-width: 520px; }
+  .controls { min-width: 0; }
 }
 
 /* Very short landscape heights: slightly smaller wheels to avoid overflow */

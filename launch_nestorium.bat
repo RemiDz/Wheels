@@ -1,2 +1,3 @@
-cd C:\Users\rdzingel\Documents\MY_APPS\HARMONIC_WAVES\nestorlab.app
+@echo off
+cd /d "%~dp0"
 claude

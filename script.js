@@ -1,4 +1,62 @@
 (() => {
+  const playback = new PlaybackScheduler();
+  const schoolPlayback = new PlaybackScheduler();
+  let playbackGeneration = 0;
+  let transportRequest = 0;
+  let activeActivity = null;
+  let stoppingPlayback = false;
+
+  function stopAllPlayback() {
+    if (stoppingPlayback) return;
+    stoppingPlayback = true;
+    playbackGeneration++;
+    transportRequest++;
+    stopDemo();
+    stopQuickStart();
+    stopProgram(true);
+    stopDynamicJourney();
+    stopOvertonesDemo();
+    stopTheoryDemo();
+    stopSchoolDemo();
+    stopAudio();
+    playback.clear();
+    schoolPlayback.clear();
+    isProgrammaticChange = false;
+    isApplyingPreset = false;
+    activeActivity = null;
+    stoppingPlayback = false;
+  }
+
+  function beginActivity(activity) {
+    stopAllPlayback();
+    if (activity !== 'manual' && showOvertoneHighlights) {
+      showOvertoneHighlights = false;
+      wheelLMuted = wheelMuteStatesBeforeOvertones.left;
+      wheelRMuted = wheelMuteStatesBeforeOvertones.right;
+      overtoneHighlightToggle?.classList.remove('is-active');
+      updateMuteButtons();
+      updateOvertoneHighlights();
+    }
+    activeActivity = activity;
+    return playbackGeneration;
+  }
+
+  function prepareManualPlayback() {
+    if (activeActivity && activeActivity !== 'manual') beginActivity('manual');
+    activeActivity = 'manual';
+    playback.resume();
+    schoolPlayback.resume();
+  }
+
+  function handleAudioError(error) {
+    stopAllPlayback();
+    const status = document.getElementById('audioStatus');
+    if (status) {
+      status.hidden = false;
+      status.textContent = 'Audio could not start. Press Play to try again.';
+    }
+    console.error('Unable to start audio', error);
+  }
   // Expanded healing frequencies (Brainwave, Earth, Solfeggio & Chakra) + Extended piano range
   const FREQUENCIES = [0.1, 3, 7.83, 8, 12, 40, 62, 136, 174, 256, 285, 288, 320, 341, 384, 396, 417, 426, 480, 528, 639, 693, 741, 852, 963, 1056, 1200, 1500, 1800, 2100, 2500, 3000, 3500, 4000];
   let SORTED_FREQUENCIES = [...FREQUENCIES].sort((a, b) => a - b);
@@ -151,7 +209,6 @@
       }
     };
     root.addEventListener('pointerdown', focusWheel);
-    root.addEventListener('pointerenter', focusWheel);
 
     // iOS Safari: prevent text selection/copy UI while dragging, but allow label taps
     root.addEventListener('touchstart', (e) => {
@@ -228,7 +285,7 @@
       innerPointerRotation = 0;
       decimalOffset = 0;
       applyRotation();
-      onchange?.(currentTopHz());
+      onchange?.(currentTopHz(), true);
     });
     addEventListener('resize', layoutLabels, {passive:true});
 
@@ -321,8 +378,8 @@
         innerDragPointerId = null;
         innerDragTarget = null;
       }
-      dragging = false;
-      innerDragging = false;
+      if (e?.pointerId === undefined || pointerActiveId === null) dragging = false;
+      if (e?.pointerId === undefined || innerDragPointerId === null) innerDragging = false;
     };
     
     addEventListener('pointerup', endDrag);
@@ -338,7 +395,7 @@
         const angleDiff = normalizeAngleDiff(currentAngle - lastAngle);
         if (Math.abs(angleDiff) < 90) {
           // Only update the visual angle. Frequency derives from angle in applyRotation()
-          pointerAngleVisual += angleDiff;
+          pointerAngleVisual = Math.max(0, Math.min(360, pointerAngleVisual + angleDiff));
           
           // Prevent going below zero by clamping to 12 o'clock if mapped frequency < 0
           const mapped = mapAngleToFrequency(pointerAngleVisual);
@@ -347,25 +404,9 @@
             innerPointerRotation = 0;
             decimalOffset = 0;
           }
-          if (mapped.frequency >= MAX_FREQUENCY_HZ) {
-            // Cap angle so mapped frequency does not exceed MAX
-            // Find angle corresponding to MAX within current sector by solving inverse of mapAngleToFrequency
-            // Approximation: keep current sector index but set ratio so frequency == MAX between fA..fB
-            const stepAngle = 360 / SORTED_FREQUENCIES.length;
-            const angleNorm = ((pointerAngleVisual % 360) + 360) % 360;
-            const indexA = Math.floor(angleNorm / stepAngle);
-            const indexB = (indexA + 1) % SORTED_FREQUENCIES.length;
-            const fA = SORTED_FREQUENCIES[indexA];
-            const fB = (indexB === 0 && fA >= 900) ? MAX_FREQUENCY_HZ : SORTED_FREQUENCIES[indexB];
-            const denom = (fB - fA);
-            let ratio = denom !== 0 ? (MAX_FREQUENCY_HZ - fA) / denom : 0;
-            ratio = Math.max(0, Math.min(1, ratio));
-            pointerAngleVisual = indexA * stepAngle + ratio * stepAngle;
-            decimalOffset = 0;
-          }
-          
+          continuousFrequency = mapAngleToFrequency(pointerAngleVisual).frequency;
           applyRotation();
-          onchange?.(currentTopHz());
+          onchange?.(currentTopHz(), true);
         }
         lastAngle = currentAngle;
       } else if (innerDragging && !dragging) {
@@ -396,16 +437,16 @@
             decimalOffset = newDecimalOffset;
             
             applyRotation();
-            onchange?.(currentTopHz());
+            onchange?.(currentTopHz(), true);
           } else {
             // At zero boundary - stop at zero
-            decimalOffset = -continuousFrequency;
+            decimalOffset = 0;
             innerPointerRotation = 0;
             continuousFrequency = 0;
             pointerAngleVisual = 0;
             
             applyRotation();
-            onchange?.(currentTopHz());
+            onchange?.(currentTopHz(), true);
           }
         }
         
@@ -422,7 +463,8 @@
     // Map a wheel angle to an interpolated frequency between adjacent labels
     function mapAngleToFrequency(angleDegrees) {
       const stepAngle = 360 / SORTED_FREQUENCIES.length;
-      const angle = ((angleDegrees % 360) + 360) % 360; // normalize 0..360
+      if (angleDegrees >= 360) return { frequency: MAX_FREQUENCY_HZ, index: SORTED_FREQUENCIES.length - 1 };
+      const angle = Math.max(0, angleDegrees);
       const indexA = Math.floor(angle / stepAngle);
       const indexB = (indexA + 1) % SORTED_FREQUENCIES.length;
       const startAngle = indexA * stepAngle;
@@ -476,8 +518,8 @@
       pointer.style.transform = `translateX(-50%) rotate(${visualAngle}deg)`;
 
       // Derive base frequency from the pointer angle using sector interpolation
-      const mapped = mapAngleToFrequency(visualAngle);
-      const baseFrequency = forcedFrequency ?? Math.min(MAX_FREQUENCY_HZ, mapped.frequency);
+      const mapped = mapAngleToFrequency(pointerAngleVisual);
+      const baseFrequency = forcedFrequency ?? continuousFrequency;
       continuousFrequency = baseFrequency;
       currentFrequencyIndex = mapped.index;
       // Rotate the inner pointer (use visual rotation for display)
@@ -550,21 +592,26 @@
       return Math.min(MAX_FREQUENCY_HZ, Math.max(0, totalHz));
     }
 
-    function setFrequency(hz) {
+    function setFrequency(hz, userInitiated = false) {
       const target = Math.min(MAX_FREQUENCY_HZ, Math.max(0, Number(hz) || 0));
       innerPointerRotation = 0;
       decimalOffset = 0;
       pointerAngleVisual = mapFrequencyToAngle(target);
       applyRotation(target);
-      onchange?.(currentTopHz());
+      onchange?.(currentTopHz(), userInitiated);
     }
 
     function nudgeFrequency(deltaHz = 0) {
       if (!deltaHz) return;
-      setFrequency(currentTopHz() + deltaHz);
+      setFrequency(currentTopHz() + deltaHz, true);
     }
 
     root.addEventListener('keydown', (e) => {
+      if (e.key === 'Home' || e.key === 'End') {
+        e.preventDefault();
+        setFrequency(e.key === 'Home' ? 0 : MAX_FREQUENCY_HZ, true);
+        return;
+      }
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
       e.preventDefault();
       const baseStep = e.altKey ? KEYBOARD_STEP_FINE : (e.shiftKey ? KEYBOARD_STEP_COARSE : KEYBOARD_STEP_DEFAULT);
@@ -605,12 +652,26 @@
   let monoOsc1 = null, monoOsc2 = null; // Two oscillators for mono mix (left and right wheel frequencies)
   let monoGain = null; // Gain node for mono volume control
   let monoVolume = 0; // 0-1 range, default 0%
+  let audioFade = null;
+
+  function cancelAudioFade() {
+    if (!audioFade) return;
+    playback.clearTimeout(audioFade.id);
+    audioFade.resolve(false);
+    audioFade = null;
+  }
+
+  function rampGain(param, target, duration = 0.015) {
+    const now = audioCtx.currentTime;
+    param.cancelScheduledValues(now);
+    param.setTargetAtTime(target, now, duration);
+  }
   
   function ensureAudio(){
     if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
     const make = (pan)=> {
       const osc = audioCtx.createOscillator(); osc.type = 'sine';
-      const gain = audioCtx.createGain(); gain.gain.value = 0.25;
+      const gain = audioCtx.createGain(); gain.gain.value = 0;
       const panner = audioCtx.createStereoPanner(); panner.pan.value = pan;
       osc.connect(gain).connect(panner).connect(audioCtx.destination);
       return {osc,gain,panner,started:false};
@@ -648,24 +709,22 @@
   }
   function startAudio(fadeIn = false){
     ensureAudio();
+    cancelAudioFade();
+    playback.resume();
+    schoolPlayback.resume();
     const t = audioCtx.currentTime + 0.01;
-    const fadeInDuration = 0.08; // 80ms fade-in to prevent click
-    
-    // If fade-in requested, start with zero gain
-    if (fadeIn && wheel1?.gain && wheel2?.gain) {
-      try {
-        wheel1.gain.gain.setValueAtTime(0, t);
-        wheel2.gain.gain.linearRampToValueAtTime(0.25, t + fadeInDuration);
-        wheel1.gain.gain.linearRampToValueAtTime(0.25, t + fadeInDuration);
-      } catch(e) {}
-    }
+    if (!wheel1.started) wheel1.osc.frequency.value = wheelL.getHz();
+    if (!wheel2.started) wheel2.osc.frequency.value = wheelR.getHz();
+    if (!monoOsc1.started) monoOsc1.frequency.value = wheelL.getHz();
+    if (!monoOsc2.started) monoOsc2.frequency.value = wheelR.getHz();
+    updateOscillators();
     
     if (!wheel1.started){ wheel1.osc.start(t); wheel1.started=true; }
     if (!wheel2.started){ wheel2.osc.start(t); wheel2.started=true; }
     if (!monoOsc1.started){ monoOsc1.start(t); monoOsc1.started=true; }
     if (!monoOsc2.started){ monoOsc2.start(t); monoOsc2.started=true; }
-    updateOscillators();
     updateMonoOscillators();
+    if (showOvertoneHighlights && !harmonicsPlaying && !overtonesDemoRunning) startHarmonicOscillators();
   }
   
   // Fade in audio smoothly (for use when audio is already running)
@@ -677,18 +736,24 @@
     
     try {
       // First set current value, then ramp to target
-      wheel1.gain.gain.setValueAtTime(0, now);
-      wheel2.gain.gain.setValueAtTime(0, now);
-      wheel1.gain.gain.linearRampToValueAtTime(0.25, fadeEnd);
-      wheel2.gain.gain.linearRampToValueAtTime(0.25, fadeEnd);
+      [wheel1, wheel2].forEach((voice, i) => {
+        voice.gain.gain.cancelScheduledValues(now);
+        voice.gain.gain.setValueAtTime(0, now);
+        voice.gain.gain.linearRampToValueAtTime((i === 0 ? wheelLMuted : wheelRMuted) ? 0 : 0.25, fadeEnd);
+      });
     } catch(e) {}
   }
   function stopAudio(){
-    if (!audioCtx) return;
+    cancelAudioFade();
     if (wheel1?.started){ try{wheel1.osc.stop();}catch{} }
     if (wheel2?.started){ try{wheel2.osc.stop();}catch{} }
     if (monoOsc1?.started){ try{monoOsc1.stop();}catch{} }
     if (monoOsc2?.started){ try{monoOsc2.stop();}catch{} }
+    [wheel1, wheel2].forEach(voice => {
+      voice?.osc.disconnect(); voice?.gain.disconnect(); voice?.panner.disconnect();
+    });
+    [monoOsc1, monoOsc2].forEach(osc => { osc?.disconnect(); osc?._gain?.disconnect(); });
+    monoGain?.disconnect();
     wheel1 = wheel2 = null;
     monoOsc1 = monoOsc2 = null;
     monoGain = null;
@@ -698,9 +763,10 @@
   
   // Fade out audio smoothly over specified duration (in seconds)
   function fadeOutAudio(duration = 3) {
+    cancelAudioFade();
     return new Promise((resolve) => {
       if (!audioCtx) {
-        resolve();
+        resolve(true);
         return;
       }
       
@@ -730,10 +796,12 @@
       }
       
       // Wait for fade to complete, then stop oscillators
-      setTimeout(() => {
+      const id = playback.setTimeout(() => {
+        audioFade = null;
         stopAudio();
-        resolve();
+        resolve(true);
       }, duration * 1000 + 100);
+      audioFade = { id, resolve };
     });
   }
   function setFreq(osc, hz){
@@ -772,8 +840,8 @@
     
     // Set frequencies - each wheel has its own oscillator
     // If muted, frequency is still set but gain will be 0
-    setFreq(wheel1.osc, wheelLMuted ? 0.1 : l);
-    setFreq(wheel2.osc, wheelRMuted ? 0.1 : r);
+    setFreq(wheel1.osc, l);
+    setFreq(wheel2.osc, r);
     
     // Update stereo panning for each wheel
     const now = audioCtx.currentTime;
@@ -795,14 +863,14 @@
     // Update gain - mute by setting gain to 0
     if (wheel1.gain) {
       try {
-        wheel1.gain.gain.setTargetAtTime(wheelLMuted ? 0 : 0.25, now, 0.015);
+        if (!audioFade) rampGain(wheel1.gain.gain, wheelLMuted ? 0 : 0.25);
       } catch {
         wheel1.gain.gain.value = wheelLMuted ? 0 : 0.25;
       }
     }
     if (wheel2.gain) {
       try {
-        wheel2.gain.gain.setTargetAtTime(wheelRMuted ? 0 : 0.25, now, 0.015);
+        if (!audioFade) rampGain(wheel2.gain.gain, wheelRMuted ? 0 : 0.25);
       } catch {
         wheel2.gain.gain.value = wheelRMuted ? 0 : 0.25;
       }
@@ -821,6 +889,8 @@
     // Set frequencies directly from wheels (mono mix always uses both frequencies)
     setFreq(monoOsc1, l);
     setFreq(monoOsc2, r);
+    rampGain(monoOsc1._gain.gain, wheelLMuted ? 0 : 0.125);
+    rampGain(monoOsc2._gain.gain, wheelRMuted ? 0 : 0.125);
   }
   
   const scheduleOscillatorSync = (() => {
@@ -1068,14 +1138,14 @@
     const noteNumber = 12 * Math.log2(frequency / A4) + A4_MIDI;
     
     // Floor to get the note at or below the frequency (always positive cents)
-    const baseMidi = Math.floor(noteNumber);
+    const baseMidi = Math.floor(noteNumber + 1e-9);
     
     // Calculate cents deviation from the base note (always 0 to +99 cents)
-    const cents = Math.round((noteNumber - baseMidi) * 100);
+    const cents = Math.max(0, Math.min(99, Math.round((noteNumber - baseMidi) * 100)));
     
     // Calculate base frequency and Hz offset
     const baseFreq = A4 * Math.pow(2, (baseMidi - A4_MIDI) / 12);
-    const hzOffset = frequency - baseFreq;
+    const hzOffset = Math.max(0, frequency - baseFreq);
     
     // Get note name based on current system
     const noteNames = NOTE_NAMES[noteSystem];
@@ -1467,11 +1537,12 @@
     if (!keyEl) return false;
     const freq = Number(keyEl.dataset.frequency);
     if (!Number.isFinite(freq)) return false;
+    prepareManualPlayback();
     let applied = false;
     const ensurePlaying = () => {
       ensureAudio();
       if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(()=>{});
+        audioCtx.resume().catch(handleAudioError);
       }
       startAudio();
       setTransportActive('play');
@@ -1482,12 +1553,12 @@
     
     if (keyboardTargetsState.left) {
       wheelL.setHz(freq);
-      wheelL.focus?.();
+
       applied = true;
     }
     if (keyboardTargetsState.right) {
       wheelR.setHz(freq);
-      wheelR.focus?.();
+
       applied = true;
     }
     if (applied) {
@@ -1505,11 +1576,8 @@
       keyEl.classList.add('is-triggered');
       setTimeout(() => keyEl.classList.remove('is-triggered'), 160);
       
-      // Update overtones to show harmonics of this piano key
-      // Defer slightly to avoid conflicts with click animation
-      setTimeout(() => {
-        setOvertonesFundamental(freq, keyEl);
-      }, 20);
+      // Keep the selected key and its overtones in sync immediately.
+      setOvertonesFundamental(freq, keyEl);
     }
     
     // Reset flag after a short delay
@@ -1521,7 +1589,9 @@
   function handlePianoPointerDown(e) {
     const keyEl = e.target.closest('.piano-key');
     if (!keyEl || !pianoKeyboardEl?.contains(keyEl)) return;
+    if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
+    keyEl.focus({ preventScroll: true });
     triggerPianoFrequency(keyEl);
   }
 
@@ -1531,6 +1601,12 @@
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       triggerPianoFrequency(keyEl);
+      return;
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const index = pianoKeys.findIndex(key => key.element === keyEl);
+      pianoKeys[Math.max(0, Math.min(pianoKeys.length - 1, index + (e.key === 'ArrowRight' ? 1 : -1)))].element.focus();
       return;
     }
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -1567,6 +1643,7 @@
   presetSelect?.addEventListener('change', () => {
     const presetIndex = parseInt(presetSelect.value);
     if (!isNaN(presetIndex) && presetIndex >= 0 && presetIndex < PRESETS.length) {
+      prepareManualPlayback();
       const preset = PRESETS[presetIndex];
       isApplyingPreset = true;
       isProgrammaticChange = true;
@@ -1580,14 +1657,14 @@
       // Start playing audio automatically (like piano keys)
       ensureAudio();
       if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(()=>{});
+        audioCtx.resume().catch(handleAudioError);
       }
       startAudio();
       setTransportActive('play');
       
       scheduleOscillatorSync();
       // Reset flags after a short delay to allow wheel changes to complete
-      setTimeout(() => { 
+      setTimeout(() => {
         isApplyingPreset = false;
         isProgrammaticChange = false;
       }, 100);
@@ -1616,6 +1693,7 @@
   binauralPresetSelect?.addEventListener('change', () => {
     const presetKey = binauralPresetSelect.value;
     if (presetKey && BINAURAL_PRESETS[presetKey]) {
+      prepareManualPlayback();
       const preset = BINAURAL_PRESETS[presetKey];
       isApplyingPreset = true;
       isProgrammaticChange = true;
@@ -1628,31 +1706,32 @@
       // Start playing audio automatically
       ensureAudio();
       if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(()=>{});
+        audioCtx.resume().catch(handleAudioError);
       }
       startAudio();
       setTransportActive('play');
       
       scheduleOscillatorSync();
       // Reset flags after a short delay to allow wheel changes to complete
-      setTimeout(() => { 
+      setTimeout(() => {
         isApplyingPreset = false;
         isProgrammaticChange = false;
       }, 100);
     }
   });
 
-  wheelL.setOnChange(() => { 
+  wheelL.setOnChange((hz, userInitiated) => {
     if (!isApplyingPreset) {
       if (presetSelect) presetSelect.value = '';
       if (binauralPresetSelect) binauralPresetSelect.value = '';
     }
     
     // Auto-play when user interacts directly with wheels
-    if (!isProgrammaticChange) {
+    if (userInitiated) {
+      prepareManualPlayback();
       ensureAudio();
       if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(()=>{});
+        audioCtx.resume().catch(handleAudioError);
       }
       startAudio();
       setTransportActive('play');
@@ -1660,17 +1739,18 @@
     
     scheduleOscillatorSync();
   });
-  wheelR.setOnChange(() => { 
+  wheelR.setOnChange((hz, userInitiated) => {
     if (!isApplyingPreset) {
       if (presetSelect) presetSelect.value = '';
       if (binauralPresetSelect) binauralPresetSelect.value = '';
     }
     
     // Auto-play when user interacts directly with wheels
-    if (!isProgrammaticChange) {
+    if (userInitiated) {
+      prepareManualPlayback();
       ensureAudio();
       if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(()=>{});
+        audioCtx.resume().catch(handleAudioError);
       }
       startAudio();
       setTransportActive('play');
@@ -1747,6 +1827,8 @@
     // Update mute button for wheelL
     const wheelLMuteBtn = document.querySelector('[data-wheel="wheelL"].mute-btn');
     if (wheelLMuteBtn) {
+      wheelLMuteBtn.disabled = showOvertoneHighlights;
+      wheelLMuteBtn.setAttribute('aria-pressed', String(wheelLMuted));
       const icon = wheelLMuteBtn.querySelector('.mute-icon');
       const text = wheelLMuteBtn.querySelector('.mute-text');
       
@@ -1775,6 +1857,8 @@
     // Update mute button for wheelR
     const wheelRMuteBtn = document.querySelector('[data-wheel="wheelR"].mute-btn');
     if (wheelRMuteBtn) {
+      wheelRMuteBtn.disabled = showOvertoneHighlights;
+      wheelRMuteBtn.setAttribute('aria-pressed', String(wheelRMuted));
       const icon = wheelRMuteBtn.querySelector('.mute-icon');
       const text = wheelRMuteBtn.querySelector('.mute-text');
       
@@ -1876,7 +1960,7 @@
         const userGain = getHarmonicGain(i);
         const targetGain = shouldBeMuted ? 0 : userGain;
         try {
-          harmonic.gain.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.03);
+          rampGain(harmonic.gain.gain, targetGain, 0.03);
         } catch {
           harmonic.gain.gain.value = targetGain;
         }
@@ -1932,18 +2016,27 @@
   
   // Replay harmonic sequence function
   function replayHarmonicSequence() {
+    if (overtonesDemoRunning) stopOvertonesDemo();
     if (!showOvertoneHighlights || !currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
     
+    prepareManualPlayback();
+    ensureAudio();
+    if (audioCtx.state !== 'running') audioCtx.resume().catch(handleAudioError);
+    if (!harmonicsPlaying) {
+      startHarmonicOscillators();
+      return;
+    }
+    setTransportActive('play');
     // Add visual feedback to replay button
     if (overtonesReplayBtn) {
       overtonesReplayBtn.classList.add('is-replaying');
-      setTimeout(() => {
+      playback.setTimeout(() => {
         overtonesReplayBtn.classList.remove('is-replaying');
       }, 500);
     }
     
     // Clear any pending sequence timeouts
-    harmonicSequenceTimeouts.forEach(timeout => clearTimeout(timeout));
+    harmonicSequenceTimeouts.forEach(timeout => playback.clearTimeout(timeout));
     harmonicSequenceTimeouts = [];
     
     // Remove visual playing classes from all cards
@@ -1977,7 +2070,7 @@
       // Calculate delay based on playable harmonics count, not index
       const delay = willPlay ? playableIndex * sequenceDelay : 0;
       
-      const timeoutId = setTimeout(() => {
+      const timeoutId = playback.setTimeout(() => {
         if (!harmonicsPlaying || !showOvertoneHighlights) return;
         
         const harmonic = harmonicOscillators[i];
@@ -1985,7 +2078,7 @@
         // Mark as active so it can be unmuted if filter changes
         harmonicActiveStates[i] = true;
         
-        if (harmonic && harmonic.started && willPlay) {
+        if (harmonic && harmonic.started && !harmonicMutedState[i] && !isHarmonicFilteredOut(i)) {
           const userGain = getHarmonicGain(i);
           try {
             harmonic.gain.gain.linearRampToValueAtTime(userGain, audioCtx.currentTime + 0.05);
@@ -2045,7 +2138,9 @@
   // Calculate gain for a harmonic based on user-set volume (1-100%)
   function getHarmonicGain(harmonicIndex) {
     const volumePercent = harmonicVolumes[harmonicIndex];
-    const baseGain = 0.3; // Maximum volume per harmonic
+    const baseGain = 0.8 / 16; // Reserve headroom for the sum of all 16 partials
+    const frequency = currentOvertonesFundamental * (harmonicIndex + 1);
+    if (audioCtx && frequency >= audioCtx.sampleRate / 2) return 0;
     return baseGain * (volumePercent / 100);
   }
   
@@ -2082,15 +2177,15 @@
   
   // Start harmonic oscillators with sequential 200ms delay between each
   function startHarmonicOscillators() {
-    if (!audioCtx || !currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
+    if (!currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
     
     ensureAudio();
     if (audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(()=>{});
+      audioCtx.resume().catch(handleAudioError);
     }
     
     // Clear any existing sequence timeouts
-    harmonicSequenceTimeouts.forEach(timeout => clearTimeout(timeout));
+    harmonicSequenceTimeouts.forEach(timeout => playback.clearTimeout(timeout));
     harmonicSequenceTimeouts = [];
     
     // Create oscillators if they don't exist
@@ -2103,7 +2198,7 @@
     
     // Start all oscillators immediately but muted
     for (let i = 0; i < 16; i++) {
-      const harmonicFreq = currentOvertonesFundamental * (i + 1);
+      const harmonicFreq = Math.min(currentOvertonesFundamental * (i + 1), audioCtx.sampleRate / 2 - 1);
       const harmonic = harmonicOscillators[i];
       
       if (harmonic && !harmonic.started) {
@@ -2119,6 +2214,7 @@
     
     harmonicsPlaying = true;
     updateReplayButtonState();
+    setTransportActive('play');
     
     // Unmute each harmonic sequentially - skip muted/filtered harmonics
     let playableIndex = 0; // Track delay for playable harmonics only
@@ -2131,7 +2227,7 @@
       // Calculate delay based on playable harmonics count, not index
       const delay = willPlay ? playableIndex * sequenceDelay : 0;
       
-      const timeoutId = setTimeout(() => {
+      const timeoutId = playback.setTimeout(() => {
         if (!harmonicsPlaying) return; // Stop if playback was cancelled
         
         const harmonic = harmonicOscillators[i];
@@ -2139,7 +2235,7 @@
         // Mark this harmonic as active so it can be unmuted if filter changes
         harmonicActiveStates[i] = true;
         
-        if (harmonic && harmonic.started && willPlay) {
+        if (harmonic && harmonic.started && !harmonicMutedState[i] && !isHarmonicFilteredOut(i)) {
           const userGain = getHarmonicGain(i);
           // Smooth fade in
           try {
@@ -2168,7 +2264,7 @@
   // Stop harmonic oscillators
   function stopHarmonicOscillators() {
     // Clear any pending sequence timeouts
-    harmonicSequenceTimeouts.forEach(timeout => clearTimeout(timeout));
+    harmonicSequenceTimeouts.forEach(timeout => playback.clearTimeout(timeout));
     harmonicSequenceTimeouts = [];
     
     // Remove visual playing classes from all cards
@@ -2180,6 +2276,9 @@
       if (harmonic && harmonic.started) {
         try {
           harmonic.osc.stop();
+          harmonic.osc.disconnect();
+          harmonic.gain.disconnect();
+          harmonic.panner.disconnect();
         } catch (e) {
           // Already stopped
         }
@@ -2197,11 +2296,13 @@
     if (!harmonicsPlaying || !currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
     
     for (let i = 0; i < 16; i++) {
-      const harmonicFreq = currentOvertonesFundamental * (i + 1);
+      const harmonicFreq = Math.min(currentOvertonesFundamental * (i + 1), audioCtx.sampleRate / 2 - 1);
       const harmonic = harmonicOscillators[i];
       
       if (harmonic && harmonic.started) {
         setFreq(harmonic.osc, harmonicFreq);
+        if (harmonicActiveStates[i]) rampGain(harmonic.gain.gain,
+          harmonicMutedState[i] || isHarmonicFilteredOut(i) ? 0 : getHarmonicGain(i));
       }
     }
   }
@@ -2221,7 +2322,7 @@
       const isMuted = harmonicMutedState[harmonicIndex] || isHarmonicFilteredOut(harmonicIndex);
       const targetGain = isMuted ? 0 : userGain;
       try {
-        harmonic.gain.gain.setTargetAtTime(targetGain, now, 0.015);
+        rampGain(harmonic.gain.gain, targetGain);
       } catch {
         harmonic.gain.gain.value = targetGain;
       }
@@ -2238,6 +2339,7 @@
   function updateHarmonicCardMuteState(harmonicIndex) {
     const card = overtonesDisplay?.querySelector(`[data-harmonic="${harmonicIndex + 1}"]`);
     if (!card) return;
+    card.querySelector('.overtone-content')?.setAttribute('aria-pressed', String(harmonicMutedState[harmonicIndex]));
     
     const muteIndicator = card.querySelector('.overtone-mute-indicator');
     
@@ -2266,7 +2368,7 @@
       const isMuted = harmonicMutedState[harmonicIndex] || isHarmonicFilteredOut(harmonicIndex);
       const targetGain = isMuted ? 0 : userGain;
       try {
-        harmonic.gain.gain.setTargetAtTime(targetGain, now, 0.015);
+        rampGain(harmonic.gain.gain, targetGain);
       } catch {
         harmonic.gain.gain.value = targetGain;
       }
@@ -2276,6 +2378,8 @@
     const card = overtonesDisplay?.querySelector(`[data-harmonic="${harmonicIndex + 1}"]`);
     if (card) {
       card.style.setProperty('--volume-fill', (clampedVolume / 100).toFixed(3));
+      const volumeSlider = card.querySelector('.overtone-volume-slider');
+      if (volumeSlider) volumeSlider.value = clampedVolume;
       const volumeLabel = card.querySelector('.overtone-volume-label');
       if (volumeLabel) {
         volumeLabel.textContent = `${clampedVolume}%`;
@@ -2319,10 +2423,9 @@
     
     // Stop existing harmonics and create new ones
     stopHarmonicOscillators();
-    createHarmonicOscillators();
     
-    // Only start playing harmonics if Show Overtones is enabled
-    if (showOvertoneHighlights) {
+    // Render cards without allocating audio until playback is requested.
+    if (showOvertoneHighlights && !overtonesDemoRunning) {
       startHarmonicOscillators();
     }
     
@@ -2371,15 +2474,31 @@
           </div>
           <div class="overtone-volume-label">${volumePercent}%</div>
         </div>
+        <label class="overtone-volume-control">
+          <span>Volume</span>
+          <input type="range" class="overtone-volume-slider" min="1" max="100" value="${volumePercent}" step="1" aria-label="Harmonic ${i} volume">
+        </label>
         <div class="overtone-pan-control">
           <span class="overtone-pan-label-l">L</span>
-          <input type="range" class="overtone-pan-slider" min="-100" max="100" value="${harmonicPans[harmonicIndex]}" step="1">
+          <input type="range" class="overtone-pan-slider" min="-100" max="100" value="${harmonicPans[harmonicIndex]}" step="1" aria-label="Harmonic ${i} pan">
           <span class="overtone-pan-label-r">R</span>
         </div>
       `;
       
       // Add click handler for mute/unmute on the content area
       const contentArea = card.querySelector('.overtone-content');
+      contentArea.tabIndex = 0;
+      contentArea.setAttribute('role', 'button');
+      contentArea.setAttribute('aria-label', `Mute harmonic ${i}`);
+      contentArea.setAttribute('aria-pressed', String(harmonicMutedState[harmonicIndex]));
+      contentArea.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleHarmonicMute(harmonicIndex);
+        }
+      });
+      const volumeSlider = card.querySelector('.overtone-volume-slider');
+      volumeSlider.addEventListener('input', e => updateHarmonicVolume(harmonicIndex, Number(e.target.value)));
       contentArea.title = 'Click to mute/unmute • Scroll to adjust volume';
       contentArea.addEventListener('click', (e) => {
         // Don't toggle mute if clicking on volume label
@@ -2422,7 +2541,7 @@
     if (!currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
     
     // Throttle rapid updates to prevent layout thrashing
-    const now = Date.now();
+    const now = performance.now();
     const timeSinceLastUpdate = now - lastOvertoneUpdate;
     
     if (timeSinceLastUpdate < OVERTONE_UPDATE_THROTTLE) {
@@ -2523,10 +2642,10 @@
     const A4 = 440;
     const A4_MIDI = 69;
     const noteNumber = 12 * Math.log2(frequency / A4) + A4_MIDI;
-    const baseMidi = Math.floor(noteNumber);
-    const cents = Math.round((noteNumber - baseMidi) * 100);
+    const baseMidi = Math.floor(noteNumber + 1e-9);
+    const cents = Math.max(0, Math.min(99, Math.round((noteNumber - baseMidi) * 100)));
     const exactNoteFreq = midiToFrequency(baseMidi);
-    const hzOffset = frequency - exactNoteFreq;
+    const hzOffset = Math.max(0, frequency - exactNoteFreq);
     
     return {
       frequency: frequency,
@@ -2690,7 +2809,7 @@
           const harmonicIndex = i - 1;
           
           // Skip muted harmonics - don't highlight their piano keys
-          if (harmonicMutedState[harmonicIndex]) {
+          if (harmonicMutedState[harmonicIndex] || isHarmonicFilteredOut(harmonicIndex)) {
             continue;
           }
           
@@ -2827,7 +2946,7 @@
   function updateOvertonesDemoLabel(text) {
     if (!overtonesDemoLabel) return;
     overtonesDemoLabel.classList.add('transitioning');
-    setTimeout(() => {
+    playback.setTimeout(() => {
       overtonesDemoLabel.textContent = text;
       overtonesDemoLabel.classList.remove('transitioning');
     }, 150);
@@ -2925,7 +3044,7 @@
       updateOvertoneHighlights();
       
       // Clean up after fade
-      const timeoutId = setTimeout(() => {
+      const timeoutId = playback.setTimeout(() => {
         try {
           overtonesDemoOscillators[harmonicNum]?.stop();
         } catch (e) {}
@@ -2947,7 +3066,7 @@
   // Wait helper
   function demoWait(ms) {
     return new Promise(resolve => {
-      const timeoutId = setTimeout(resolve, ms);
+      const timeoutId = playback.setTimeout(resolve, ms);
       overtonesDemoTimeouts.push(timeoutId);
     });
   }
@@ -2960,7 +3079,7 @@
         return;
       }
       
-      const startTime = performance.now();
+      const startTime = playback.now();
       
       function animate(currentTime) {
         if (!overtonesDemoRunning) {
@@ -3000,7 +3119,7 @@
         updateOvertoneHighlights();
         
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          playback.requestAnimationFrame(animate);
         } else {
           // Ensure we end exactly at target
           currentOvertonesFundamental = toFreq;
@@ -3010,27 +3129,23 @@
         }
       }
       
-      requestAnimationFrame(animate);
+      playback.requestAnimationFrame(animate);
     });
   }
   
   // Stop all demo audio
   function stopOvertonesDemoAudio() {
     // Clear all timeouts
-    overtonesDemoTimeouts.forEach(t => clearTimeout(t));
+    overtonesDemoTimeouts.forEach(t => playback.clearTimeout(t));
     overtonesDemoTimeouts = [];
     
-    // Fade out and stop all oscillators
+    // Stop owned nodes immediately. A delayed cleanup can disconnect a new demo.
     overtonesDemoOscillators.forEach((osc, i) => {
       if (osc) {
         try {
-          const gain = overtonesDemoGains[i];
-          if (gain && audioCtx) {
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
-          }
-          setTimeout(() => {
-            try { osc.stop(); } catch (e) {}
-          }, 250);
+          osc.stop();
+          osc.disconnect();
+          overtonesDemoGains[i]?.disconnect();
         } catch (e) {}
       }
     });
@@ -3040,10 +3155,8 @@
     
     // Disconnect master gain
     if (overtonesDemoMasterGain) {
-      setTimeout(() => {
-        try { overtonesDemoMasterGain.disconnect(); } catch (e) {}
-        overtonesDemoMasterGain = null;
-      }, 300);
+      overtonesDemoMasterGain.disconnect();
+      overtonesDemoMasterGain = null;
     }
   }
   
@@ -3051,14 +3164,17 @@
   // A gentle, meditative exploration of the overtone series
   async function runOvertonesDemo() {
     if (!overtonesDemoRunning) return;
+    const generation = playbackGeneration;
     
     // Setup audio
     ensureAudio();
     if (audioCtx.state === 'suspended') {
       await audioCtx.resume();
+      if (generation !== playbackGeneration || !overtonesDemoRunning) return;
     }
     
     // Create master gain for demo - start at 0 for gentle fade in
+    setTransportActive('play');
     overtonesDemoMasterGain = audioCtx.createGain();
     overtonesDemoMasterGain.gain.value = 0;
     overtonesDemoMasterGain.connect(audioCtx.destination);
@@ -3242,6 +3358,7 @@
   // Start overtones demo
   function startOvertonesDemo() {
     if (overtonesDemoRunning) return;
+    beginActivity('overtones-demo');
     
     // Stop any existing harmonic playback
     stopHarmonicOscillators();
@@ -3279,7 +3396,7 @@
     clearOvertoneHighlights();
     
     // Run the demo
-    runOvertonesDemo();
+    runOvertonesDemo().catch(handleAudioError);
   }
   
   // Restore original overtone states after demo
@@ -3315,7 +3432,7 @@
   
   // Stop overtones demo (interrupted)
   function stopOvertonesDemo() {
-    if (!overtonesDemoRunning) return;
+    if (!overtonesDemoRunning && originalOvertonesFundamental === null) return;
     
     overtonesDemoRunning = false;
     
@@ -3337,11 +3454,17 @@
     
     // Restore original states
     restoreOvertoneStates();
+    if (!stoppingPlayback) {
+      playback.clear();
+      stopAudio();
+    }
   }
   
   // End overtones demo (completed naturally)
   function endOvertonesDemo() {
     overtonesDemoRunning = false;
+    stopOvertonesDemoAudio();
+    setTransportActive('stop');
     
     // Update button state
     if (overtonesDemoBtn) {
@@ -3352,7 +3475,7 @@
     updateOvertonesDemoLabel("✨ Demo Complete");
     
     // Hide overlay after a moment
-    setTimeout(() => {
+    playback.setTimeout(() => {
       if (overtonesDemoOverlay) {
         overtonesDemoOverlay.hidden = true;
       }
@@ -3394,7 +3517,7 @@
     // Update button label
     const toggleLabel = noteSystemToggle.querySelector('.toggle-label');
     if (toggleLabel) {
-      toggleLabel.textContent = noteSystem === 'alphabetical' ? 'Show Musical Note' : 'Show Solfeggio';
+      toggleLabel.textContent = noteSystem === 'alphabetical' ? 'Show Solfege' : 'Show Note Names';
     }
     
     // Update live info display with new note system
@@ -3402,12 +3525,14 @@
     
     // Update piano keyboard labels
     updatePianoKeyLabels();
+    updateOvertones();
   });
   
   // Overtone highlighting toggle
   const overtoneHighlightToggle = document.getElementById('overtoneHighlightToggle');
   
   overtoneHighlightToggle?.addEventListener('click', () => {
+    prepareManualPlayback();
     showOvertoneHighlights = !showOvertoneHighlights;
     
     // Update button active state
@@ -3454,6 +3579,7 @@
   pianoKeyboardEl?.addEventListener('pointerdown', handlePianoPointerDown);
   pianoKeyboardEl?.addEventListener('keydown', handlePianoKeydown);
   pianoKeyboardEl?.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.shiftKey) return;
     e.preventDefault();
     
     // Check if we're scrolling over a piano key
@@ -3559,6 +3685,13 @@
 
   // Mono slider drag handlers
   if (monoSlider && monoVolumeTrack) {
+    monoSlider.setAttribute('aria-orientation', 'vertical');
+    monoSlider.addEventListener('keydown', e => {
+      const deltas = { ArrowUp: 5, ArrowRight: 5, ArrowDown: -5, ArrowLeft: -5, PageUp: 10, PageDown: -10 };
+      if (!(e.key in deltas) && e.key !== 'Home' && e.key !== 'End') return;
+      e.preventDefault();
+      updateMonoVolume(e.key === 'Home' ? 0 : e.key === 'End' ? 100 : monoVolume * 100 + deltas[e.key]);
+    });
     const handlePointerDown = (e) => {
       if (typeof e.button === 'number' && e.button !== 0) return;
       monoSliderDragging = true;
@@ -3620,6 +3753,9 @@
   const fineTuneValue = document.getElementById('fineTuneValue');
   
   function updateFineTuneDisplay() {
+    fineTuneDial?.setAttribute('aria-valuemin', String(-MAX_FREQUENCY_HZ));
+    fineTuneDial?.setAttribute('aria-valuemax', String(MAX_FREQUENCY_HZ));
+    fineTuneDial?.setAttribute('aria-valuenow', fineTuneOffset.toFixed(3));
     if (fineTuneValue) {
       fineTuneValue.textContent = `${fineTuneOffset >= 0 ? '+' : ''}${fineTuneOffset.toFixed(3)} Hz`;
     }
@@ -3629,13 +3765,15 @@
   }
   
   function applyFineTune(deltaHz) {
+    prepareManualPlayback();
     // Apply the delta to both wheels
     const currentL = wheelL.getHz();
     const currentR = wheelR.getHz();
     
     // Calculate new frequencies with bounds checking
-    let newL = Math.max(0.1, Math.min(MAX_FREQUENCY_HZ, currentL + deltaHz));
-    let newR = Math.max(0.1, Math.min(MAX_FREQUENCY_HZ, currentR + deltaHz));
+    deltaHz = Math.max(-Math.min(currentL, currentR), Math.min(MAX_FREQUENCY_HZ - Math.max(currentL, currentR), deltaHz));
+    const newL = currentL + deltaHz;
+    const newR = currentR + deltaHz;
     
     // Only update if at least one wheel can move
     if (newL !== currentL || newR !== currentR) {
@@ -3655,8 +3793,8 @@
       }
       
       // Set the new frequencies
-      wheelL.setHz(newL);
-      wheelR.setHz(newR);
+      wheelL.setHz(newL, true);
+      wheelR.setHz(newR, true);
       
       // Update overtones if we have an active fundamental
       // Use the left wheel frequency as the fundamental for overtones
@@ -3722,6 +3860,7 @@
     
     document.addEventListener('mouseup', endDrag);
     document.addEventListener('touchend', endDrag);
+    document.addEventListener('touchcancel', endDrag);
     
     // Mouse wheel scrolling
     fineTuneDial.addEventListener('wheel', (e) => {
@@ -3785,6 +3924,9 @@
   const RIDGE_REPEAT = 10;
   
   function updatePitchBendDisplay() {
+    pitchBendWheel?.setAttribute('aria-valuemin', String(-MAX_FREQUENCY_HZ));
+    pitchBendWheel?.setAttribute('aria-valuemax', String(MAX_FREQUENCY_HZ));
+    pitchBendWheel?.setAttribute('aria-valuenow', pitchBendOffset.toFixed(3));
     if (pitchBendValue) {
       pitchBendValue.textContent = `${pitchBendOffset >= 0 ? '+' : ''}${pitchBendOffset.toFixed(3)}`;
     }
@@ -3799,13 +3941,15 @@
   }
   
   function applyPitchBend(deltaHz) {
+    prepareManualPlayback();
     // Apply the delta to both wheels (same as applyFineTune)
     const currentL = wheelL.getHz();
     const currentR = wheelR.getHz();
     
     // Calculate new frequencies with bounds checking
-    let newL = Math.max(0.1, Math.min(MAX_FREQUENCY_HZ, currentL + deltaHz));
-    let newR = Math.max(0.1, Math.min(MAX_FREQUENCY_HZ, currentR + deltaHz));
+    deltaHz = Math.max(-Math.min(currentL, currentR), Math.min(MAX_FREQUENCY_HZ - Math.max(currentL, currentR), deltaHz));
+    const newL = currentL + deltaHz;
+    const newR = currentR + deltaHz;
     
     // Only update if at least one wheel can move
     if (newL !== currentL || newR !== currentR) {
@@ -3823,8 +3967,8 @@
       fineTuneRotation += (actualDelta / 10) * 360; // Sync rotation too
       
       // Set the new frequencies
-      wheelL.setHz(newL);
-      wheelR.setHz(newR);
+      wheelL.setHz(newL, true);
+      wheelR.setHz(newR, true);
       
       // Update overtones if we have an active fundamental
       if (currentOvertonesFundamental > 0) {
@@ -3890,6 +4034,7 @@
     pitchBendWheel.addEventListener('touchstart', startDrag, { passive: false });
     document.addEventListener('touchmove', doDrag, { passive: false });
     document.addEventListener('touchend', endDrag);
+    document.addEventListener('touchcancel', endDrag);
     
     // Mouse wheel scrolling (main functionality)
     pitchBendWheel.addEventListener('wheel', (e) => {
@@ -3955,48 +4100,35 @@
 
   // Buttons
   document.getElementById('play').addEventListener('click', async ()=>{
-    ensureAudio();
-    if (audioCtx.state === 'suspended') await audioCtx.resume();
-    startAudio();
-    setTransportActive('play');
+    if (programFadingOut || (activeActivity === 'theory' && !theoryDemoRunning) ||
+        (activeActivity === 'overtones-demo' && !overtonesDemoRunning)) prepareManualPlayback();
+    const request = ++transportRequest;
+    try {
+      ensureAudio();
+      if (audioCtx.state !== 'running') await audioCtx.resume();
+      if (request !== transportRequest) return;
+      playback.resume();
+      schoolPlayback.resume();
+      if (!['school', 'theory', 'overtones-demo'].includes(activeActivity)) startAudio();
+      setTransportActive('play');
+    } catch (error) { handleAudioError(error); }
   });
   document.getElementById('pause').addEventListener('click', async ()=>{
     if (!audioCtx) return;
-    try { await audioCtx.suspend(); } catch {}
-    setTransportActive('pause');
+    const request = ++transportRequest;
+    playback.pause();
+    schoolPlayback.pause();
+    try {
+      await audioCtx.suspend();
+      if (request === transportRequest) setTransportActive('pause');
+    } catch (error) { handleAudioError(error); }
   });
-  document.getElementById('stop').addEventListener('click', ()=> stopAudio());
+  document.getElementById('stop').addEventListener('click', stopAllPlayback);
   document.getElementById('reset').addEventListener('click', ()=> {
-    stopAudio();
+    stopAllPlayback();
     
     // Set flag to prevent auto-play on reset
     isProgrammaticChange = true;
-    
-    // === STOP ALL RUNNING JOURNEYS AND DEMOS ===
-    // Stop main Demo
-    if (typeof window.stopDemoFn === 'function') {
-      window.stopDemoFn();
-    }
-    // Stop Quick Start
-    if (typeof window.stopQuickStartFn === 'function') {
-      window.stopQuickStartFn();
-    }
-    // Stop Guided Journeys (programs)
-    if (typeof stopProgram === 'function') {
-      stopProgram(true);
-    }
-    // Stop Dynamic Journeys
-    if (typeof window.stopDynamicJourneyFn === 'function') {
-      window.stopDynamicJourneyFn();
-    }
-    // Stop Overtones Demo
-    if (typeof stopOvertonesDemo === 'function') {
-      stopOvertonesDemo();
-    }
-    // Stop Music Theory Demo
-    if (typeof stopTheoryDemo === 'function') {
-      stopTheoryDemo();
-    }
     
     // === RESET WHEELS ===
     wheelL.reset();
@@ -4082,6 +4214,11 @@
     const dynamicJourneySelect = document.getElementById('dynamicJourneySelect');
     if (programSelect) programSelect.value = '';
     if (dynamicJourneySelect) dynamicJourneySelect.value = '';
+    document.getElementById('programStart').disabled = true;
+    document.getElementById('dynamicJourneyStart').disabled = true;
+    document.querySelectorAll('.info-card.active').forEach(card => card.classList.remove('active'));
+    clearFreqLabels();
+    updateLiveInfo();
     
     // Reset transport state
     setTransportActive('stop');
@@ -4094,6 +4231,10 @@
 
   // Visual states and ripple feedback
   function setTransportActive(which){
+    if (which === 'play') {
+      const status = document.getElementById('audioStatus');
+      if (status) status.hidden = true;
+    }
     const ids = ['play','pause','stop','reset'];
     ids.forEach(id=>{
       const el = document.getElementById(id);
@@ -4146,13 +4287,15 @@
       if (themeMeta) themeMeta.setAttribute('content', themeColor);
     }
   };
-  const storedTheme = localStorage.getItem(THEME_KEY);
+  let storedTheme = null;
+  try { storedTheme = localStorage.getItem(THEME_KEY); } catch {}
+  if (storedTheme !== 'light' && storedTheme !== 'dark') storedTheme = null;
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   applyTheme(storedTheme || (prefersDark ? 'dark' : 'light'));
   themeToggle?.addEventListener('click', () => {
     const current = document.body.getAttribute('data-theme') || 'light';
     const next = current === 'dark' ? 'light' : 'dark';
-    localStorage.setItem(THEME_KEY, next);
+    try { localStorage.setItem(THEME_KEY, next); } catch {}
     applyTheme(next);
     
     // Update spectrogram canvas with new theme colors
@@ -4357,8 +4500,9 @@
   }
 
   function ensureSchoolAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    ensureAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(handleAudioError);
+    setTransportActive('play');
   }
 
   // Highlight piano key for a frequency
@@ -4393,14 +4537,38 @@
       schoolCurrentFillingKey = null;
     }
     if (schoolFillAnimationFrame) {
-      cancelAnimationFrame(schoolFillAnimationFrame);
+      schoolPlayback.cancelAnimationFrame(schoolFillAnimationFrame);
       schoolFillAnimationFrame = null;
     }
   }
   
+  const schoolNodes = new Set();
+  function createSchoolOscillator() {
+    const node = audioCtx.createOscillator();
+    schoolNodes.add(node);
+    node.onended = () => { node.disconnect(); schoolNodes.delete(node); };
+    return node;
+  }
+  function createSchoolGain() {
+    const node = audioCtx.createGain();
+    schoolNodes.add(node);
+    return node;
+  }
+
   function stopSchoolDemo() {
+    schoolPlayback.clear();
+    for (const node of schoolNodes) {
+      try { node.stop?.(); } catch {}
+      node.disconnect();
+    }
+    schoolNodes.clear();
+    document.querySelectorAll('.school-demo-filling').forEach(el => {
+      el.classList.remove('is-left', 'is-right', 'school-demo-filling');
+      el.style.removeProperty('--left-fill');
+      el.style.removeProperty('--right-fill');
+    });
     if (schoolDemoTimeout) {
-      clearTimeout(schoolDemoTimeout);
+      schoolPlayback.clearTimeout(schoolDemoTimeout);
       schoolDemoTimeout = null;
     }
     clearSchoolKeyHighlights();
@@ -4414,16 +4582,18 @@
       activeSchoolGain = null;
     }
     document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('playing'));
+    if (activeActivity === 'school') { activeActivity = null; setTransportActive('stop'); }
   }
   
   function playFrequencyDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     clearSchoolFillingKey();
     ensureSchoolAudio();
     btn.classList.add('playing');
 
     if (!pianoKeys.length) {
-      btn.classList.remove('playing');
+      stopSchoolDemo();
+        btn.classList.remove('playing');
       return;
     }
     
@@ -4432,12 +4602,12 @@
     const endFreq = 440;   // A4
     
     // Sweep audio from A3 to A4
-    activeSchoolGain = audioCtx.createGain();
+    activeSchoolGain = createSchoolGain();
     activeSchoolGain.connect(audioCtx.destination);
     activeSchoolGain.gain.setValueAtTime(0, audioCtx.currentTime);
     activeSchoolGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1);
 
-    activeSchoolOscillator = audioCtx.createOscillator();
+    activeSchoolOscillator = createSchoolOscillator();
     activeSchoolOscillator.type = 'sine';
     activeSchoolOscillator.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
     activeSchoolOscillator.frequency.exponentialRampToValueAtTime(endFreq, audioCtx.currentTime + 5);
@@ -4446,7 +4616,7 @@
 
     // Animate fill across A3 to A4 over 5 seconds
     const duration = 5000;
-    const startTime = performance.now();
+    const startTime = schoolPlayback.now();
     let lastKeyEl = null;
     
     // Color interpolation from low (purple) to high (orange/pink)
@@ -4468,7 +4638,7 @@
       const keySpan = getKeySpanForFrequency(currentFreq);
       if (!keySpan?.key?.element) {
         if (progress < 1) {
-          schoolFillAnimationFrame = requestAnimationFrame(animateFill);
+          schoolFillAnimationFrame = schoolPlayback.requestAnimationFrame(animateFill);
         }
         return;
       }
@@ -4497,15 +4667,15 @@
       keyEl.style.setProperty('--left-highlight', color);
       
       if (progress < 1) {
-        schoolFillAnimationFrame = requestAnimationFrame(animateFill);
+        schoolFillAnimationFrame = schoolPlayback.requestAnimationFrame(animateFill);
       }
     }
     
-    schoolFillAnimationFrame = requestAnimationFrame(animateFill);
+    schoolFillAnimationFrame = schoolPlayback.requestAnimationFrame(animateFill);
 
-    schoolDemoTimeout = setTimeout(() => {
+    schoolDemoTimeout = schoolPlayback.setTimeout(() => {
       activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
-      setTimeout(() => {
+      schoolPlayback.setTimeout(() => {
         clearSchoolFillingKey();
         stopSchoolDemo();
         btn.classList.remove('playing');
@@ -4515,25 +4685,25 @@
 
   // VIBRATO DEMO: Play a note with pitch wobble to show vibration
   function playVibratoDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     ensureSchoolAudio();
     btn.classList.add('playing');
     
     const baseFreq = 440;
     highlightSchoolKey(baseFreq);
     
-    activeSchoolGain = audioCtx.createGain();
+    activeSchoolGain = createSchoolGain();
     activeSchoolGain.connect(audioCtx.destination);
     activeSchoolGain.gain.setValueAtTime(0, audioCtx.currentTime);
     activeSchoolGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1);
 
-    activeSchoolOscillator = audioCtx.createOscillator();
+    activeSchoolOscillator = createSchoolOscillator();
     activeSchoolOscillator.type = 'sine';
     activeSchoolOscillator.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
     
     // Create vibrato with LFO
-    const lfo = audioCtx.createOscillator();
-    const lfoGain = audioCtx.createGain();
+    const lfo = createSchoolOscillator();
+    const lfoGain = createSchoolGain();
     lfo.type = 'sine';
     lfo.frequency.value = 6; // 6 Hz vibrato rate
     lfoGain.gain.value = 15; // ±15 Hz pitch variation
@@ -4544,9 +4714,9 @@
     activeSchoolOscillator.start();
     lfo.start();
 
-    schoolDemoTimeout = setTimeout(() => {
+    schoolDemoTimeout = schoolPlayback.setTimeout(() => {
       activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
-      setTimeout(() => {
+      schoolPlayback.setTimeout(() => {
         try { lfo.stop(); lfo.disconnect(); } catch(e) {}
         stopSchoolDemo();
         btn.classList.remove('playing');
@@ -4556,7 +4726,7 @@
 
   // HARMONICS DEMO: Play fundamental then add harmonics one by one (exact multiples)
   function playHarmonicsDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     ensureSchoolAudio();
     btn.classList.add('playing');
 
@@ -4564,7 +4734,7 @@
     const oscillators = [];
     const gains = [];
     
-    const masterGain = audioCtx.createGain();
+    const masterGain = createSchoolGain();
     masterGain.connect(audioCtx.destination);
     masterGain.gain.value = 0.3;
 
@@ -4572,10 +4742,10 @@
     highlightSchoolKey(fundamental);
     
     function addHarmonic(mult, delay) {
-      schoolDemoTimeout = setTimeout(() => {
+      schoolDemoTimeout = schoolPlayback.setTimeout(() => {
         highlightSchoolKey(fundamental * mult);
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+        const osc = createSchoolOscillator();
+        const gain = createSchoolGain();
         osc.type = 'sine';
         osc.frequency.value = fundamental * mult;
         gain.gain.value = 0.4 / mult;
@@ -4593,13 +4763,14 @@
     addHarmonic(3, 800);
     addHarmonic(4, 1200);
 
-    schoolDemoTimeout = setTimeout(() => {
+    schoolDemoTimeout = schoolPlayback.setTimeout(() => {
       masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
-      setTimeout(() => {
+      schoolPlayback.setTimeout(() => {
         oscillators.forEach(o => { try { o.stop(); o.disconnect(); } catch(e) {} });
         gains.forEach(g => g.disconnect());
         masterGain.disconnect();
         clearSchoolKeyHighlights();
+        stopSchoolDemo();
         btn.classList.remove('playing');
       }, 350);
     }, 2200);
@@ -4607,7 +4778,7 @@
 
   // OVERTONES DEMO: Play each overtone individually then combine them
   function playOvertonesDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     ensureSchoolAudio();
     btn.classList.add('playing');
 
@@ -4618,7 +4789,7 @@
     const oscillators = [];
     const gains = [];
     
-    const masterGain = audioCtx.createGain();
+    const masterGain = createSchoolGain();
     masterGain.connect(audioCtx.destination);
     masterGain.gain.value = 1;
 
@@ -4626,14 +4797,15 @@
     function playNextOvertone() {
       if (index >= overtones.length) {
         // All overtones now playing together - let them ring
-        schoolDemoTimeout = setTimeout(() => {
+        schoolDemoTimeout = schoolPlayback.setTimeout(() => {
           masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
-          setTimeout(() => {
+          schoolPlayback.setTimeout(() => {
             oscillators.forEach(o => { try { o.stop(); o.disconnect(); } catch(e) {} });
             gains.forEach(g => g.disconnect());
             masterGain.disconnect();
             clearSchoolKeyHighlights();
-            btn.classList.remove('playing');
+            stopSchoolDemo();
+        btn.classList.remove('playing');
           }, 450);
         }, 800);
         return;
@@ -4644,8 +4816,8 @@
       
       highlightSchoolKey(freq);
       
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
+      const osc = createSchoolOscillator();
+      const gain = createSchoolGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -4657,7 +4829,7 @@
       gains.push(gain);
       
       index++;
-      schoolDemoTimeout = setTimeout(playNextOvertone, 350);
+      schoolDemoTimeout = schoolPlayback.setTimeout(playNextOvertone, 350);
     }
 
     playNextOvertone();
@@ -4665,27 +4837,27 @@
 
   // TONE DEMO: Play a pure, steady sine wave
   function playToneDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     ensureSchoolAudio();
     btn.classList.add('playing');
     
     const freq = 440;
     highlightSchoolKey(freq);
     
-    activeSchoolGain = audioCtx.createGain();
+    activeSchoolGain = createSchoolGain();
     activeSchoolGain.connect(audioCtx.destination);
     activeSchoolGain.gain.setValueAtTime(0, audioCtx.currentTime);
     activeSchoolGain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.1);
 
-    activeSchoolOscillator = audioCtx.createOscillator();
+    activeSchoolOscillator = createSchoolOscillator();
     activeSchoolOscillator.type = 'sine';
     activeSchoolOscillator.frequency.value = freq;
     activeSchoolOscillator.connect(activeSchoolGain);
     activeSchoolOscillator.start();
 
-    schoolDemoTimeout = setTimeout(() => {
+    schoolDemoTimeout = schoolPlayback.setTimeout(() => {
       activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
-      setTimeout(() => {
+      schoolPlayback.setTimeout(() => {
         stopSchoolDemo();
         btn.classList.remove('playing');
       }, 250);
@@ -4694,7 +4866,7 @@
 
   // TIMBRE DEMO: Play same note with different waveforms to show timbre differences
   function playTimbreDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     ensureSchoolAudio();
     btn.classList.add('playing');
     
@@ -4704,33 +4876,34 @@
     
     function playNextTimbre() {
       if (index >= waveforms.length) {
-        clearSchoolDemoHighlights();
+        clearSchoolKeyHighlights();
+        stopSchoolDemo();
         btn.classList.remove('playing');
         return;
       }
       
       highlightSchoolKey(freq);
       
-      activeSchoolGain = audioCtx.createGain();
+      activeSchoolGain = createSchoolGain();
       activeSchoolGain.connect(audioCtx.destination);
       activeSchoolGain.gain.setValueAtTime(0, audioCtx.currentTime);
       activeSchoolGain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05);
 
-      activeSchoolOscillator = audioCtx.createOscillator();
+      activeSchoolOscillator = createSchoolOscillator();
       activeSchoolOscillator.type = waveforms[index];
       activeSchoolOscillator.frequency.value = freq;
       activeSchoolOscillator.connect(activeSchoolGain);
       activeSchoolOscillator.start();
 
-      schoolDemoTimeout = setTimeout(() => {
+      schoolDemoTimeout = schoolPlayback.setTimeout(() => {
         activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
-        setTimeout(() => {
+        schoolPlayback.setTimeout(() => {
           if (activeSchoolOscillator) {
             activeSchoolOscillator.stop();
             activeSchoolOscillator = null;
           }
           index++;
-          schoolDemoTimeout = setTimeout(playNextTimbre, 200);
+          schoolDemoTimeout = schoolPlayback.setTimeout(playNextTimbre, 200);
         }, 150);
       }, 600);
     }
@@ -4740,7 +4913,7 @@
 
   // NOTE DEMO: Play C, E, G notes showing different named pitches
   function playNoteDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     ensureSchoolAudio();
     btn.classList.add('playing');
 
@@ -4751,13 +4924,14 @@
     function playNext() {
       clearSchoolKeyHighlights();
       if (index >= notes.length) {
+        stopSchoolDemo();
         btn.classList.remove('playing');
         return;
       }
       highlightSchoolKey(notes[index]);
       
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
+      const osc = createSchoolOscillator();
+      const gain = createSchoolGain();
       osc.type = 'sine';
       osc.frequency.value = notes[index];
       osc.connect(gain);
@@ -4769,14 +4943,14 @@
       osc.stop(audioCtx.currentTime + 0.4);
       
       index++;
-      schoolDemoTimeout = setTimeout(playNext, 450);
+      schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 450);
     }
     playNext();
   }
 
   // SCALE DEMO: Play C major scale
   function playScaleDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     ensureSchoolAudio();
     btn.classList.add('playing');
 
@@ -4786,13 +4960,14 @@
     function playNext() {
       clearSchoolKeyHighlights();
       if (index >= scale.length) {
+        stopSchoolDemo();
         btn.classList.remove('playing');
         return;
       }
       highlightSchoolKey(scale[index]);
       
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
+      const osc = createSchoolOscillator();
+      const gain = createSchoolGain();
       osc.type = 'sine';
       osc.frequency.value = scale[index];
       osc.connect(gain);
@@ -4804,14 +4979,14 @@
       osc.stop(audioCtx.currentTime + 0.25);
       
       index++;
-      schoolDemoTimeout = setTimeout(playNext, 280);
+      schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 280);
     }
     playNext();
   }
 
   // OCTAVE DEMO: Play same note across 3 octaves
   function playOctaveDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     ensureSchoolAudio();
     btn.classList.add('playing');
 
@@ -4821,13 +4996,14 @@
     function playNext() {
       clearSchoolKeyHighlights();
       if (index >= octaves.length) {
+        stopSchoolDemo();
         btn.classList.remove('playing');
         return;
       }
       highlightSchoolKey(octaves[index]);
       
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
+      const osc = createSchoolOscillator();
+      const gain = createSchoolGain();
       osc.type = 'sine';
       osc.frequency.value = octaves[index];
       osc.connect(gain);
@@ -4839,14 +5015,14 @@
       osc.stop(audioCtx.currentTime + 0.45);
       
       index++;
-      schoolDemoTimeout = setTimeout(playNext, 550);
+      schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 550);
     }
     playNext();
   }
 
   // INTERVALS DEMO: Play common musical intervals with fill animation
   function playIntervalsDemo(btn) {
-    stopSchoolDemo();
+    beginActivity('school');
     clearSchoolFillingKey();
     ensureSchoolAudio();
     btn.classList.add('playing');
@@ -4880,6 +5056,7 @@
       clearIntervalFillsLocal();
       
       if (index >= intervals.length) {
+        stopSchoolDemo();
         btn.classList.remove('playing');
         return;
       }
@@ -4908,8 +5085,8 @@
       }
       
       // Play root note
-      const osc1 = audioCtx.createOscillator();
-      const gain1 = audioCtx.createGain();
+      const osc1 = createSchoolOscillator();
+      const gain1 = createSchoolGain();
       osc1.type = 'sine';
       osc1.frequency.value = rootC;
       osc1.connect(gain1);
@@ -4921,8 +5098,8 @@
       osc1.stop(audioCtx.currentTime + 1);
       
       // Play interval note
-      const osc2 = audioCtx.createOscillator();
-      const gain2 = audioCtx.createGain();
+      const osc2 = createSchoolOscillator();
+      const gain2 = createSchoolGain();
       osc2.type = 'sine';
       osc2.frequency.value = freq2;
       osc2.connect(gain2);
@@ -4934,7 +5111,7 @@
       osc2.stop(audioCtx.currentTime + 1);
       
       index++;
-      schoolDemoTimeout = setTimeout(playNextInterval, 1200);
+      schoolDemoTimeout = schoolPlayback.setTimeout(playNextInterval, 1200);
     }
     playNextInterval();
   }
@@ -4968,16 +5145,17 @@
   
   function theoryDemoWait(ms) {
     return new Promise(resolve => {
-      const timeout = setTimeout(resolve, ms);
+      const timeout = playback.setTimeout(resolve, ms);
       theoryDemoTimeouts.push(timeout);
     });
   }
   
   function stopTheoryDemo() {
+    const wasRunning = theoryDemoRunning;
     theoryDemoRunning = false;
     
     // Clear all timeouts
-    theoryDemoTimeouts.forEach(t => clearTimeout(t));
+    theoryDemoTimeouts.forEach(t => playback.clearTimeout(t));
     theoryDemoTimeouts = [];
     
     // Stop all oscillators
@@ -5004,10 +5182,12 @@
       theoryDemoBtnText.textContent = 'Demo';
     }
     clearTheoryDemoLabel();
+    if (wasRunning && !stoppingPlayback) { playback.clear(); stopAudio(); }
   }
   
   function endTheoryDemo() {
-    theoryDemoRunning = false;
+    stopTheoryDemo();
+    setTransportActive('stop');
     
     if (theoryDemoBtn) {
       theoryDemoBtn.classList.remove('is-running');
@@ -5018,7 +5198,7 @@
     
     updateTheoryDemoLabel("✨ Demo Complete — Explore the topics above!");
     
-    setTimeout(() => {
+    playback.setTimeout(() => {
       clearTheoryDemoLabel();
       clearSchoolKeyHighlights();
     }, 3000);
@@ -5069,7 +5249,7 @@
     function fadeOut(noteObj, duration = 0.4) {
       if (noteObj?.gain) {
         noteObj.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
-        setTimeout(() => { try { noteObj.osc.stop(); } catch(e) {} }, duration * 1000 + 50);
+        playback.setTimeout(() => { try { noteObj.osc.stop(); } catch(e) {} }, duration * 1000 + 50);
       }
     }
     
@@ -5116,7 +5296,7 @@
     theoryDemoGains.push(sweepGain);
     
     // Fill animation - same as playFrequencyDemo
-    const sweepStartTime = performance.now();
+    const sweepStartTime = playback.now();
     let lastFillingKey = null;
     
     function getFreqColor(progress) {
@@ -5128,7 +5308,7 @@
     
     function animateFreqFill() {
       if (!theoryDemoRunning) return;
-      const elapsed = performance.now() - sweepStartTime;
+      const elapsed = playback.now() - sweepStartTime;
       const progress = Math.min(1, elapsed / sweepDuration);
       
       // Calculate current frequency (exponential interpolation)
@@ -5137,7 +5317,7 @@
       // Find which key this frequency falls on
       const keySpan = getKeySpanForFrequency(currentFreq);
       if (!keySpan?.key?.element) {
-        if (progress < 1) requestAnimationFrame(animateFreqFill);
+        if (progress < 1) playback.requestAnimationFrame(animateFreqFill);
         return;
       }
       
@@ -5165,11 +5345,11 @@
       keyEl.style.setProperty('--left-highlight', color);
       
       if (progress < 1) {
-        requestAnimationFrame(animateFreqFill);
+        playback.requestAnimationFrame(animateFreqFill);
       }
     }
     
-    requestAnimationFrame(animateFreqFill);
+    playback.requestAnimationFrame(animateFreqFill);
     await theoryDemoWait(sweepDuration + 500);
     
     // Clean up fill animation
@@ -5505,6 +5685,7 @@
   
   function startTheoryDemo() {
     if (theoryDemoRunning) return;
+    beginActivity('theory');
     
     // Stop any existing school demos
     stopSchoolDemo();
@@ -5527,7 +5708,7 @@
       theoryDemoBtnText.textContent = 'Stop';
     }
     
-    runTheoryDemo();
+    runTheoryDemo().catch(handleAudioError);
   }
   
   // Theory demo button event listener
@@ -6073,31 +6254,6 @@
     }
   }
   
-  // Smooth frequency transition
-  function setWheelFrequencySmoothly(wheel, targetHz, durationMs = 2000) {
-    const currentHz = wheel.getHz();
-    const startTime = performance.now();
-    const diff = targetHz - currentHz;
-    
-    function animate() {
-      const elapsed = performance.now() - startTime;
-      const progress = Math.min(elapsed / durationMs, 1);
-      // Ease in-out cubic
-      const eased = progress < 0.5 
-        ? 4 * progress * progress * progress 
-        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-      
-      const newHz = currentHz + diff * eased;
-      wheel.setHz(newHz);
-      
-      if (progress < 1 && programRunning) {
-        requestAnimationFrame(animate);
-      }
-    }
-    
-    requestAnimationFrame(animate);
-  }
-  
   // Update wheel frequencies for current phase
   function updateProgramFrequencies(phase, phaseProgress) {
     // Get next phase for smooth transition near phase boundaries
@@ -6152,24 +6308,17 @@
     updateFrequencyVisuals(programDisplay, phase.binauralHz, overallProgress);
     
     // Update frequencies if phase changed
-    if (index !== currentPhaseIndex) {
-      currentPhaseIndex = index;
-      // Smooth transition to new phase frequencies
-      setWheelFrequencySmoothly(wheelL, phase.leftHz, 3000);
-      setWheelFrequencySmoothly(wheelR, phase.rightHz, 3000);
-    } else {
-      // Micro-adjustments for smooth transitions
-      updateProgramFrequencies(phase, phaseProgress);
-    }
+    currentPhaseIndex = index;
+    updateProgramFrequencies(phase, phaseProgress);
     
     return elapsed >= currentProgram.duration;
   }
   
   // Main program loop
   function programLoop() {
-    if (!programRunning || !programStartTime) return;
+    if (!programRunning || programStartTime === null) return;
     
-    const elapsed = (Date.now() - programStartTime) / 1000;
+    const elapsed = (playback.now() - programStartTime) / 1000;
     const finished = updateProgramDisplay(elapsed);
     
     if (finished) {
@@ -6177,7 +6326,7 @@
       return;
     }
     
-    programAnimationFrame = requestAnimationFrame(programLoop);
+    programAnimationFrame = playback.requestAnimationFrame(programLoop);
   }
   
   // Create galaxy-themed visual elements
@@ -6276,22 +6425,24 @@
     };
     
     // Initial positioning after delay
-    setTimeout(() => {
+    const initialTimer = playback.setTimeout(() => {
+      if (!star.isConnected) return;
       repositionStar();
       
       // Reposition every 25-45 seconds (gentle pacing)
-      const intervalId = setInterval(() => {
+      const intervalId = playback.setInterval(() => {
         repositionStar();
       }, 25000 + Math.random() * 20000);
       
       shootingStarIntervals.push(intervalId);
     }, initialDelay);
+    shootingStarIntervals.push(initialTimer);
   }
   
   // Remove frequency visual elements
   function removeFrequencyVisuals(container) {
     // Clear shooting star intervals
-    shootingStarIntervals.forEach(id => clearInterval(id));
+    shootingStarIntervals.forEach(id => playback.clearInterval(id));
     shootingStarIntervals = [];
     
     const visualClasses = [
@@ -6355,6 +6506,7 @@
   async function startProgram(programId) {
     const program = RELAXATION_PROGRAMS[programId];
     if (!program) return;
+    const generation = beginActivity('guided');
     
     // Stop any running dynamic journey first (defined later in the script)
     if (typeof window.stopDynamicJourneyFn === 'function') {
@@ -6368,6 +6520,7 @@
     ensureAudio();
     if (audioCtx && audioCtx.state === 'suspended') {
       await audioCtx.resume();
+      if (generation !== playbackGeneration) return;
     }
     
     // Set initial frequencies
@@ -6398,7 +6551,7 @@
     programSelect.disabled = true;
     
     // Start timer
-    programStartTime = Date.now();
+    programStartTime = playback.now();
     programRunning = true;
     programLoop();
   }
@@ -6408,19 +6561,25 @@
   
   async function stopProgram(immediate = false) {
     // Prevent multiple fade-outs
-    if (programFadingOut) return;
+    if (programFadingOut && !immediate) return;
+    if (!currentProgram && !programRunning && !programFadingOut) return;
+    const generation = playbackGeneration;
+    if (immediate) {
+      cancelAudioFade();
+      programFadingOut = false;
+    }
     
     programRunning = false;
     programStartTime = null;
     currentPhaseIndex = 0;
     
     if (programAnimationFrame) {
-      cancelAnimationFrame(programAnimationFrame);
+      playback.cancelAnimationFrame(programAnimationFrame);
       programAnimationFrame = null;
     }
     
     if (programTransitionInterval) {
-      clearInterval(programTransitionInterval);
+      playback.clearInterval(programTransitionInterval);
       programTransitionInterval = null;
     }
     
@@ -6430,7 +6589,8 @@
       programStart.querySelector('.btn-text').textContent = 'Ending...';
       
       // Fade out audio over 3 seconds
-      await fadeOutAudio(3);
+      const completed = await fadeOutAudio(3);
+      if (!completed || generation !== playbackGeneration) return;
       
       programFadingOut = false;
     } else {
@@ -6474,7 +6634,7 @@
       }
       const programId = programSelect.value;
       if (programId) {
-        startProgram(programId);
+        startProgram(programId).catch(handleAudioError);
       }
     });
   }
@@ -6489,7 +6649,7 @@
   if (programInfoCards) {
     programInfoCards.addEventListener('click', (e) => {
       const card = e.target.closest('.info-card');
-      if (card && card.dataset.program) {
+      if (card && card.dataset.program && !programSelect.disabled) {
         programSelect.value = card.dataset.program;
         programSelect.dispatchEvent(new Event('change'));
       }
@@ -6539,8 +6699,9 @@
   function getHarmonicFrequencies(baseHz, progression, phaseProgress, binauralHz) {
     const intervals = progression.map(name => HARMONIC_INTERVALS[name]);
     const segmentCount = intervals.length - 1;
-    const segmentIndex = Math.min(Math.floor(phaseProgress * segmentCount), segmentCount - 1);
-    const segmentProgress = (phaseProgress * segmentCount) % 1;
+    const position = Math.max(0, Math.min(1, phaseProgress)) * segmentCount;
+    const segmentIndex = Math.min(Math.floor(position), segmentCount - 1);
+    const segmentProgress = position - segmentIndex;
     
     const fromInterval = intervals[segmentIndex];
     const toInterval = intervals[segmentIndex + 1] || intervals[segmentIndex];
@@ -7472,9 +7633,9 @@
   
   // Update dynamic journey display
   function updateDynamicJourneyDisplay() {
-    if (!dynamicJourneyRunning || !dynamicJourneyStartTime) return;
+    if (!dynamicJourneyRunning || dynamicJourneyStartTime === null) return;
     
-    const elapsed = (Date.now() - dynamicJourneyStartTime) / 1000;
+    const elapsed = (playback.now() - dynamicJourneyStartTime) / 1000;
     const journey = currentDynamicJourney;
     
     if (elapsed >= journey.duration) {
@@ -7564,13 +7725,14 @@
     const overallProgress = elapsed / journey.duration;
     updateFrequencyVisuals(dynamicJourneyDisplay, binauralHz, overallProgress);
     
-    dynamicJourneyAnimationFrame = requestAnimationFrame(updateDynamicJourneyDisplay);
+    dynamicJourneyAnimationFrame = playback.requestAnimationFrame(updateDynamicJourneyDisplay);
   }
   
   // Start dynamic journey
   async function startDynamicJourney(journeyId) {
     const journey = DYNAMIC_JOURNEYS[journeyId];
     if (!journey) return;
+    const generation = beginActivity('dynamic');
     
     // Stop any running program first
     if (programRunning) {
@@ -7588,6 +7750,7 @@
     ensureAudio();
     if (audioCtx && audioCtx.state === 'suspended') {
       await audioCtx.resume();
+      if (generation !== playbackGeneration) return;
     }
     
     // Set initial frequencies using the harmonic system
@@ -7630,7 +7793,7 @@
     // Create frequency-responsive visual elements
     createFrequencyVisuals(dynamicJourneyDisplay);
     
-    dynamicJourneyStartTime = Date.now();
+    dynamicJourneyStartTime = playback.now();
     
     // Start audio playback with fade-in to prevent click
     startAudio(true);
@@ -7652,7 +7815,7 @@
     phaseTransitionStartTime = null;
     
     if (dynamicJourneyAnimationFrame) {
-      cancelAnimationFrame(dynamicJourneyAnimationFrame);
+      playback.cancelAnimationFrame(dynamicJourneyAnimationFrame);
       dynamicJourneyAnimationFrame = null;
     }
     
@@ -7694,7 +7857,7 @@
       
       const journeyId = dynamicJourneySelect.value;
       if (journeyId) {
-        startDynamicJourney(journeyId);
+        startDynamicJourney(journeyId).catch(handleAudioError);
       }
     });
   }
@@ -7709,7 +7872,7 @@
   if (dynamicJourneyInfoCards) {
     dynamicJourneyInfoCards.addEventListener('click', (e) => {
       const card = e.target.closest('.info-card.dynamic');
-      if (card && card.dataset.journey) {
+      if (card && card.dataset.journey && !dynamicJourneySelect.disabled) {
         dynamicJourneySelect.value = card.dataset.journey;
         dynamicJourneySelect.dispatchEvent(new Event('change'));
       }
@@ -7739,6 +7902,7 @@
   let quickStartStepTimeout = null;
   let quickStartStartTime = null;
   let quickStartTotalDuration = 0;
+  let quickStartProgressInterval = null;
   
   // Easing functions for smooth animations
   const qsEasing = {
@@ -8427,7 +8591,7 @@
   
   // Animate wheels smoothly between frequencies (with optional pan support)
   function animateQuickStartWheels(fromLeft, toLeft, fromRight, toRight, duration, onComplete, fromLeftPan, toLeftPan, fromRightPan, toRightPan) {
-    const startTime = performance.now();
+    const startTime = playback.now();
     const hasPan = typeof fromLeftPan === 'number' && typeof toLeftPan === 'number';
     
     // iOS Safari fix: Don't use linearRampToValueAtTime directly on oscillators
@@ -8464,7 +8628,7 @@
       updateLiveInfo();
       
       if (progress < 1 && quickStartRunning) {
-        quickStartAnimationFrame = requestAnimationFrame(animate);
+        quickStartAnimationFrame = playback.requestAnimationFrame(animate);
       } else if (progress >= 1) {
         wheelL.setHz(toLeft);
         wheelR.setHz(toRight);
@@ -8479,7 +8643,7 @@
       }
     }
     
-    quickStartAnimationFrame = requestAnimationFrame(animate);
+    quickStartAnimationFrame = playback.requestAnimationFrame(animate);
   }
   
   // Play a single step in the sequence
@@ -8527,9 +8691,9 @@
         updateButtonProgress(preset, stepProgress);
         
         // Move to next step
-        quickStartStepTimeout = setTimeout(() => {
+        quickStartStepTimeout = playback.setTimeout(() => {
           playQuickStartStep(preset, stepIndex + 1);
-        }, 500);
+        }, 0);
       },
       hasPan ? currentLeftPan : undefined,
       hasPan ? step.leftPan : undefined,
@@ -8538,14 +8702,16 @@
     );
     
     // Update progress during animation
-    const progressUpdateInterval = setInterval(() => {
+    playback.clearInterval(quickStartProgressInterval);
+    const stepStartedAt = playback.now();
+    const progressUpdateInterval = quickStartProgressInterval = playback.setInterval(() => {
       if (!quickStartRunning || quickStartCurrentStep !== stepIndex) {
-        clearInterval(progressUpdateInterval);
+        playback.clearInterval(progressUpdateInterval);
         return;
       }
       
-      const now = performance.now();
-      const stepElapsed = now - (quickStartStartTime + elapsedDuration);
+      const now = playback.now();
+      const stepElapsed = Math.max(0, now - stepStartedAt);
       const currentElapsed = elapsedDuration + Math.min(stepElapsed, step.duration);
       const currentProgress = currentElapsed / quickStartTotalDuration;
       
@@ -8565,6 +8731,7 @@
     
     const presetData = QUICK_START_PRESETS[preset];
     if (!presetData) return;
+    beginActivity('quickstart');
     
     // Stop any other running modes
     if (demoRunning && typeof stopDemo === 'function') {
@@ -8585,7 +8752,7 @@
     quickStartRunning = true;
     quickStartCurrentPreset = preset;
     quickStartCurrentStep = 0;
-    quickStartStartTime = performance.now();
+    quickStartStartTime = playback.now();
     quickStartTotalDuration = getSequenceDuration(presetData.sequence);
     
     // Update button state
@@ -8620,7 +8787,7 @@
     // Ensure audio is playing with fade-in to prevent click
     ensureAudio();
     if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
+      audioCtx.resume().catch(handleAudioError);
     }
     
     // Use fade-in to prevent click sound
@@ -8637,14 +8804,16 @@
     
     quickStartRunning = false;
     quickStartCurrentPreset = null;
+    playback.clearInterval(quickStartProgressInterval);
+    quickStartProgressInterval = null;
     
     // Cancel animations and timeouts
     if (quickStartAnimationFrame) {
-      cancelAnimationFrame(quickStartAnimationFrame);
+      playback.cancelAnimationFrame(quickStartAnimationFrame);
       quickStartAnimationFrame = null;
     }
     if (quickStartStepTimeout) {
-      clearTimeout(quickStartStepTimeout);
+      playback.clearTimeout(quickStartStepTimeout);
       quickStartStepTimeout = null;
     }
     
@@ -8688,13 +8857,15 @@
       if (qsBrainwave) qsBrainwave.textContent = "Continuous session";
     }
     
+    playback.clearInterval(quickStartProgressInterval);
+    quickStartProgressInterval = null;
     // Reset progress and loop the sequence
     updateButtonProgress(wasPreset, 0);
     quickStartCurrentStep = 0;
-    quickStartStartTime = performance.now();
+    quickStartStartTime = playback.now();
     
     // Brief pause then restart
-    quickStartStepTimeout = setTimeout(() => {
+    quickStartStepTimeout = playback.setTimeout(() => {
       if (quickStartRunning && quickStartCurrentPreset === wasPreset) {
         playQuickStartStep(wasPreset, 0);
       }
@@ -8732,7 +8903,7 @@
         btn.classList.remove('qs-hidden');
         btn.classList.add('qs-visible');
         // Remove animation class after it completes
-        setTimeout(() => btn.classList.remove('qs-visible'), 300);
+        playback.setTimeout(() => btn.classList.remove('qs-visible'), 300);
       } else {
         btn.classList.add('qs-hidden');
         btn.classList.remove('qs-visible');
@@ -8874,7 +9045,7 @@
   function updateDemoLabel(text) {
     if (!demoLabel) return;
     demoLabel.classList.add('transitioning');
-    setTimeout(() => {
+    playback.setTimeout(() => {
       demoLabel.textContent = text;
       demoLabel.classList.remove('transitioning');
     }, 200);
@@ -8890,7 +9061,7 @@
   
   // Animate both wheels simultaneously with smooth interpolation (including pan)
   function animateDemoWheels(fromLeft, toLeft, fromRight, toRight, fromLeftPan, toLeftPan, fromRightPan, toRightPan, duration, onComplete) {
-    const startTime = performance.now();
+    const startTime = playback.now();
     
     // iOS Safari fix: Don't use linearRampToValueAtTime directly on oscillators
     // as it conflicts with setTargetAtTime called by scheduleOscillatorSync.
@@ -8926,7 +9097,7 @@
       updateLiveInfo();
       
       if (progress < 1 && demoRunning) {
-        demoAnimationFrame = requestAnimationFrame(animate);
+        demoAnimationFrame = playback.requestAnimationFrame(animate);
       } else if (progress >= 1) {
         // Ensure we land exactly on target
         wheelL.setHz(toLeft);
@@ -8940,7 +9111,7 @@
       }
     }
     
-    demoAnimationFrame = requestAnimationFrame(animate);
+    demoAnimationFrame = playback.requestAnimationFrame(animate);
   }
   
   // Play a single demo step
@@ -8974,7 +9145,7 @@
       step.duration,
       () => {
         // Brief pause at each step for the interval to be appreciated
-        demoStepTimeout = setTimeout(() => {
+        demoStepTimeout = playback.setTimeout(() => {
           playDemoStep(stepIndex + 1);
         }, 500);
       }
@@ -8984,6 +9155,7 @@
   // Start demo
   function startDemo() {
     if (demoRunning) return;
+    beginActivity('demo');
     
     // Stop any running programs or journeys
     if (programRunning) {
@@ -9016,7 +9188,7 @@
     // Ensure audio is playing
     ensureAudio();
     if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
+      audioCtx.resume().catch(handleAudioError);
     }
     startAudio();
     setTransportActive('play');
@@ -9033,11 +9205,11 @@
     
     // Cancel any pending animations or timeouts
     if (demoAnimationFrame) {
-      cancelAnimationFrame(demoAnimationFrame);
+      playback.cancelAnimationFrame(demoAnimationFrame);
       demoAnimationFrame = null;
     }
     if (demoStepTimeout) {
-      clearTimeout(demoStepTimeout);
+      playback.clearTimeout(demoStepTimeout);
       demoStepTimeout = null;
     }
     
@@ -9052,7 +9224,7 @@
       demoOverlay.hidden = true;
     }
     
-    // Audio continues playing at last frequency
+    if (!stoppingPlayback) { playback.clear(); stopAudio(); }
   }
   
   // End demo (completed naturally)
@@ -9090,7 +9262,7 @@
     updatePanSliderUI('wheelR', DEMO_DEFAULTS.rightPan);
     
     // Hide overlay after a moment
-    setTimeout(() => {
+    playback.setTimeout(() => {
       if (demoOverlay) {
         demoOverlay.hidden = true;
       }

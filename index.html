@@ -12,10 +12,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="format-detection" content="telephone=no, email=no, address=no" />
 <meta name="theme-color" content="#f8fafc" />
-<meta name="description" content="Binaural Twin Wheels: mobile-friendly left/right split tone generator." />
+<meta name="description" content="Nestorium: explore frequencies, binaural tones, musical intervals and harmonic overtones." />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="Binaural Twin Wheels" />
+<meta name="apple-mobile-web-app-title" content="Nestorium" />
 <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="favicon.svg" />
 <link rel="manifest" href="manifest.webmanifest" />
@@ -88,6 +88,7 @@
   <div class="command-edge"></div>
 </div>
 <div class="app">
+  <p id="audioStatus" role="status" hidden></p>
 
   <!-- Demo Mode Overlay -->
   <div id="demoOverlay" class="demo-overlay" hidden>
@@ -956,7 +957,7 @@
       <h2>Piano Reference</h2>
       <div class="keyboard-toggles">
         <button class="note-system-toggle" id="noteSystemToggle" aria-label="Toggle note system">
-          <span class="toggle-label">Show Musical Note</span>
+          <span class="toggle-label">Show Solfege</span>
         </button>
         <button class="overtone-highlight-toggle" id="overtoneHighlightToggle" aria-label="Toggle overtone highlights">
           <span class="toggle-label">Play Overtones</span>
@@ -1020,6 +1021,7 @@
   </footer>
 </div>
 
+<script src="playback-scheduler.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
