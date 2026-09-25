@@ -4233,6 +4233,20 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     } catch (error) { if (request === transportRequest) handleAudioError(error); }
   });
   document.getElementById('stop').addEventListener('click', stopAllPlayback);
+
+  // iOS only lets an AudioContext start inside a user gesture that ends (touch release,
+  // tap, key press). Rotating a wheel asks for sound from pointer moves, which do not
+  // qualify there, so the voices start but the context stays suspended and the lit Play
+  // button makes no sound. Any qualifying gesture now resumes a context the transport
+  // wants running; elsewhere the state check makes this a no-op.
+  function unlockAudioOnGesture() {
+    if (!audioCtx || transportPaused || audioCtx.state !== 'suspended') return;
+    if (!wheel1?.started && !harmonicsPlaying && !activeActivity) return;
+    syncAudioState().catch(handleAudioError);
+  }
+  for (const type of ['pointerup', 'touchend', 'mouseup', 'click', 'keydown']) {
+    document.addEventListener(type, unlockAudioOnGesture, { capture: true, passive: true });
+  }
   document.getElementById('reset').addEventListener('click', ()=> {
     stopAllPlayback();
     capturedBowls.left = capturedBowls.right = null;
