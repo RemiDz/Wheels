@@ -84,3 +84,57 @@ test('the table follows the note-name system', () => {
     assert.equal(cell(app, 0, 7).getAttribute('aria-label'), 'perfect fifth from Do to Sol');
   } finally { app.close(); }
 });
+
+const active = app => { const el = app.document.querySelector('#intervalsTable .interval-cell.is-active'); return el ? `${el.dataset.row}-${el.dataset.column}` : null; };
+const octave = app => app.document.getElementById('intervalOctave').value;
+const lit = app => [...app.document.querySelectorAll('.piano-key.is-left, .piano-key.is-right')].map(k => k.dataset.note).sort();
+
+test('the highlighted cell follows the keys the keyboard lights, so the Scroll wheel moves it', async () => {
+  const app = createApp();
+  try {
+    app.click('#intervalsToggle');
+    cell(app, 0, 7).click(); // C4 -> G4
+    await app.tick(100);
+    assert.equal(active(app), '0-7');
+    assert.equal(cell(app, 0, 7).getAttribute('aria-current'), 'true');
+
+    app.app.applyPitchBend(30); // the Scroll wheel: both wheels up 30 Hz -> 291.63 / 422.00
+    await app.tick(100);
+    assert.deepEqual(lit(app), ['C#4', 'G#4']);
+    assert.equal(active(app), '1-8', 'C# to G# is the fifth in row C#');
+    assert.equal(cell(app, 0, 7).classList.contains('is-active'), false);
+    assert.equal(cell(app, 0, 7).hasAttribute('aria-current'), false);
+    assert.equal(octave(app), '4');
+
+    app.key('#pitchBendWheel', 'Home'); // back to the pair
+    await app.tick(100);
+    assert.equal(active(app), '0-7');
+
+    app.app.wheelL.setHz(392); app.app.wheelR.setHz(261.63); // lower note on the right wheel
+    await app.tick(100);
+    assert.equal(active(app), '0-7');
+
+    app.app.wheelL.setHz(220); app.app.wheelR.setHz(329.63); // A3 -> E4 moves the octave selector
+    await app.tick(100);
+    assert.equal(active(app), '9-4');
+    assert.equal(octave(app), '3');
+
+    app.app.wheelL.setHz(261.63); app.app.wheelR.setHz(783.99); // C4 -> G5 reduces to the fifth
+    await app.tick(100);
+    assert.equal(active(app), '0-7');
+    assert.equal(octave(app), '4');
+
+    app.app.wheelR.setHz(261.63); // unison has no cell
+    await app.tick(100);
+    assert.equal(active(app), null);
+
+    app.app.wheelL.setHz(7.83); app.app.wheelR.setHz(392); // below the keyboard
+    await app.tick(100);
+    assert.equal(active(app), null);
+
+    app.click('#noteSystemToggle'); // a rebuilt table keeps following the wheels
+    app.app.wheelL.setHz(261.63);
+    await app.tick(100);
+    assert.equal(active(app), '0-7');
+  } finally { app.close(); }
+});
