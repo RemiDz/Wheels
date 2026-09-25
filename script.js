@@ -523,7 +523,9 @@
 
     function applyRotation(forcedFrequency = null) {
       // Rotate the main pointer based on visual angle
-      const visualAngle = ((pointerAngleVisual % 360) + 360) % 360;
+      // 4200 Hz maps to a full turn; keep the drawn angle just short of it so the
+      // pointer is not shown at 12 o'clock on top of the 0.1 Hz label.
+      const visualAngle = ((Math.min(pointerAngleVisual, 359.999) % 360) + 360) % 360;
       pointer.style.transition = 'none';
       pointer.style.transform = `translateX(-50%) rotate(${visualAngle}deg)`;
 
