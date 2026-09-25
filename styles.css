@@ -5166,6 +5166,17 @@ body[data-theme="dark"] .interval-cell.is-odd { color: #c4b5fd; }
   display: block;
 }
 
+/* Link back to the Harmonic Waves hub (harmonicwaves.app lists Nestorium) */
+.footer-hub { margin: 12px 0 0; }
+.footer-hub a {
+  color: var(--fg);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid var(--panel-border);
+  transition: opacity 0.3s ease;
+}
+.footer-hub a:hover { opacity: 0.7; }
+
 /* Mobile optimizations */
 @media (max-width: 800px) {
   .command-bar-unified {
