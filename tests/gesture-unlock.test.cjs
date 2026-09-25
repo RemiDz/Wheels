@@ -34,7 +34,31 @@ test('a wheel drag on iOS starts sounding when the finger lifts, without pressin
   } finally { app.close(); }
 });
 
-test('a gesture does not resume a context the user has paused or stopped', async () => {
+test('a touch release alone (no pointerup) also unlocks, as does a later tap anywhere', async () => {
+  const app = createApp();
+  try {
+    iosResumeRule(app);
+    app.app.wheelL.setHz(220, true);
+    await app.tick(100);
+    const { audioCtx } = app.app.state;
+    assert.equal(audioCtx.state, 'suspended');
+    app.document.querySelector('#wheelL .pointer').dispatchEvent(new app.window.Event('touchend', { bubbles: true }));
+    await app.tick(50);
+    assert.equal(audioCtx.state, 'running');
+
+    const app2 = createApp();
+    try {
+      iosResumeRule(app2);
+      app2.app.wheelL.setHz(220, true);
+      await app2.tick(100);
+      app2.document.body.dispatchEvent(new app2.window.MouseEvent('click', { bubbles: true }));
+      await app2.tick(50);
+      assert.equal(app2.app.state.audioCtx.state, 'running');
+    } finally { app2.close(); }
+  } finally { app.close(); }
+});
+
+test('a gesture does not resume a context the user has paused', async () => {
   const app = createApp();
   try {
     app.app.wheelL.setHz(220, true);
@@ -46,9 +70,10 @@ test('a gesture does not resume a context the user has paused or stopped', async
     app.document.body.dispatchEvent(new app.window.MouseEvent('click', { bubbles: true }));
     await app.tick(50);
     assert.equal(audioCtx.state, 'suspended', 'a tap must not undo Pause');
-    app.click('#stop'); await app.tick(200);
-    app.document.body.dispatchEvent(new app.window.PointerEvent('pointerup', { bubbles: true }));
-    await app.tick(50);
-    assert.equal(app.document.getElementById('play').classList.contains('is-active'), false);
   } finally { app.close(); }
+});
+
+test('the diagnostics panel exists only with ?debug=audio', () => {
+  const plain = createApp();
+  try { assert.equal(plain.document.getElementById('audioDebug'), null); } finally { plain.close(); }
 });

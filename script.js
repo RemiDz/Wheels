@@ -331,8 +331,8 @@ const innerCircle = root.querySelector('.inner-circle');
       const b = root.getBoundingClientRect();
       layoutBands(b.width);
       const r = b.width/2 - 58; // inside the band and hearing rings
-// keep the pointer pivot aligned with the wheel radius across screen sizes
-      pointer.style.transformOrigin = `50% calc(50% + ${b.width/2}px)`;
+      // keep the pointer pivot aligned with the wheel radius across screen sizes
+pointer.style.transformOrigin = `50% calc(50% + ${b.width/2}px)`;
       // Set inner pointer pivot to inner circle radius
       innerPointer.style.transformOrigin = `50% calc(50% + ${b.width * 0.2}px)`;
       for (let i = 0; i < SORTED_FREQUENCIES.length; i++) {
@@ -761,10 +761,13 @@ const innerCircle = root.querySelector('.inner-circle');
     const paused = transportPaused;
     const generation = playbackGeneration;
     const request = transportRequest;
+    logAudio(paused ? 'suspend requested' : 'resume requested');
     try {
       // Queue every request, even if state still reflects an earlier operation.
       await (paused ? audioCtx.suspend() : audioCtx.resume());
+      logAudio(paused ? 'suspend done' : 'resume done');
     } catch (error) {
+      logAudio(`${paused ? 'suspend' : 'resume'} failed: ${error?.name || error}`);
 // An obsolete activation must not stop a newer activity or transport action.
       if (generation === playbackGeneration && request === transportRequest) handleAudioError(error);
       return;
@@ -850,8 +853,35 @@ const innerCircle = root.querySelector('.inner-circle');
     }
   }
 
+  // Diagnostics for devices without a console: open the page with ?debug=audio and a
+  // small panel lists what the audio engine did (context states, resume attempts, gestures).
+  const audioDebugPanel = (() => {
+    let enabled = false;
+    try { enabled = new URLSearchParams(window.location.search).get('debug') === 'audio'; } catch { /* no URL access */ }
+    if (!enabled) return null;
+    const panel = document.createElement('pre');
+    panel.id = 'audioDebug';
+    panel.setAttribute('aria-live', 'off');
+    panel.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;max-width:calc(100vw - 16px);max-height:40vh;overflow:auto;margin:0;padding:8px 10px;font:11px/1.35 monospace;background:rgba(15,23,42,.9);color:#e2e8f0;border-radius:8px;white-space:pre-wrap;';
+    document.body.appendChild(panel);
+    return panel;
+  })();
+  function logAudio(message) {
+    if (!audioDebugPanel) return;
+    const state = audioCtx ? `${audioCtx.state} t=${audioCtx.currentTime.toFixed(2)}` : 'no context';
+    const lines = audioDebugPanel.textContent.split('\n').filter(Boolean).slice(-24);
+    lines.push(`${new Date().toISOString().slice(11, 23)} ${message} [${state}]`);
+    audioDebugPanel.textContent = lines.join('\n');
+  }
+
   function ensureAudio(){
-    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      logAudio('context created');
+      if (typeof audioCtx.addEventListener === 'function') {
+        audioCtx.addEventListener('statechange', () => logAudio('statechange'));
+      }
+    }
 const make = (pan)=> {
       const osc = audioCtx.createOscillator(); osc.type = 'sine';
       const gain = audioCtx.createGain(); gain.gain.value = 0;
@@ -4330,16 +4360,27 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
   // qualify there, so the voices start but the context stays suspended and the lit Play
   // button makes no sound. Any qualifying gesture now resumes a context the transport
   // wants running; elsewhere the state check makes this a no-op.
-  function unlockAudioOnGesture() {
-    if (!audioCtx || transportPaused || audioCtx.state !== 'suspended') return;
-    if (!wheel1?.started && !harmonicsPlaying && !activeActivity) return;
+  function unlockAudioOnGesture(event) {
+    if (!audioCtx || transportPaused || audioCtx.state === 'running') return;
+    logAudio(`gesture ${event.type}: unlocking`);
+    // Starting a (silent) source inside the gesture is what reliably lifts the iOS
+    // restriction; resume() then brings the context up.
+    try {
+      if (typeof audioCtx.createBufferSource === 'function' && typeof audioCtx.createBuffer === 'function') {
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate || 44100);
+        source.connect(audioCtx.destination);
+        source.onended = () => { try { source.disconnect(); } catch { /* already disconnected */ } };
+        source.start(0);
+      }
+    } catch { /* not essential */ }
     syncAudioState().catch(handleAudioError);
   }
-  for (const type of ['pointerdown', 'pointerup', 'touchend', 'mousedown', 'mouseup', 'click', 'keydown']) {
+  for (const type of ['touchstart', 'touchend', 'touchcancel', 'pointerdown', 'pointerup', 'pointercancel', 'mousedown', 'mouseup', 'click', 'keydown']) {
     document.addEventListener(type, unlockAudioOnGesture, { capture: true, passive: true });
   }
-document.getElementById('reset').addEventListener('click', ()=> {
-    stopAllPlayback();
+  document.getElementById('reset').addEventListener('click', ()=> {
+stopAllPlayback();
     capturedBowls.left = capturedBowls.right = null;
     setBowlStatus('Microphone off. Select a wheel and capture a sound.');
     if (bowlUI) bowlUI.live.textContent = '— Hz';
