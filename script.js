@@ -928,19 +928,22 @@ monoOsc1 = monoOsc2 = null;
       }
     }
     
-    // Update gain - mute by setting gain to 0
+    // Update gain - mute by setting gain to 0. A 0 Hz oscillator holds one constant
+    // sample (a DC level) rather than silence, so it is kept silent as well.
+    const leftLevel = wheelLMuted || l <= 0 ? 0 : 0.25;
+    const rightLevel = wheelRMuted || r <= 0 ? 0 : 0.25;
     if (wheel1.gain) {
       try {
-        if (!audioFade) rampGain(wheel1.gain.gain, wheelLMuted ? 0 : 0.25);
+        if (!audioFade) rampGain(wheel1.gain.gain, leftLevel);
       } catch {
-        wheel1.gain.gain.value = wheelLMuted ? 0 : 0.25;
+        wheel1.gain.gain.value = leftLevel;
       }
     }
     if (wheel2.gain) {
       try {
-        if (!audioFade) rampGain(wheel2.gain.gain, wheelRMuted ? 0 : 0.25);
+        if (!audioFade) rampGain(wheel2.gain.gain, rightLevel);
       } catch {
-        wheel2.gain.gain.value = wheelRMuted ? 0 : 0.25;
+        wheel2.gain.gain.value = rightLevel;
       }
     }
     
@@ -957,8 +960,8 @@ monoOsc1 = monoOsc2 = null;
     // Set frequencies directly from wheels (mono mix always uses both frequencies)
     setFreq(monoOsc1, l);
     setFreq(monoOsc2, r);
-    rampGain(monoOsc1._gain.gain, wheelLMuted ? 0 : 0.125);
-    rampGain(monoOsc2._gain.gain, wheelRMuted ? 0 : 0.125);
+    rampGain(monoOsc1._gain.gain, wheelLMuted || l <= 0 ? 0 : 0.125);
+    rampGain(monoOsc2._gain.gain, wheelRMuted || r <= 0 ? 0 : 0.125);
   }
   
   // Wheel changes reach the oscillators on the next animation frame. Hidden pages get
