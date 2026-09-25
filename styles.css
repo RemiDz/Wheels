@@ -2863,6 +2863,7 @@ body:not([data-theme="dark"]) .hub .sub {
 }
 
 body:not([data-theme="dark"]) .hub .band-name { text-shadow: none; }
+body:not([data-theme="dark"]) .hub .band-range { color: #718096; }
 
 body:not([data-theme="dark"]) .hub .galaxy-name {
   color: #718096;
@@ -3189,12 +3190,21 @@ body:not([data-theme="dark"]) .fine-tune-value {
   letter-spacing:.2px;
 }
 .hub .band-name {
-  position: absolute; left: 6%; right: 6%; top: 66%;
+  position: absolute; left: 6%; right: 6%; top: 64%;
   font-size: clamp(7px,1.3vw,9.5px);
   font-weight: 800;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hub .band-range {
+  position: absolute; left: 6%; right: 6%; top: 76%;
+  color: rgba(255,255,255,0.7);
+  font-size: clamp(6px,1.05vw,8px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .hub .galaxy-name {
@@ -5217,7 +5227,8 @@ body[data-theme="dark"] .concept-dropdown {
   .wheel .hub .hz { font-size: 16px; }
   .wheel .hub .sub { font-size: 8px; }
   .wheel .hub .band-name { font-size: 6.5px; letter-spacing: 0.8px; }
-  .wheel .hub .galaxy-name { font-size: 6px; letter-spacing: 0; }
+  .wheel .hub .band-range { font-size: 5.5px; }
+.wheel .hub .galaxy-name { font-size: 6px; letter-spacing: 0; }
 }
 
 /* Very short landscape heights: slightly smaller wheels to avoid overflow */

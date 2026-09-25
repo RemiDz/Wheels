@@ -73,20 +73,23 @@
   const MAX_FREQUENCY_HZ = 4200; // Match piano's top key range (C8 ~4186 Hz)
 
   // Brainwave bands end with Gamma at about 100 Hz; above that the ring continues with the
-  // sound spectrum's standard names. Drawn as a ring on each wheel and named in the hub.
-  // A band covers [from, to).
+  // audible tones in plain terms: Low (OM and 174 live here), Mid (the Solfeggio and chakra
+  // tones) and High (the extended range). Drawn as a ring on each wheel and named in the
+  // hub with the band's frequency range. A band covers [from, to).
   const FREQUENCY_BANDS = [
     { key: 'delta', name: 'Delta', short: 'δ', from: 0.1, to: 4, color: '#60a5fa' },
     { key: 'theta', name: 'Theta', short: 'θ', from: 4, to: 8, color: '#a78bfa' },
     { key: 'alpha', name: 'Alpha', short: 'α', from: 8, to: 13, color: '#4ade80' },
     { key: 'beta', name: 'Beta', short: 'β', from: 13, to: 30, color: '#fbbf24' },
     { key: 'gamma', name: 'Gamma', short: 'γ', from: 30, to: 100, color: '#f87171' },
-    { key: 'bass', name: 'Bass', short: 'B', from: 100, to: 250, color: '#2dd4bf' },
-    { key: 'low-mid', name: 'Low mid', short: 'LM', from: 250, to: 500, color: '#5eead4' },
-    { key: 'mid', name: 'Mid', short: 'M', from: 500, to: 2000, color: '#99f6e4' },
-    { key: 'upper-mid', name: 'Upper mid', short: 'UM', from: 2000, to: MAX_FREQUENCY_HZ, color: '#ccfbf1' }
+    { key: 'low', name: 'Low', short: 'L', from: 100, to: 250, color: '#2dd4bf' },
+    { key: 'mid', name: 'Mid', short: 'M', from: 250, to: 1000, color: '#5eead4' },
+    { key: 'high', name: 'High', short: 'H', from: 1000, to: MAX_FREQUENCY_HZ, color: '#ccfbf1' }
   ];
-  // Human hearing starts around 20 Hz; below that the wheel plays infrasound.
+  function formatBandRange(band) {
+    return `${band.from}–${band.to} Hz`;
+  }
+// Human hearing starts around 20 Hz; below that the wheel plays infrasound.
   const HEARING_LIMIT_HZ = 20;
 function bandForFrequency(hz) {
     return FREQUENCY_BANDS.find(band => hz < band.to) ?? FREQUENCY_BANDS[FREQUENCY_BANDS.length - 1];
@@ -216,8 +219,9 @@ function bandForFrequency(hz) {
       <div class="hub">
         <div class="hub-value"><span class="hz">—</span><span class="sub">Hz</span></div>
         <div class="band-name">—</div>
+        <div class="band-range">—</div>
         <div class="galaxy-name">—</div>
-      </div>
+</div>
     `;
 
     root.tabIndex = 0;
@@ -229,7 +233,8 @@ function bandForFrequency(hz) {
     const rotor  = root.querySelector('.rotor');
     const bands = root.querySelector('.bands');
     const bandName = root.querySelector('.hub .band-name');
-    let labelElements = [];
+    const bandRange = root.querySelector('.hub .band-range');
+let labelElements = [];
     let wheelReady = false; // pointer state exists once the wheel is initialised
     const pointer = root.querySelector('.pointer');
 const innerCircle = root.querySelector('.inner-circle');
@@ -637,7 +642,8 @@ pointer.style.transformOrigin = `50% calc(50% + ${b.width/2}px)`;
         bandName.textContent = band.name.toUpperCase();
         bandName.style.color = band.color;
       }
-      highlightNearestLabel();
+      if (bandRange) bandRange.textContent = formatBandRange(band);
+highlightNearestLabel();
 
       // Update galaxy colors dynamically - interpolate between frequencies
       const colors = getInterpolatedColors(currentHz);
