@@ -691,14 +691,14 @@
 
   // Hold an AudioParam at its current value before scheduling new automation. A
   // linear ramp otherwise starts from the previous scheduled event, which may be
-  // seconds old, so the value steps instantly instead of fading.
+  // seconds old, so the value steps instantly instead of fading. Measured in
+  // Chromium: cancelAndHoldAtTime alone does not anchor a following ramp when the
+  // last event was setTargetAtTime, so the current value is always written explicitly.
   function holdParam(param, now = audioCtx.currentTime) {
-    if (typeof param.cancelAndHoldAtTime === 'function') {
-      param.cancelAndHoldAtTime(now);
-    } else {
-      param.cancelScheduledValues(now);
-      param.setValueAtTime(param.value, now);
-    }
+    const current = param.value;
+    if (typeof param.cancelAndHoldAtTime === 'function') param.cancelAndHoldAtTime(now);
+    else param.cancelScheduledValues(now);
+    param.setValueAtTime(current, now);
   }
 
   function rampGain(param, target, duration = 0.015) {

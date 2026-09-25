@@ -9,11 +9,12 @@ function releasedCleanly(osc, gain, now) {
   return Boolean(last) && last.type === 'linear' && last.value === 0 && last.time <= osc.stopTime && osc.stopTime > now;
 }
 
-// A linear ramp scheduled in a later call than the previous ramp starts from that old
-// event, so the value steps instantly. Ramps chained in one call are fine.
+// A linear ramp scheduled in a later call than the previous event starts from that old
+// event (even after cancelAndHoldAtTime, as measured in Chromium), so the value steps
+// instantly. Ramps chained in one call are fine; otherwise an explicit set must precede.
 function unanchoredRamps(gains) {
   return gains.flatMap(gain => gain.gain.events.filter((event, index, events) => event.type === 'linear'
-    && index > 0 && events[index - 1].type === 'linear' && events[index - 1].at !== event.at));
+    && index > 0 && events[index - 1].type !== 'set' && events[index - 1].at !== event.at));
 }
 
 function trackGains(app) {
