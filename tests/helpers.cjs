@@ -31,17 +31,17 @@ function createApp({ blockedStorage = false, delayedResume = false, delayedSuspe
     get() { throw new w.DOMException('Storage blocked', 'SecurityError'); },
   });
   class Param {
-    constructor(value = 0) { this.value = value; this.events = []; }
+    constructor(value = 0, ctx = null) { this.value = value; this.ctx = ctx; this.events = []; }
     record(type, value, time) {
       if (!Number.isFinite(value) || !Number.isFinite(time)) throw new Error('Invalid audio parameter');
-      this.events.push({ type, value, time }); this.value = value; return this;
+      this.events.push({ type, value, time, at: this.ctx ? this.ctx.currentTime : null }); this.value = value; return this;
     }
     setValueAtTime(v, t) { return this.record('set', v, t); }
     setTargetAtTime(v, t) { return this.record('target', v, t); }
     linearRampToValueAtTime(v, t) { return this.record('linear', v, t); }
     exponentialRampToValueAtTime(v, t) { return this.record('exponential', v, t); }
     cancelScheduledValues(t) { this.events = this.events.filter(e => e.time < t); return this; }
-    cancelAndHoldAtTime(t) { return this.cancelScheduledValues(t); }
+    cancelAndHoldAtTime(t) { this.cancelScheduledValues(t); return this.record('hold', this.value, t); }
   }
   class AudioNode {
     constructor(ctx) { this.ctx = ctx; this.connections = []; }
@@ -49,7 +49,7 @@ function createApp({ blockedStorage = false, delayedResume = false, delayedSuspe
     disconnect() { this.connections = []; }
   }
   class Oscillator extends AudioNode {
-    constructor(ctx) { super(ctx); this.frequency = new Param(440); this.detune = new Param(); this.startTime = null; this.stopTime = Infinity; }
+    constructor(ctx) { super(ctx); this.frequency = new Param(440, ctx); this.detune = new Param(0, ctx); this.startTime = null; this.stopTime = Infinity; }
     start(t = this.ctx.currentTime) { if (this.startTime !== null) throw new Error('Oscillator restarted'); this.startTime = t; }
     stop(t = this.ctx.currentTime) { this.stopTime = t; }
     get running() { return this.startTime !== null && this.stopTime > this.ctx.currentTime; }
@@ -69,8 +69,8 @@ function createApp({ blockedStorage = false, delayedResume = false, delayedSuspe
       suspend(); return Promise.resolve();
     }
     createOscillator() { const osc = new Oscillator(this); this.oscillators.push(osc); return osc; }
-    createGain() { const node = new AudioNode(this); node.gain = new Param(1); return node; }
-    createStereoPanner() { const node = new AudioNode(this); node.pan = new Param(); return node; }
+    createGain() { const node = new AudioNode(this); node.gain = new Param(1, this); return node; }
+    createStereoPanner() { const node = new AudioNode(this); node.pan = new Param(0, this); return node; }
   }
   w.AudioContext = AudioContext;
   const expose = `

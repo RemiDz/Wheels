@@ -689,12 +689,61 @@
     audioFade = null;
   }
 
+  // Hold an AudioParam at its current value before scheduling new automation. A
+  // linear ramp otherwise starts from the previous scheduled event, which may be
+  // seconds old, so the value steps instantly instead of fading.
+  function holdParam(param, now = audioCtx.currentTime) {
+    if (typeof param.cancelAndHoldAtTime === 'function') {
+      param.cancelAndHoldAtTime(now);
+    } else {
+      param.cancelScheduledValues(now);
+      param.setValueAtTime(param.value, now);
+    }
+  }
+
   function rampGain(param, target, duration = 0.015) {
     const now = audioCtx.currentTime;
-    param.cancelScheduledValues(now);
+    holdParam(param, now);
     param.setTargetAtTime(target, now, duration);
   }
-  
+
+  // Linear fade from the current value to target over duration seconds.
+  function fadeParam(param, target, duration) {
+    const now = audioCtx.currentTime;
+    holdParam(param, now);
+    param.linearRampToValueAtTime(target, now + duration);
+  }
+
+  // Oscillators must never be cut at full amplitude: fade their gains to silence,
+  // stop them just after, and disconnect everything they own once they have ended.
+  const RELEASE_SECONDS = 0.03;
+  function releaseVoice(osc, gains = [], others = []) {
+    if (!osc || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    const nodes = [osc, ...gains, ...others].filter(Boolean);
+    const cleanup = () => nodes.forEach(node => { try { node.disconnect(); } catch { /* already disconnected */ } });
+    if (audioCtx.state !== 'running') {
+      // Nothing is rendering, so a cut cannot click, and a fade could never finish.
+      try { osc.stop(); } catch { /* never started */ }
+      cleanup();
+      return;
+    }
+    gains.forEach(gain => {
+      if (!gain) return;
+      try { fadeParam(gain.gain, 0, RELEASE_SECONDS); } catch { gain.gain.value = 0; }
+    });
+    const previousOnEnded = osc.onended;
+    osc.onended = event => {
+      if (typeof previousOnEnded === 'function') previousOnEnded.call(osc, event);
+      cleanup();
+    };
+    try {
+      osc.stop(now + RELEASE_SECONDS + 0.02);
+    } catch {
+      cleanup(); // never started
+    }
+  }
+
   function ensureAudio(){
     if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
     const make = (pan)=> {
@@ -735,7 +784,7 @@
       monoOsc2._gain = gain2;
     }
   }
-  function startAudio(fadeIn = false){
+  function startAudio(){
     ensureAudio();
     cancelAudioFade();
     const t = audioCtx.currentTime + 0.01;
@@ -753,35 +802,22 @@
     if (showOvertoneHighlights && !harmonicsPlaying && !overtonesDemoRunning) startHarmonicOscillators();
   }
   
-  // Fade in audio smoothly (for use when audio is already running)
-  function fadeInAudio(duration = 0.08) {
-    if (!audioCtx || !wheel1?.gain || !wheel2?.gain) return;
-    
-    const now = audioCtx.currentTime;
-    const fadeEnd = now + duration;
-    
-    try {
-      // First set current value, then ramp to target
-      [wheel1, wheel2].forEach((voice, i) => {
-        voice.gain.gain.cancelScheduledValues(now);
-        voice.gain.gain.setValueAtTime(0, now);
-        voice.gain.gain.linearRampToValueAtTime((i === 0 ? wheelLMuted : wheelRMuted) ? 0 : 0.25, fadeEnd);
-      });
-    } catch(e) {}
-  }
-  function stopAudio(){
+function stopAudio(){
     cancelAudioFade();
-    if (wheel1?.started){ try{wheel1.osc.stop();}catch{} }
-    if (wheel2?.started){ try{wheel2.osc.stop();}catch{} }
-    if (monoOsc1?.started){ try{monoOsc1.stop();}catch{} }
-    if (monoOsc2?.started){ try{monoOsc2.stop();}catch{} }
+    const mixGain = monoGain;
     [wheel1, wheel2].forEach(voice => {
-      voice?.osc.disconnect(); voice?.gain.disconnect(); voice?.panner.disconnect();
+      if (!voice) return;
+      if (voice.started) releaseVoice(voice.osc, [voice.gain], [voice.panner]);
+      else [voice.osc, voice.gain, voice.panner].forEach(node => node.disconnect());
     });
-    [monoOsc1, monoOsc2].forEach(osc => { osc?.disconnect(); osc?._gain?.disconnect(); });
-    monoGain?.disconnect();
+    [monoOsc1, monoOsc2].forEach(osc => {
+      if (!osc) return;
+      if (osc.started) releaseVoice(osc, [osc._gain], [mixGain]);
+      else { osc.disconnect(); osc._gain?.disconnect(); }
+    });
+    if (!monoOsc1?.started) mixGain?.disconnect();
     wheel1 = wheel2 = null;
-    monoOsc1 = monoOsc2 = null;
+monoOsc1 = monoOsc2 = null;
     monoGain = null;
     stopHarmonicOscillators();
     setTransportActive('stop');
@@ -2115,7 +2151,7 @@ if (!isApplyingPreset) {
         if (harmonic && harmonic.started && !harmonicMutedState[i] && !isHarmonicFilteredOut(i)) {
           const userGain = getHarmonicGain(i);
           try {
-            harmonic.gain.gain.linearRampToValueAtTime(userGain, audioCtx.currentTime + 0.05);
+            fadeParam(harmonic.gain.gain, userGain, 0.05);
           } catch {
             harmonic.gain.gain.value = userGain;
           }
@@ -2271,7 +2307,7 @@ if (!isApplyingPreset) {
           const userGain = getHarmonicGain(i);
           // Smooth fade in
           try {
-            harmonic.gain.gain.linearRampToValueAtTime(userGain, audioCtx.currentTime + 0.05);
+            fadeParam(harmonic.gain.gain, userGain, 0.05);
           } catch {
             harmonic.gain.gain.value = userGain;
           }
@@ -2305,18 +2341,11 @@ if (!isApplyingPreset) {
     });
     
     harmonicOscillators.forEach(harmonic => {
-      if (harmonic && harmonic.started) {
-        try {
-          harmonic.osc.stop();
-          harmonic.osc.disconnect();
-          harmonic.gain.disconnect();
-          harmonic.panner.disconnect();
-        } catch (e) {
-          // Already stopped
-        }
-      }
+      if (!harmonic) return;
+      if (harmonic.started) releaseVoice(harmonic.osc, [harmonic.gain], [harmonic.panner]);
+      else [harmonic.osc, harmonic.gain, harmonic.panner].forEach(node => { try { node.disconnect(); } catch { /* unconnected */ } });
     });
-    
+
     harmonicOscillators = [];
     harmonicsPlaying = false;
     harmonicActiveStates = Array(16).fill(false);
@@ -3069,8 +3098,8 @@ if (!isApplyingPreset) {
   function fadeOutDemoHarmonic(harmonicNum, duration = 0.8) {
     const gain = overtonesDemoGains[harmonicNum];
     if (gain && audioCtx) {
-      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
-      
+      fadeParam(gain.gain, 0, duration);
+
       // Mute this harmonic so it disappears from piano highlighting
       harmonicMutedState[harmonicNum - 1] = true;
       updateOvertoneHighlights();
@@ -3091,7 +3120,7 @@ if (!isApplyingPreset) {
   function setDemoHarmonicLevel(harmonicNum, level, rampDuration = 0.5) {
     const gain = overtonesDemoGains[harmonicNum];
     if (gain && audioCtx) {
-      gain.gain.linearRampToValueAtTime(level, audioCtx.currentTime + rampDuration);
+      fadeParam(gain.gain, level, rampDuration);
     }
   }
   
@@ -3171,26 +3200,20 @@ if (!isApplyingPreset) {
     overtonesDemoTimeouts.forEach(t => playback.clearTimeout(t));
     overtonesDemoTimeouts = [];
     
-    // Stop owned nodes immediately. A delayed cleanup can disconnect a new demo.
+    // Release the nodes this demo owns. They are captured locally, so a new demo
+    // started during the release is untouched.
+    const master = overtonesDemoMasterGain;
     overtonesDemoOscillators.forEach((osc, i) => {
-      if (osc) {
-        try {
-          osc.stop();
-          osc.disconnect();
-          overtonesDemoGains[i]?.disconnect();
-        } catch (e) {}
-      }
+      if (osc) releaseVoice(osc, [overtonesDemoGains[i]], master ? [master] : []);
     });
-    
     overtonesDemoOscillators = [];
     overtonesDemoGains = [];
-    
-    // Disconnect master gain
-    if (overtonesDemoMasterGain) {
-      overtonesDemoMasterGain.disconnect();
-      overtonesDemoMasterGain = null;
+    overtonesDemoMasterGain = null;
+    if (master) {
+      try { fadeParam(master.gain, 0, RELEASE_SECONDS); } catch { master.gain.value = 0; }
+      window.setTimeout(() => { try { master.disconnect(); } catch { /* already disconnected */ } }, 200);
     }
-  }
+}
   
   // Main demo sequence - "The Harmonic Sunrise"
   // A gentle, meditative exploration of the overtone series
@@ -4600,12 +4623,24 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
 
   function stopSchoolDemo() {
     schoolPlayback.clear();
-    for (const node of schoolNodes) {
-      try { node.stop?.(); } catch {}
-      node.disconnect();
-    }
+    const nodes = [...schoolNodes];
     schoolNodes.clear();
-    document.querySelectorAll('.school-demo-filling').forEach(el => {
+    if (nodes.length && audioCtx && audioCtx.state !== 'running') {
+      for (const node of nodes) {
+        try { node.stop?.(); } catch { /* never started */ }
+        try { node.disconnect(); } catch { /* unconnected */ }
+      }
+    } else if (nodes.length && audioCtx) {
+      const stopAt = audioCtx.currentTime + RELEASE_SECONDS + 0.02;
+      for (const node of nodes) {
+        if (node.gain) { try { fadeParam(node.gain, 0, RELEASE_SECONDS); } catch { node.gain.value = 0; } }
+      }
+      for (const node of nodes) {
+        if (typeof node.stop === 'function') { try { node.stop(stopAt); } catch { try { node.disconnect(); } catch { /* unconnected */ } } }
+      }
+      window.setTimeout(() => nodes.forEach(node => { try { node.disconnect(); } catch { /* already disconnected */ } }), 200);
+    }
+document.querySelectorAll('.school-demo-filling').forEach(el => {
       el.classList.remove('is-left', 'is-right', 'school-demo-filling');
       el.style.removeProperty('--left-fill');
       el.style.removeProperty('--right-fill');
@@ -4616,15 +4651,9 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     }
     clearSchoolKeyHighlights();
     clearSchoolFillingKey(); // Clear frequency fill animation
-    if (activeSchoolOscillator) {
-      try { activeSchoolOscillator.stop(); activeSchoolOscillator.disconnect(); } catch(e) {}
-      activeSchoolOscillator = null;
-    }
-    if (activeSchoolGain) {
-      try { activeSchoolGain.disconnect(); } catch(e) {}
-      activeSchoolGain = null;
-    }
-    document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('playing'));
+    activeSchoolOscillator = null; // released with the other school nodes above
+    activeSchoolGain = null;
+document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('playing'));
     if (activeActivity === 'school') { activeActivity = null; setTransportActive('stop'); }
   }
   
@@ -4717,7 +4746,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     schoolFillAnimationFrame = schoolPlayback.requestAnimationFrame(animateFill);
 
     schoolDemoTimeout = schoolPlayback.setTimeout(() => {
-      activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+      fadeParam(activeSchoolGain.gain, 0, 0.3);
       schoolPlayback.setTimeout(() => {
         clearSchoolFillingKey();
         stopSchoolDemo();
@@ -4758,7 +4787,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     lfo.start();
 
     schoolDemoTimeout = schoolPlayback.setTimeout(() => {
-      activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+      fadeParam(activeSchoolGain.gain, 0, 0.2);
       schoolPlayback.setTimeout(() => {
         try { lfo.stop(); lfo.disconnect(); } catch(e) {}
         stopSchoolDemo();
@@ -4791,7 +4820,8 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
         const gain = createSchoolGain();
         osc.type = 'sine';
         osc.frequency.value = fundamental * mult;
-        gain.gain.value = 0.4 / mult;
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.4 / mult, audioCtx.currentTime + 0.02);
         osc.connect(gain);
         gain.connect(masterGain);
         osc.start();
@@ -4807,7 +4837,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     addHarmonic(4, 1200);
 
     schoolDemoTimeout = schoolPlayback.setTimeout(() => {
-      masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+      fadeParam(masterGain.gain, 0, 0.3);
       schoolPlayback.setTimeout(() => {
         oscillators.forEach(o => { try { o.stop(); o.disconnect(); } catch(e) {} });
         gains.forEach(g => g.disconnect());
@@ -4841,7 +4871,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
       if (index >= overtones.length) {
         // All overtones now playing together - let them ring
         schoolDemoTimeout = schoolPlayback.setTimeout(() => {
-          masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+          fadeParam(masterGain.gain, 0, 0.4);
           schoolPlayback.setTimeout(() => {
             oscillators.forEach(o => { try { o.stop(); o.disconnect(); } catch(e) {} });
             gains.forEach(g => g.disconnect());
@@ -4899,7 +4929,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     activeSchoolOscillator.start();
 
     schoolDemoTimeout = schoolPlayback.setTimeout(() => {
-      activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+      fadeParam(activeSchoolGain.gain, 0, 0.2);
       schoolPlayback.setTimeout(() => {
         stopSchoolDemo();
         btn.classList.remove('playing');
@@ -4939,7 +4969,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
       activeSchoolOscillator.start();
 
       schoolDemoTimeout = schoolPlayback.setTimeout(() => {
-        activeSchoolGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+        fadeParam(activeSchoolGain.gain, 0, 0.1);
         schoolPlayback.setTimeout(() => {
           if (activeSchoolOscillator) {
             activeSchoolOscillator.stop();
@@ -5201,18 +5231,11 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     theoryDemoTimeouts.forEach(t => playback.clearTimeout(t));
     theoryDemoTimeouts = [];
     
-    // Stop all oscillators
-    theoryDemoOscillators.forEach(osc => {
-      try { osc.stop(); osc.disconnect(); } catch(e) {}
-    });
+    // Release every oscillator with its gain (they are pushed pairwise)
+    theoryDemoOscillators.forEach((osc, i) => releaseVoice(osc, [theoryDemoGains[i]]));
     theoryDemoOscillators = [];
-    
-    // Disconnect gains
-    theoryDemoGains.forEach(gain => {
-      try { gain.disconnect(); } catch(e) {}
-    });
     theoryDemoGains = [];
-    
+
     // Clear school demo state
     stopSchoolDemo();
     clearSchoolKeyHighlights();
@@ -5264,6 +5287,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
       gain.gain.setValueAtTime(0, audioCtx.currentTime);
       gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.05);
       gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration - 0.1);
+      osc.onended = () => { osc.disconnect(); gain.disconnect(); };
       osc.start();
       osc.stop(audioCtx.currentTime + duration);
       theoryDemoOscillators.push(osc);
@@ -5281,6 +5305,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
       gain.connect(audioCtx.destination);
       gain.gain.setValueAtTime(0, audioCtx.currentTime);
       gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.15);
+      osc.onended = () => { osc.disconnect(); gain.disconnect(); };
       osc.start();
       theoryDemoOscillators.push(osc);
       theoryDemoGains.push(gain);
@@ -5291,7 +5316,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     // Helper to fade out
     function fadeOut(noteObj, duration = 0.4) {
       if (noteObj?.gain) {
-        noteObj.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+        fadeParam(noteObj.gain.gain, 0, duration);
         playback.setTimeout(() => { try { noteObj.osc.stop(); } catch(e) {} }, duration * 1000 + 50);
       }
     }
@@ -5658,7 +5683,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     highlightSchoolKey(440);
     
     await theoryDemoWait(2500);
-    vibGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+    fadeParam(vibGain.gain, 0, 0.5);
     await theoryDemoWait(800);
     clearSchoolKeyHighlights();
     
@@ -5693,7 +5718,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
       highlightSchoolKey(440);
       
       await theoryDemoWait(1100);
-      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+      fadeParam(gain.gain, 0, 0.2);
       await theoryDemoWait(400);
     }
     clearSchoolKeyHighlights();
@@ -6570,7 +6595,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     wheelR.setHz(firstPhase.rightHz);
     
     // Start audio with fade-in to prevent click
-    startAudio(true);
+    startAudio();
     setTransportActive('play');
     
     // Show program display
@@ -7835,7 +7860,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     dynamicJourneyStartTime = playback.now();
     
     // Start audio playback with fade-in to prevent click
-    startAudio(true);
+    startAudio();
     setTransportActive('play');
     
     // Start update loop
@@ -8828,7 +8853,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     syncAudioState().catch(handleAudioError);
     
     // Use fade-in to prevent click sound
-    startAudio(true);
+    startAudio();
     setTransportActive('play');
     
     // Start the sequence

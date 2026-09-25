@@ -4,8 +4,10 @@ const { createApp } = require('./helpers.cjs');
 
 function setup(t, options) { const env = createApp(options); t.after(() => env.close()); return env; }
 function noSound(env) {
+  // Voices are released with a short fade, so a stop scheduled within 100 ms counts as silent.
   const ctx = env.app.state.audioCtx;
-  assert.equal(ctx?.oscillators.filter(osc => osc.running).length ?? 0, 0, 'No oscillator may keep running after Stop');
+  const lingering = ctx?.oscillators.filter(osc => osc.running && !(osc.stopTime <= ctx.currentTime + 0.1)) ?? [];
+  assert.equal(lingering.length, 0, 'No oscillator may keep running after Stop');
 }
 
 test('initializes all controls even when browser storage is blocked', t => {
