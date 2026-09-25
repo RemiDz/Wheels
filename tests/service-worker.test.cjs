@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function worker({ prefix = '/', storageFails = false } = {}) {
+function worker({ prefix = '/', storageFails = false, openFails = false, matchFails = false } = {}) {
   const scope = 'https://example.test' + prefix;
   const handlers = {};
   const stores = new Map();
@@ -17,6 +17,7 @@ function worker({ prefix = '/', storageFails = false } = {}) {
     async keys() { return [...stores.keys()]; },
     async delete(key) { return stores.delete(key); },
     async open(name) {
+      if (openFails) throw new Error('Cache storage unavailable');
       if (!stores.has(name)) stores.set(name, new Map());
       const store = stores.get(name);
       return {
@@ -28,7 +29,10 @@ function worker({ prefix = '/', storageFails = false } = {}) {
             store.set(request.url, new Response('cached:' + file));
           }
         },
-        async match(url) { return store.get(url)?.clone(); },
+        async match(url) {
+          if (matchFails) throw new Error('Cache read failed');
+          return store.get(url)?.clone();
+        },
         async put(url, response) {
           if (storageFails) throw new Error('Quota exceeded');
           store.set(url, response.clone());
@@ -57,7 +61,7 @@ function worker({ prefix = '/', storageFails = false } = {}) {
 
 test('precache contains the complete app and tutorial, including a subdirectory install', async () => {
   const env = worker({ prefix: '/nestorium/' }); await env.dispatch('install'); env.offline();
-  for (const file of ['', 'index.html', 'script.js', 'playback-scheduler.js', 'styles.css', 'Nestorium_Tutorial.pdf', 'HarmonicSounds.webp']) {
+  for (const file of ['', 'index.html', 'script.js', 'playback-scheduler.js', 'bowl-capture.js', 'styles.css', 'Nestorium_Tutorial.pdf', 'HarmonicSounds.webp']) {
     const response = await env.fetch(file); assert.equal(response.status, 200, file);
   }
   assert.equal(env.lifecycle.skipped, true);
@@ -101,3 +105,20 @@ test('offline uncached app resources return a Response rather than undefined', a
   const env = worker(); env.offline(); const response = await env.fetch('script.js');
   assert.ok(response instanceof Response); assert.equal(response.type, 'error');
 });
+
+test('online assets still load when cache storage cannot be opened', async () => {
+  const env = worker({ openFails: true });
+  assert.equal(await (await env.fetch('script.js')).text(), 'fresh');
+});
+
+for (const failure of ['openFails', 'matchFails']) {
+  test(`${failure} preserves server errors and returns an offline error response`, async () => {
+    const env = worker({ [failure]: true });
+    env.response(503, 'unavailable');
+    const serverError = await env.fetch('script.js');
+    assert.equal(serverError.status, 503);
+    assert.equal(await serverError.text(), 'unavailable');
+    env.offline();
+    assert.equal((await env.fetch('script.js')).type, 'error');
+  });
+}

@@ -240,6 +240,40 @@
     </div>
   </div>
 
+  <section class="bowl-capture-section" aria-labelledby="bowlCaptureTitle">
+    <div class="bowl-capture-heading">
+      <div>
+        <h2 id="bowlCaptureTitle">🎙 Sound Capture</h2>
+        <p>Select a wheel, press Start listening, then play an instrument. A steady tone locks automatically.</p>
+      </div>
+      <fieldset class="bowl-channel-select">
+        <legend>Capture to</legend>
+        <label><input type="radio" name="bowlTarget" value="left" checked> Left wheel</label>
+        <label><input type="radio" name="bowlTarget" value="right"> Right wheel</label>
+      </fieldset>
+    </div>
+    <div class="bowl-capture-toolbar">
+      <button type="button" id="bowlListen" class="bowl-primary">Start listening</button>
+      <button type="button" id="bowlLock" disabled>Lock current tone</button>
+      <button type="button" id="bowlCancel" hidden>Cancel</button>
+      <div class="bowl-live-reading" aria-live="off"><span>Detected tone</span><strong id="bowlLiveFrequency">— Hz</strong></div>
+    </div>
+    <div class="bowl-listening-progress" id="bowlProgressWrap" hidden>
+      <label for="bowlProgress">Tone stability</label><progress id="bowlProgress" max="1" value="0"></progress>
+    </div>
+    <p id="bowlStatus" class="bowl-status" role="status">Microphone off. Capture one sound at a time; let the first sound fade before capturing the second.</p>
+    <div class="bowl-results">
+      <div class="bowl-result" data-bowl-result="left"><span class="bowl-result-label">Left tone</span><strong id="bowlLeftFrequency">Not captured</strong><span id="bowlLeftNote">Saved to the left wheel</span></div>
+      <div class="bowl-result" data-bowl-result="right"><span class="bowl-result-label">Right tone</span><strong id="bowlRightFrequency">Not captured</strong><span id="bowlRightNote">Saved to the right wheel</span></div>
+      <div class="bowl-result bowl-interval"><span class="bowl-result-label">Interval between tones</span><strong id="bowlInterval">Capture both tones</strong><span id="bowlIntervalDetail">Compare notes, cents and frequency ratio</span></div>
+    </div>
+    <div class="bowl-comparison-actions">
+      <button type="button" id="bowlPlayPair" disabled>▶ Play captured pair in stereo</button>
+      <a href="#pianoReference" id="bowlViewPiano">View piano reference ↓</a>
+    </div>
+    <p class="bowl-capture-note">For singing bowls, tuning forks, chimes and other instruments. Works best with a clear, sustained tone; detects the strongest pitch from 40–4,000 Hz. Complex sounds may contain several pitches. Playback recreates the captured pitches as pure tones. Audio is analysed on your device, without recording or uploading it. Nearest-note labels use A4 = 440 Hz.</p>
+  </section>
+
   <!-- Unified Experiences Section with Tabs -->
   <section class="experiences-section" id="experiencesSection" aria-label="Binaural Experiences">
     <div class="experiences-tabs">
@@ -952,7 +986,7 @@
     </div>
   </section>
 
-  <section class="keyboard-section" aria-label="Piano reference">
+  <section class="keyboard-section" id="pianoReference" aria-label="Piano reference" tabindex="-1">
     <div class="keyboard-header">
       <h2>Piano Reference</h2>
       <div class="keyboard-toggles">
@@ -964,6 +998,7 @@
         </button>
       </div>
     </div>
+    <p class="bowl-piano-summary" id="bowlPianoSummary" hidden></p>
     <div class="piano-keyboard-wrapper">
       <div class="pitch-bend-wheel" id="pitchBendWheel" role="slider" aria-label="Pitch bend wheel" tabindex="0">
         <div class="pitch-bend-label">Scroll</div>
@@ -1022,6 +1057,7 @@
 </div>
 
 <script src="playback-scheduler.js"></script>
+<script src="bowl-capture.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

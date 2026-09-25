@@ -3,7 +3,7 @@ const path = require('node:path');
 const { JSDOM } = require('jsdom');
 const FakeTimers = require('@sinonjs/fake-timers');
 
-function createApp({ blockedStorage = false, delayedResume = false, rejectResume = false, frameMs = 100 } = {}) {
+function createApp({ blockedStorage = false, delayedResume = false, delayedSuspend = false, rejectResume = false, frameMs = 100 } = {}) {
   const root = path.resolve(__dirname, '..');
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'index.html'), 'utf8'), {
     url: 'http://localhost/', runScripts: 'outside-only', pretendToBeVisual: true,
@@ -63,7 +63,11 @@ function createApp({ blockedStorage = false, delayedResume = false, rejectResume
       if (delayedResume) return new Promise(resolve => w.setTimeout(() => { resume(); resolve(); }, 100));
       resume(); return Promise.resolve();
     }
-    suspend() { this.offset = this.currentTime; this.state = 'suspended'; return Promise.resolve(); }
+    suspend() {
+      const suspend = () => { this.offset = this.currentTime; this.state = 'suspended'; };
+      if (delayedSuspend) return new Promise(resolve => w.setTimeout(() => { suspend(); resolve(); }, 100));
+      suspend(); return Promise.resolve();
+    }
     createOscillator() { const osc = new Oscillator(this); this.oscillators.push(osc); return osc; }
     createGain() { const node = new AudioNode(this); node.gain = new Param(1); return node; }
     createStereoPanner() { const node = new AudioNode(this); node.pan = new Param(); return node; }
@@ -85,6 +89,7 @@ function createApp({ blockedStorage = false, delayedResume = false, rejectResume
   `;
   const source = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
   w.eval(fs.readFileSync(path.join(root, 'playback-scheduler.js'), 'utf8') + '\nwindow.PlaybackScheduler = PlaybackScheduler;');
+  w.eval(fs.readFileSync(path.join(root, 'bowl-capture.js'), 'utf8') + '\nwindow.BowlAudio = BowlAudio;');
   try { w.eval(source.replace(/\}\)\(\);\s*$/, expose + '\n})();')); } catch (error) { errors.push(error); }
   return {
     window: w, document: w.document, app: w.testApp, errors, clock,

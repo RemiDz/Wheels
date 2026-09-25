@@ -1,9 +1,10 @@
-const CACHE_NAME = 'nestorium-v2';
+const CACHE_NAME = 'nestorium-v7';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './playback-scheduler.js',
+  './bowl-capture.js',
   './script.js',
   './manifest.webmanifest',
   './favicon.svg',
@@ -39,16 +40,20 @@ self.addEventListener('fetch', (event) => {
   // Only cache this app's assets, never analytics or unrelated pages.
   if (!assetURLs.has(url.href)) return;
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
+    let cache;
+    try { cache = await caches.open(CACHE_NAME); } catch { /* Online loading also works without cache access. */ }
+    const cachedResponse = async () => {
+      try { return await cache?.match(url.href); } catch { return undefined; }
+    };
     try {
       const fresh = await fetch(request);
-      if (fresh.ok && fresh.status === 200 && fresh.type !== 'opaque') {
+      if (cache && fresh.ok && fresh.status === 200 && fresh.type !== 'opaque') {
         try { await cache.put(url.href, fresh.clone()); } catch { /* Storage restrictions must not break online loading. */ }
       }
       if (fresh.status < 500) return fresh;
-      return (await cache.match(url.href)) || fresh;
+      return (await cachedResponse()) || fresh;
     } catch {
-      return (await cache.match(url.href)) || Response.error();
+      return (await cachedResponse()) || Response.error();
     }
   })());
 });

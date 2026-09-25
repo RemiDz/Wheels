@@ -3,14 +3,22 @@
   const schoolPlayback = new PlaybackScheduler();
   let playbackGeneration = 0;
   let transportRequest = 0;
+  let transportPaused = false;
   let activeActivity = null;
   let stoppingPlayback = false;
+  let bowlCapture = null;
+  let bowlUI = null;
+  let bowlPreview = null;
+  let preserveBowlPreview = false;
+  const capturedBowls = { left: null, right: null };
 
   function stopAllPlayback() {
     if (stoppingPlayback) return;
     stoppingPlayback = true;
+    cancelBowlCapture();
     playbackGeneration++;
     transportRequest++;
+    transportPaused = false;
     stopDemo();
     stopQuickStart();
     stopProgram(true);
@@ -42,7 +50,10 @@
   }
 
   function prepareManualPlayback() {
+    cancelBowlCapture();
     if (activeActivity && activeActivity !== 'manual') beginActivity('manual');
+    transportRequest++;
+    transportPaused = false;
     activeActivity = 'manual';
     playback.resume();
     schoolPlayback.resume();
@@ -654,6 +665,22 @@
   let monoVolume = 0; // 0-1 range, default 0%
   let audioFade = null;
 
+  async function syncAudioState() {
+    const paused = transportPaused;
+    const generation = playbackGeneration;
+    const request = transportRequest;
+    try {
+      // Queue every request, even if state still reflects an earlier operation.
+      await (paused ? audioCtx.suspend() : audioCtx.resume());
+    } catch (error) {
+      // An obsolete activation must not stop a newer activity or transport action.
+      if (generation === playbackGeneration && request === transportRequest) handleAudioError(error);
+      return;
+    }
+    // Browser audio transitions can finish after the user changes their mind.
+    if (paused !== transportPaused) await syncAudioState();
+  }
+
   function cancelAudioFade() {
     if (!audioFade) return;
     playback.clearTimeout(audioFade.id);
@@ -710,8 +737,6 @@
   function startAudio(fadeIn = false){
     ensureAudio();
     cancelAudioFade();
-    playback.resume();
-    schoolPlayback.resume();
     const t = audioCtx.currentTime + 0.01;
     if (!wheel1.started) wheel1.osc.frequency.value = wheelL.getHz();
     if (!wheel2.started) wheel2.osc.frequency.value = wheelR.getHz();
@@ -1214,6 +1239,7 @@
     
     // Update spectrogram
     updateSpectrogram(leftFreq, rightFreq);
+    updateBowlResults();
   }
 
   // ===== OSCILLOSCOPE WAVEFORM VISUALIZATION =====
@@ -1541,9 +1567,7 @@
     let applied = false;
     const ensurePlaying = () => {
       ensureAudio();
-      if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(handleAudioError);
-      }
+      syncAudioState().catch(handleAudioError);
       startAudio();
       setTransportActive('play');
     };
@@ -1656,9 +1680,7 @@
       
       // Start playing audio automatically (like piano keys)
       ensureAudio();
-      if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(handleAudioError);
-      }
+      syncAudioState().catch(handleAudioError);
       startAudio();
       setTransportActive('play');
       
@@ -1705,9 +1727,7 @@
       
       // Start playing audio automatically
       ensureAudio();
-      if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(handleAudioError);
-      }
+      syncAudioState().catch(handleAudioError);
       startAudio();
       setTransportActive('play');
       
@@ -1721,6 +1741,7 @@
   });
 
   wheelL.setOnChange((hz, userInitiated) => {
+    if (userInitiated) cancelBowlCapture('left');
     if (!isApplyingPreset) {
       if (presetSelect) presetSelect.value = '';
       if (binauralPresetSelect) binauralPresetSelect.value = '';
@@ -1730,9 +1751,7 @@
     if (userInitiated) {
       prepareManualPlayback();
       ensureAudio();
-      if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(handleAudioError);
-      }
+      syncAudioState().catch(handleAudioError);
       startAudio();
       setTransportActive('play');
     }
@@ -1740,6 +1759,7 @@
     scheduleOscillatorSync();
   });
   wheelR.setOnChange((hz, userInitiated) => {
+    if (userInitiated) cancelBowlCapture('right');
     if (!isApplyingPreset) {
       if (presetSelect) presetSelect.value = '';
       if (binauralPresetSelect) binauralPresetSelect.value = '';
@@ -1749,9 +1769,7 @@
     if (userInitiated) {
       prepareManualPlayback();
       ensureAudio();
-      if (audioCtx?.state === 'suspended') {
-        audioCtx.resume().catch(handleAudioError);
-      }
+      syncAudioState().catch(handleAudioError);
       startAudio();
       setTransportActive('play');
     }
@@ -2021,7 +2039,7 @@
     
     prepareManualPlayback();
     ensureAudio();
-    if (audioCtx.state !== 'running') audioCtx.resume().catch(handleAudioError);
+    syncAudioState().catch(handleAudioError);
     if (!harmonicsPlaying) {
       startHarmonicOscillators();
       return;
@@ -2180,9 +2198,7 @@
     if (!currentOvertonesFundamental || currentOvertonesFundamental <= 0) return;
     
     ensureAudio();
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(handleAudioError);
-    }
+    syncAudioState().catch(handleAudioError);
     
     // Clear any existing sequence timeouts
     harmonicSequenceTimeouts.forEach(timeout => playback.clearTimeout(timeout));
@@ -2463,7 +2479,7 @@
       card.innerHTML = `
         <div class="overtone-volume-fill"></div>
         <div class="overtone-content">
-          <div class="overtone-mute-indicator">🔊</div>
+          <div class="overtone-mute-indicator">${harmonicMutedState[harmonicIndex] ? '🔇' : '🔊'}</div>
           <div class="overtone-number">Harmonic ${i}</div>
           <div class="overtone-note-name">${noteData.note === 'BELOW_HEARING' ? '🔇' : noteData.note}</div>
           <div class="overtone-interval-name">${INTERVAL_NAMES[i - 1] || `Partial ${i}`}</div>
@@ -3168,10 +3184,8 @@
     
     // Setup audio
     ensureAudio();
-    if (audioCtx.state === 'suspended') {
-      await audioCtx.resume();
-      if (generation !== playbackGeneration || !overtonesDemoRunning) return;
-    }
+    await syncAudioState();
+    if (generation !== playbackGeneration || !overtonesDemoRunning) return;
     
     // Create master gain for demo - start at 0 for gentle fade in
     setTransportActive('play');
@@ -3532,6 +3546,8 @@
   const overtoneHighlightToggle = document.getElementById('overtoneHighlightToggle');
   
   overtoneHighlightToggle?.addEventListener('click', () => {
+    const wasPaused = transportPaused;
+    const wasPlaying = !wasPaused && (harmonicsPlaying || wheel1?.started || wheel2?.started);
     prepareManualPlayback();
     showOvertoneHighlights = !showOvertoneHighlights;
     
@@ -3570,6 +3586,20 @@
       
       // Stop playing harmonics when disabled
       stopHarmonicOscillators();
+      if (wasPlaying) {
+        // Standalone harmonic playback may never have started the wheel voices.
+        ensureAudio();
+        syncAudioState().catch(handleAudioError);
+        startAudio();
+        setTransportActive('play');
+      } else if (wasPaused) {
+        transportPaused = true;
+        playback.pause();
+        schoolPlayback.pause();
+        setTransportActive('pause');
+      } else {
+        setTransportActive('stop');
+      }
     }
     
     // Update highlights
@@ -3586,6 +3616,8 @@
     const keyEl = e.target.closest('.piano-key');
     
     if (keyEl && currentOvertonesFundamental > 0) {
+      if (!keyboardTargetsState.left && !keyboardTargetsState.right) return;
+      prepareManualPlayback();
       // Scrolling over a piano key - adjust overtones fundamental and wheels
       const delta = e.deltaY || e.deltaX;
       const deltaRotation = -delta * 0.5; // Same sensitivity as Fine Tune dial
@@ -3612,6 +3644,10 @@
       // Update overtones with new fundamental (smooth update without regenerating)
       currentOvertonesFundamental = newFundamental;
       updateOvertones();
+      ensureAudio();
+      syncAudioState().catch(handleAudioError);
+      startAudio();
+      setTransportActive('play');
       
       // Reset flag after a short delay
       setTimeout(() => { isProgrammaticChange = false; }, 100);
@@ -4100,32 +4136,39 @@
 
   // Buttons
   document.getElementById('play').addEventListener('click', async ()=>{
+    cancelBowlCapture();
     if (programFadingOut || (activeActivity === 'theory' && !theoryDemoRunning) ||
         (activeActivity === 'overtones-demo' && !overtonesDemoRunning)) prepareManualPlayback();
     const request = ++transportRequest;
+    transportPaused = false;
     try {
       ensureAudio();
-      if (audioCtx.state !== 'running') await audioCtx.resume();
+      await syncAudioState();
       if (request !== transportRequest) return;
       playback.resume();
       schoolPlayback.resume();
       if (!['school', 'theory', 'overtones-demo'].includes(activeActivity)) startAudio();
       setTransportActive('play');
-    } catch (error) { handleAudioError(error); }
+    } catch (error) { if (request === transportRequest) handleAudioError(error); }
   });
   document.getElementById('pause').addEventListener('click', async ()=>{
+    cancelBowlCapture();
     if (!audioCtx) return;
     const request = ++transportRequest;
+    transportPaused = true;
     playback.pause();
     schoolPlayback.pause();
     try {
-      await audioCtx.suspend();
+      await syncAudioState();
       if (request === transportRequest) setTransportActive('pause');
-    } catch (error) { handleAudioError(error); }
+    } catch (error) { if (request === transportRequest) handleAudioError(error); }
   });
   document.getElementById('stop').addEventListener('click', stopAllPlayback);
   document.getElementById('reset').addEventListener('click', ()=> {
     stopAllPlayback();
+    capturedBowls.left = capturedBowls.right = null;
+    setBowlStatus('Microphone off. Select a wheel and capture a sound.');
+    if (bowlUI) bowlUI.live.textContent = '— Hz';
     
     // Set flag to prevent auto-play on reset
     isProgrammaticChange = true;
@@ -4231,6 +4274,7 @@
 
   // Visual states and ripple feedback
   function setTransportActive(which){
+    if (which === 'play' && transportPaused) which = 'pause';
     if (which === 'play') {
       const status = document.getElementById('audioStatus');
       if (status) status.hidden = true;
@@ -4501,7 +4545,7 @@
 
   function ensureSchoolAudio() {
     ensureAudio();
-    if (audioCtx.state === 'suspended') audioCtx.resume().catch(handleAudioError);
+    syncAudioState().catch(handleAudioError);
     setTransportActive('play');
   }
 
@@ -6518,10 +6562,8 @@
     
     // Ensure audio is ready
     ensureAudio();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      await audioCtx.resume();
-      if (generation !== playbackGeneration) return;
-    }
+    await syncAudioState();
+    if (generation !== playbackGeneration) return;
     
     // Set initial frequencies
     const firstPhase = program.phases[0];
@@ -7748,10 +7790,8 @@
     
     // Ensure audio is ready
     ensureAudio();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      await audioCtx.resume();
-      if (generation !== playbackGeneration) return;
-    }
+    await syncAudioState();
+    if (generation !== playbackGeneration) return;
     
     // Set initial frequencies using the harmonic system
     const firstPhase = journey.phases[0];
@@ -8786,9 +8826,7 @@
     
     // Ensure audio is playing with fade-in to prevent click
     ensureAudio();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(handleAudioError);
-    }
+    syncAudioState().catch(handleAudioError);
     
     // Use fade-in to prevent click sound
     startAudio(true);
@@ -9187,9 +9225,7 @@
     
     // Ensure audio is playing
     ensureAudio();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(handleAudioError);
-    }
+    syncAudioState().catch(handleAudioError);
     startAudio();
     setTransportActive('play');
     
@@ -9375,6 +9411,165 @@
     }
   }
   
+  // Sound capture owns a separate, silent microphone context. Existing playback
+  // entry points cancel it before producing sound or changing either wheel.
+  function setBowlStatus(message) {
+    if (bowlUI && bowlUI.status.textContent !== message) bowlUI.status.textContent = message;
+  }
+
+  function cancelBowlCapture(preserveSide = null) {
+    if (!bowlCapture?.active) return;
+    preserveBowlPreview = preserveSide === bowlCapture.channel;
+    bowlCapture.cancel();
+    preserveBowlPreview = false;
+  }
+
+  function bowlNoteLabel(frequency) {
+    const midi = 69 + 12 * Math.log2(frequency / 440);
+    const nearest = Math.round(midi);
+    const note = NOTE_NAMES[noteSystem][((nearest % 12) + 12) % 12] + (Math.floor(nearest / 12) - 1);
+    const cents = (midi - nearest) * 100;
+    const offset = Math.abs(cents) < 0.05 ? '0.0' : `${cents > 0 ? '+' : '−'}${Math.abs(cents).toFixed(1)}`;
+    return `${note} · ${offset} cents`;
+  }
+
+  function updateBowlResults() {
+    if (!bowlUI) return;
+    for (const side of ['left', 'right']) {
+      const frequency = capturedBowls[side];
+      const title = side === 'left' ? 'Left' : 'Right';
+      bowlUI[`${side}Frequency`].textContent = frequency ? `${frequency.toFixed(2)} Hz` : 'Not captured';
+      bowlUI[`${side}Note`].textContent = frequency ? bowlNoteLabel(frequency) : `Saved to the ${side} wheel`;
+      const card = document.querySelector(`[data-bowl-result="${side}"]`);
+      card.classList.toggle('is-captured', Boolean(frequency));
+      card.setAttribute('aria-label', frequency ? `${title} tone: ${frequency.toFixed(2)} Hz, ${bowlNoteLabel(frequency)}` : `${title} tone: not captured`);
+    }
+    const interval = BowlAudio.describeInterval(capturedBowls.left, capturedBowls.right);
+    bowlUI.play.disabled = !interval || bowlCapture.active;
+    bowlUI.interval.textContent = interval ? interval.name : 'Capture both tones';
+    if (interval) {
+      const deviation = Math.abs(interval.deviation) < 0.05 ? '0.0' : `${interval.deviation > 0 ? '+' : '−'}${Math.abs(interval.deviation).toFixed(1)}`;
+      bowlUI.intervalDetail.textContent = `${interval.ratio.toFixed(4)}:1 · ${interval.cents.toFixed(1)} cents · ${deviation} cents from equal temperament · Δ ${interval.difference.toFixed(2)} Hz`;
+    } else {
+      bowlUI.intervalDetail.textContent = 'Compare notes, cents and frequency ratio';
+    }
+    const pianoSummary = document.getElementById('bowlPianoSummary');
+    pianoSummary.hidden = !capturedBowls.left && !capturedBowls.right;
+    const describeWheel = hz => `${hz.toFixed(2)} Hz${hz >= 20 ? ` (${bowlNoteLabel(hz)})` : ' (below hearing)'}`;
+    const wheelInterval = BowlAudio.describeInterval(wheelL.getHz(), wheelR.getHz());
+    pianoSummary.textContent = `Left: ${describeWheel(wheelL.getHz())} · Right: ${describeWheel(wheelR.getHz())}${wheelInterval ? ` · ${wheelInterval.name}` : ''}`;
+  }
+
+  function showBowlCaptureActive(active, side) {
+    bowlUI.listen.disabled = active;
+    bowlUI.cancel.hidden = !active;
+    bowlUI.lock.disabled = true;
+    bowlUI.progressWrap.hidden = !active;
+    bowlUI.progress.value = 0;
+    wheelL.element.classList.toggle('is-bowl-listening', active && side === 'left');
+    wheelR.element.classList.toggle('is-bowl-listening', active && side === 'right');
+    updateBowlResults();
+  }
+
+  bowlUI = {
+    listen: document.getElementById('bowlListen'), lock: document.getElementById('bowlLock'),
+    cancel: document.getElementById('bowlCancel'), live: document.getElementById('bowlLiveFrequency'),
+    status: document.getElementById('bowlStatus'), progress: document.getElementById('bowlProgress'),
+    progressWrap: document.getElementById('bowlProgressWrap'), play: document.getElementById('bowlPlayPair'),
+    leftFrequency: document.getElementById('bowlLeftFrequency'), rightFrequency: document.getElementById('bowlRightFrequency'),
+    leftNote: document.getElementById('bowlLeftNote'), rightNote: document.getElementById('bowlRightNote'),
+    interval: document.getElementById('bowlInterval'), intervalDetail: document.getElementById('bowlIntervalDetail')
+  };
+  bowlCapture = new BowlAudio.Capture({
+    onState(state, side) {
+      showBowlCaptureActive(true, side);
+      bowlUI.live.textContent = '— Hz';
+      setBowlStatus(state === 'requesting' ? 'Allow microphone access when your browser asks. Playback is stopped.'
+        : `Listening for the ${side} wheel. Play one instrument and let its tone settle.`);
+    },
+    onReading(reading, side) {
+      bowlUI.lock.disabled = !reading.canLock;
+      bowlUI.progress.value = reading.progress;
+      bowlUI.live.textContent = reading.frequency ? `${reading.frequency.toFixed(2)} Hz` : '— Hz';
+      if (reading.frequency) {
+        (side === 'left' ? wheelL : wheelR).setHz(reading.frequency);
+        setBowlStatus(`Listening for the ${side} wheel. Hold the tone steady to lock automatically, or press Lock current tone.`);
+      } else {
+        const messages = {
+          quiet: `Listening for the ${side} wheel. Move the instrument closer or play it again.`,
+          noise: 'No clear tone yet. Let the strike settle and keep other sounds quiet.',
+          clipping: 'The sound is too loud for the microphone. Move the instrument farther away.',
+          range: 'The strongest tone is outside 40–4,000 Hz. Try a different note, instrument or playing position.'
+        };
+        setBowlStatus(messages[reading.reason] || 'Listening for a steady tone…');
+      }
+    },
+    onFinish(result) {
+      const preview = bowlPreview;
+      bowlPreview = null;
+      if (activeActivity === 'bowl-capture') activeActivity = null;
+      if (result.reason === 'locked') {
+        const frequency = Math.round(result.frequency * 100) / 100;
+        capturedBowls[result.channel] = frequency;
+        (result.channel === 'left' ? wheelL : wheelR).setHz(frequency);
+        bowlUI.live.textContent = `${frequency.toFixed(2)} Hz`;
+        setBowlStatus(`${result.channel === 'left' ? 'Left' : 'Right'} tone locked at ${frequency.toFixed(2)} Hz. Microphone off. ${capturedBowls.left && capturedBowls.right ? 'Play the captured pair or view the piano.' : 'Select the other wheel to capture another sound.'}`);
+      } else {
+        if (preview && !preserveBowlPreview) (preview.side === 'left' ? wheelL : wheelR).setHz(preview.frequency);
+        bowlUI.live.textContent = '— Hz';
+        setBowlStatus(result.message ? `${result.message} Microphone off.` : 'Capture cancelled. Microphone off; saved tones are unchanged.');
+      }
+      showBowlCaptureActive(false);
+      updateKeyboardHighlights();
+      updateLiveInfo();
+    }
+  });
+  bowlUI.listen.addEventListener('click', () => {
+    const side = document.querySelector('input[name="bowlTarget"]:checked').value;
+    beginActivity('bowl-capture');
+    bowlPreview = { side, frequency: (side === 'left' ? wheelL : wheelR).getHz() };
+    bowlCapture.start(side);
+  });
+  bowlUI.lock.addEventListener('click', () => bowlCapture.lock());
+  bowlUI.cancel.addEventListener('click', () => cancelBowlCapture());
+  document.querySelectorAll('input[name="bowlTarget"]').forEach(input => input.addEventListener('change', () => {
+    cancelBowlCapture();
+    setBowlStatus(`${input.value === 'left' ? 'Left' : 'Right'} wheel selected. Press Start listening, then play an instrument.`);
+  }));
+  bowlUI.play.addEventListener('click', () => {
+    if (!capturedBowls.left || !capturedBowls.right) return;
+    beginActivity('bowl-comparison');
+    activeActivity = 'manual';
+    wheelL.setHz(capturedBowls.left);
+    wheelR.setHz(capturedBowls.right);
+    wheelLMuted = wheelRMuted = false;
+    updateMuteButtons();
+    setPan('wheelL', -100);
+    setPan('wheelR', 100);
+    document.querySelector('.pan-slider[data-wheel="wheelL"]').value = -100;
+    document.querySelector('.pan-slider[data-wheel="wheelR"]').value = 100;
+    updateMonoVolume(0);
+    document.getElementById('play').click();
+  });
+  document.getElementById('bowlViewPiano').addEventListener('click', event => {
+    event.preventDefault();
+    const section = document.getElementById('pianoReference');
+    section.focus({ preventScroll: true });
+    section.scrollIntoView({ block: 'start' });
+    const keys = [wheelL.getHz(), wheelR.getHz()].map(hz => getKeySpanForFrequency(hz)?.key?.element).filter(Boolean);
+    if (keys.length) {
+      const low = Math.min(...keys.map(key => key.offsetLeft));
+      const high = Math.max(...keys.map(key => key.offsetLeft + key.offsetWidth));
+      pianoKeyboardEl.scrollLeft = Math.max(0, (low + high - pianoKeyboardEl.clientWidth) / 2);
+    }
+  });
+  window.addEventListener('pagehide', () => cancelBowlCapture());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) cancelBowlCapture(); });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && bowlCapture.active) { event.preventDefault(); cancelBowlCapture(); }
+  });
+  updateBowlResults();
+
   // PWA: register service worker
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

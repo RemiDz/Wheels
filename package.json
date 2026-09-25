@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "lint": "eslint script.js playback-scheduler.js service-worker.js",
-    "check": "node --check script.js && node --check playback-scheduler.js && node --check service-worker.js"
+    "lint": "eslint script.js playback-scheduler.js bowl-capture.js service-worker.js",
+    "check": "node --check script.js && node --check playback-scheduler.js && node --check bowl-capture.js && node --check service-worker.js"
   },
   "devDependencies": {
     "@sinonjs/fake-timers": "^15.4.0",

@@ -7986,3 +7986,49 @@ body:not([data-theme="dark"]) .program-display .timer-total {
     font-size: 18px;
   }
 }
+
+/* Bowl capture extends the original palette and leaves the instrument layout intact. */
+.bowl-capture-section { margin: 20px 0; padding: 20px 24px; border: 1px solid var(--panel-border); border-radius: 16px; background: var(--panel-bg); }
+.bowl-capture-heading { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+.bowl-capture-heading h2 { margin: 0 0 6px; color: var(--fg); font-size: 18px; }
+.bowl-capture-heading p { margin: 0; max-width: 580px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.bowl-channel-select { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0; padding: 8px 12px; border: 1px solid var(--panel-border); border-radius: 10px; }
+.bowl-channel-select legend { padding: 0 4px; font-size: 11px; color: var(--muted); }
+.bowl-channel-select label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.bowl-channel-select input { accent-color: #8b5cf6; width: 16px; height: 16px; margin: 0; }
+.bowl-capture-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.bowl-capture-section button { min-height: 40px; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--control-bg); color: var(--control-fg); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.bowl-capture-section button:hover:not(:disabled) { border-color: #9370db; background: rgba(147,112,219,.12); }
+.bowl-capture-section button:disabled { opacity: .45; cursor: not-allowed; }
+.bowl-capture-section button.bowl-primary { background: linear-gradient(135deg,#7c3aed,#4f46e5); border-color: transparent; color: white; }
+.bowl-capture-section button.bowl-primary:hover:not(:disabled) { background: linear-gradient(135deg,#6d28d9,#4338ca); }
+.bowl-capture-section :is(button,a,input):focus-visible { outline: 2px solid #9370db; outline-offset: 3px; }
+.bowl-live-reading { display: flex; flex-direction: column; gap: 3px; margin-left: auto; min-width: 125px; text-align: right; }
+.bowl-live-reading span { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+.bowl-live-reading strong { font-size: 22px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; }
+.bowl-listening-progress { display: flex; gap: 12px; align-items: center; margin-top: 16px; color: var(--muted); font-size: 11px; }
+.bowl-listening-progress progress { flex: 1; min-width: 0; height: 8px; accent-color: #9370db; }
+.bowl-status { min-height: 1.5em; margin: 14px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.bowl-results { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 12px; }
+.bowl-result { display: flex; flex-direction: column; justify-content: center; gap: 7px; min-width: 0; padding: 14px 16px; border: 1px solid var(--panel-border); border-radius: 10px; background: var(--control-bg); }
+.bowl-result-label { color: var(--muted); font-size: 11px; font-weight: 600; }
+.bowl-result strong { color: var(--fg); font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bowl-result > span:last-child { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.bowl-result.is-captured { border-color: rgba(147,112,219,.5); }
+.bowl-interval strong { font-size: 15px; }
+.bowl-comparison-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; margin-top: 16px; }
+.bowl-comparison-actions a { color: var(--fg); font-size: 12px; text-underline-offset: 3px; }
+.bowl-capture-note { margin: 14px 0 0; max-width: 960px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.bowl-piano-summary { color: var(--fg); font-size: 12px; line-height: 1.6; margin: 0 0 16px; font-variant-numeric: tabular-nums; }
+.wheel.is-bowl-listening { outline: 2px dashed #9370db; outline-offset: 5px; border-radius: 50%; }
+#pianoReference { scroll-margin-top: 120px; }
+@media (max-width: 640px) {
+  .bowl-capture-section { padding: 18px 16px; }
+  .bowl-channel-select { width: 100%; justify-content: space-around; }
+  .bowl-live-reading { width: 100%; text-align: left; margin: 4px 0 0; }
+  .bowl-results { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
+  .bowl-result { padding: 12px; }
+  .bowl-result strong { font-size: 16px; }
+  .bowl-interval { grid-column: 1 / -1; }
+  #pianoReference { scroll-margin-top: 145px; }
+}
