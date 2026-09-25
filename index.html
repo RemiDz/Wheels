@@ -276,6 +276,103 @@
 
 
 
+  <section class="music-school-section" id="musicSchoolSection" aria-label="Music Theory Learning">
+    <!-- Music Theory Demo Label Overlay -->
+    <div class="theory-demo-overlay" id="theoryDemoOverlay" hidden>
+      <div class="theory-demo-label" id="theoryDemoLabel">—</div>
+    </div>
+    <div class="school-header-compact">
+      <span class="school-label">🎓 Music Theory</span>
+      <select id="conceptSelect" class="concept-dropdown" aria-label="Select music theory concept">
+        <option value="">Select a topic...</option>
+        <option value="frequency">Frequency</option>
+        <option value="vibrations">Vibrations</option>
+        <option value="harmonics">Harmonics</option>
+        <option value="overtones">Overtones</option>
+        <option value="timbre">Timbre</option>
+        <option value="tone">Tone</option>
+        <option value="note">Note</option>
+        <option value="scale">Scale</option>
+        <option value="octave">Octave</option>
+        <option value="intervals">Intervals</option>
+      </select>
+      <button class="theory-demo-btn" id="theoryDemoBtn" aria-label="Watch music theory demo" title="Educational demo of music theory concepts">
+        <span class="demo-icon">✨</span>
+        <span class="demo-text">Demo</span>
+      </button>
+    </div>
+    <div class="concept-explanation" id="conceptExplanation">
+      <div class="explanation-content">
+        <button class="explanation-close" id="explanationClose">×</button>
+        <div class="explanation-visual" id="explanationVisual"></div>
+        <div class="explanation-body">
+          <h3 class="explanation-title" id="explanationTitle"></h3>
+          <p class="explanation-text" id="explanationText"></p>
+        </div>
+        <div class="explanation-demo" id="explanationDemo"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="keyboard-section" id="pianoReference" aria-label="Piano reference" tabindex="-1">
+    <div class="keyboard-header">
+      <h2>Piano Reference</h2>
+      <div class="keyboard-toggles">
+        <button class="note-system-toggle" id="noteSystemToggle" aria-label="Toggle note system">
+          <span class="toggle-label">Show Solfege</span>
+        </button>
+        <button class="overtone-highlight-toggle" id="overtoneHighlightToggle" aria-label="Toggle overtone highlights">
+          <span class="toggle-label">Play Overtones</span>
+        </button>
+      </div>
+    </div>
+    <p class="bowl-piano-summary" id="bowlPianoSummary" hidden></p>
+    <div class="piano-keyboard-wrapper">
+      <div class="pitch-bend-wheel" id="pitchBendWheel" role="slider" aria-label="Pitch bend wheel" tabindex="0">
+        <div class="pitch-bend-label">Scroll</div>
+        <div class="pitch-bend-scroll-housing">
+          <div class="pitch-bend-scroll-wheel" id="pitchBendScrollWheel">
+            <div class="pitch-bend-ridges"></div>
+          </div>
+          <div class="pitch-bend-center-line"></div>
+        </div>
+        <div class="pitch-bend-value" id="pitchBendValue">+0.000</div>
+      </div>
+      <div id="pianoKeyboard" class="piano-keyboard"></div>
+    </div>
+  </section>
+
+  <section class="overtones-section" aria-label="Harmonic Overtones">
+    <!-- Overtones Demo Label Overlay -->
+    <div class="overtones-demo-overlay" id="overtonesDemoOverlay" hidden>
+      <div class="overtones-demo-label" id="overtonesDemoLabel">—</div>
+    </div>
+    <div class="overtones-header">
+      <h2>Overtones</h2>
+      <div class="overtones-header-controls">
+        <button class="harmonic-filter-toggle" id="harmonicOnlyToggle" aria-label="Play only harmonic overtones" title="Play only consonant harmonics (Fundamental, Octaves, Fifths, Thirds)">
+          <span class="toggle-label">Harmonic Only</span>
+        </button>
+        <button class="overtones-replay-btn" id="overtonesReplay" aria-label="Replay harmonic sequence" title="Replay harmonics from fundamental">
+          <span class="replay-icon">🔄</span>
+          <span class="replay-text">Replay</span>
+        </button>
+        <button class="harmonic-filter-toggle" id="dissonantOnlyToggle" aria-label="Play only dissonant overtones" title="Play only dissonant harmonics (2nd, 4th, 6th, 7ths)">
+          <span class="toggle-label">Dissonant Only</span>
+        </button>
+        <button class="overtones-demo-btn" id="overtonesDemoBtn" aria-label="Watch overtones demo" title="Educational demo of the harmonic series">
+          <span class="demo-icon">✨</span>
+          <span class="demo-text">Demo</span>
+        </button>
+      </div>
+    </div>
+    <div class="overtones-container" id="overtonesContainer">
+      <div class="overtones-display" id="overtonesDisplay">
+        <!-- Overtone cards will be generated here -->
+      </div>
+    </div>
+  </section>
+
   <!-- Unified Experiences Section with Tabs -->
   <section class="experiences-section" id="experiencesSection" aria-label="Binaural Experiences">
     <div class="experiences-tabs">
@@ -950,102 +1047,6 @@
     </div>
   </section>
 
-  <section class="music-school-section" id="musicSchoolSection" aria-label="Music Theory Learning">
-    <!-- Music Theory Demo Label Overlay -->
-    <div class="theory-demo-overlay" id="theoryDemoOverlay" hidden>
-      <div class="theory-demo-label" id="theoryDemoLabel">—</div>
-    </div>
-    <div class="school-header-compact">
-      <span class="school-label">🎓 Music Theory</span>
-      <select id="conceptSelect" class="concept-dropdown" aria-label="Select music theory concept">
-        <option value="">Select a topic...</option>
-        <option value="frequency">Frequency</option>
-        <option value="vibrations">Vibrations</option>
-        <option value="harmonics">Harmonics</option>
-        <option value="overtones">Overtones</option>
-        <option value="timbre">Timbre</option>
-        <option value="tone">Tone</option>
-        <option value="note">Note</option>
-        <option value="scale">Scale</option>
-        <option value="octave">Octave</option>
-        <option value="intervals">Intervals</option>
-      </select>
-      <button class="theory-demo-btn" id="theoryDemoBtn" aria-label="Watch music theory demo" title="Educational demo of music theory concepts">
-        <span class="demo-icon">✨</span>
-        <span class="demo-text">Demo</span>
-      </button>
-    </div>
-    <div class="concept-explanation" id="conceptExplanation">
-      <div class="explanation-content">
-        <button class="explanation-close" id="explanationClose">×</button>
-        <div class="explanation-visual" id="explanationVisual"></div>
-        <div class="explanation-body">
-          <h3 class="explanation-title" id="explanationTitle"></h3>
-          <p class="explanation-text" id="explanationText"></p>
-        </div>
-        <div class="explanation-demo" id="explanationDemo"></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="keyboard-section" id="pianoReference" aria-label="Piano reference" tabindex="-1">
-    <div class="keyboard-header">
-      <h2>Piano Reference</h2>
-      <div class="keyboard-toggles">
-        <button class="note-system-toggle" id="noteSystemToggle" aria-label="Toggle note system">
-          <span class="toggle-label">Show Solfege</span>
-        </button>
-        <button class="overtone-highlight-toggle" id="overtoneHighlightToggle" aria-label="Toggle overtone highlights">
-          <span class="toggle-label">Play Overtones</span>
-        </button>
-      </div>
-    </div>
-    <p class="bowl-piano-summary" id="bowlPianoSummary" hidden></p>
-    <div class="piano-keyboard-wrapper">
-      <div class="pitch-bend-wheel" id="pitchBendWheel" role="slider" aria-label="Pitch bend wheel" tabindex="0">
-        <div class="pitch-bend-label">Scroll</div>
-        <div class="pitch-bend-scroll-housing">
-          <div class="pitch-bend-scroll-wheel" id="pitchBendScrollWheel">
-            <div class="pitch-bend-ridges"></div>
-          </div>
-          <div class="pitch-bend-center-line"></div>
-        </div>
-        <div class="pitch-bend-value" id="pitchBendValue">+0.000</div>
-      </div>
-      <div id="pianoKeyboard" class="piano-keyboard"></div>
-    </div>
-  </section>
-
-  <section class="overtones-section" aria-label="Harmonic Overtones">
-    <!-- Overtones Demo Label Overlay -->
-    <div class="overtones-demo-overlay" id="overtonesDemoOverlay" hidden>
-      <div class="overtones-demo-label" id="overtonesDemoLabel">—</div>
-    </div>
-    <div class="overtones-header">
-      <h2>Overtones</h2>
-      <div class="overtones-header-controls">
-        <button class="harmonic-filter-toggle" id="harmonicOnlyToggle" aria-label="Play only harmonic overtones" title="Play only consonant harmonics (Fundamental, Octaves, Fifths, Thirds)">
-          <span class="toggle-label">Harmonic Only</span>
-        </button>
-        <button class="overtones-replay-btn" id="overtonesReplay" aria-label="Replay harmonic sequence" title="Replay harmonics from fundamental">
-          <span class="replay-icon">🔄</span>
-          <span class="replay-text">Replay</span>
-        </button>
-        <button class="harmonic-filter-toggle" id="dissonantOnlyToggle" aria-label="Play only dissonant overtones" title="Play only dissonant harmonics (2nd, 4th, 6th, 7ths)">
-          <span class="toggle-label">Dissonant Only</span>
-        </button>
-        <button class="overtones-demo-btn" id="overtonesDemoBtn" aria-label="Watch overtones demo" title="Educational demo of the harmonic series">
-          <span class="demo-icon">✨</span>
-          <span class="demo-text">Demo</span>
-        </button>
-      </div>
-    </div>
-    <div class="overtones-container" id="overtonesContainer">
-      <div class="overtones-display" id="overtonesDisplay">
-        <!-- Overtone cards will be generated here -->
-      </div>
-    </div>
-  </section>
 
   <footer class="footer">
     <p>Use headphones for binaural effect. Keep volume low for comfort.</p>
