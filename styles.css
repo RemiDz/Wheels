@@ -2459,6 +2459,8 @@ button {
 button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
 /* Theme toggle styles moved to page header */
 #play:active, #pause:active, #stop:active, #reset:active { transform: translateY(1px) scale(0.98); }
+/* icon glyph and label stay on one line (iOS draws the emoji glyph wider) */
+#play, #pause, #stop, #reset { white-space: nowrap; }
 
 /* Transport button styles - more modern and matching page aesthetic */
 #play { 
@@ -3406,10 +3408,12 @@ body:not([data-theme="dark"]) .fine-tune-value {
 .centre-presets select { min-width: 0; padding: 6px; font-size: 11px; }
 .mono-control-container .frequency-diff { flex-direction: row; justify-content: space-between; gap: 6px; min-height: 30px; padding: 6px 8px; }
 .mono-control-container .frequency-diff .live-info-item-label { margin: 0; }
+/* The Mono slider matches the pan sliders: a slim 6 px track, a 20 px thumb, a filled
+   portion for the current level, and an invisible taller hit area for touch. */
 .mono-volume-bar {
   width: 100%;
-  margin-top: 0;
-  margin-bottom: 4px;
+  margin: 4px 0 2px;
+  padding: 8px 0;
   display: flex;
   justify-content: center;
   flex: none;
@@ -3418,29 +3422,39 @@ body:not([data-theme="dark"]) .fine-tune-value {
 .mono-volume-track {
   position: relative;
   width: 100%;
-  height: 44px;
+  height: 6px;
   background: linear-gradient(to right,
-    rgba(139, 92, 246, 0.25) 0%,
-    rgba(139, 92, 246, 0.1) 50%,
-    rgba(139, 92, 246, 0.25) 100%
+    rgba(139, 92, 246, 0.18) 0%,
+    rgba(139, 92, 246, 0.12) 50%,
+    rgba(139, 92, 246, 0.18) 100%
   );
-  border: 2px solid var(--panel-border);
   border-radius: 999px;
   cursor: pointer;
   touch-action: none;
   overflow: visible;
 }
 
+/* filled part up to the thumb (width set by the slider code as --mono-fill) */
 .mono-volume-track::before {
   content: '';
   position: absolute;
-  inset: 8px;
-  background: linear-gradient(to right,
-    rgba(139, 92, 246, 0.3) 0%,
-    rgba(139, 92, 246, 0.15) 50%,
-    rgba(139, 92, 246, 0.3) 100%
-  );
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--mono-fill, 0%);
+  background: linear-gradient(to right, rgba(34, 197, 94, 0.55), rgba(139, 92, 246, 0.75));
   border-radius: 999px;
+  pointer-events: none;
+}
+
+/* taller hit area than the visible track, for fingers */
+.mono-volume-track::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -12px;
+  bottom: -12px;
 }
 
 .mono-volume-slider {
@@ -3448,33 +3462,32 @@ body:not([data-theme="dark"]) .fine-tune-value {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
+  width: 20px;
+  height: 20px;
   background: linear-gradient(180deg, #ffffff, #e5e7eb);
-  border: 3px solid rgba(139, 92, 246, 0.8);
+  border: 2px solid rgba(139, 92, 246, 0.8);
   border-radius: 50%;
   cursor: grab;
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.2),
-    0 0 20px rgba(139, 92, 246, 0.4),
-    inset 0 0 10px rgba(255, 255, 255, 0.5);
-  transition: box-shadow 0.2s ease;
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    0 0 12px rgba(139, 92, 246, 0.4);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
   z-index: 10;
 }
 
 .mono-volume-slider:hover {
+  transform: translate(-50%, -50%) scale(1.1);
   box-shadow: 
-    0 6px 16px rgba(0, 0, 0, 0.3),
-    0 0 30px rgba(139, 92, 246, 0.6),
-    inset 0 0 12px rgba(255, 255, 255, 0.6);
+    0 3px 10px rgba(0, 0, 0, 0.3),
+    0 0 18px rgba(139, 92, 246, 0.6);
 }
 
 .mono-volume-slider:active {
   cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.05);
   box-shadow: 
-    0 3px 8px rgba(0, 0, 0, 0.3),
-    0 0 20px rgba(139, 92, 246, 0.5),
-    inset 0 0 8px rgba(255, 255, 255, 0.4);
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 0 12px rgba(139, 92, 246, 0.5);
 }
 
 .mono-volume-value {

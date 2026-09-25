@@ -3764,6 +3764,7 @@ originalOvertonesFundamental = currentOvertonesFundamental;
     const position = (percent / 100) * metrics.maxPosition;
     monoSlider.style.left = (position + (metrics.sliderWidth / 2)) + 'px';
     monoSlider.style.top = '';
+    monoVolumeTrack.style.setProperty('--mono-fill', `${Math.max(0, Math.min(100, percent))}%`);
     monoSlider.setAttribute('aria-valuenow', Math.round(percent));
   }
 
