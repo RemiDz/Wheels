@@ -1591,15 +1591,8 @@
       applied = true;
     }
     if (applied) {
-      // Reset pitch bend and fine tune to default position
-      pitchBendOffset = 0;
-      fineTuneOffset = 0;
-      fineTuneRotation = 0;
-      if (typeof pitchBendScrollPos !== 'undefined') pitchBendScrollPos = 0;
-      if (typeof updatePitchBendDisplay === 'function') updatePitchBendDisplay();
-      if (typeof updatePitchBendScrollPosition === 'function') updatePitchBendScrollPosition();
-      if (typeof updateFineTuneDisplay === 'function') updateFineTuneDisplay();
-      
+      resetTuningOffsets();
+
       ensurePlaying();
       scheduleOscillatorSync();
       keyEl.classList.add('is-triggered');
@@ -1739,9 +1732,30 @@
     }
   });
 
+  // Fine Tune and Pitch Bend are offsets from the current wheel pair. Any other wheel
+  // change (drag, label, keyboard, piano, preset, journey) makes that pair the new base
+  // and zeroes both offsets, so their displays and the pitch-bend Home key stay truthful.
+  let fineTuneOffset = 0; // Accumulated offset in Hz
+  let fineTuneRotation = 0; // Current rotation in degrees (infinite)
+  let pitchBendOffset = 0; // Accumulated offset in Hz (same as fineTuneOffset)
+  let pitchBendScrollPos = 0; // Scroll position in pixels (infinite)
+  let tuningInProgress = false; // True while applyFineTune/applyPitchBend move the wheels
+
+  function resetTuningOffsets() {
+    if (!fineTuneOffset && !fineTuneRotation && !pitchBendOffset && !pitchBendScrollPos) return;
+    fineTuneOffset = 0;
+    fineTuneRotation = 0;
+    pitchBendOffset = 0;
+    pitchBendScrollPos = 0;
+    updateFineTuneDisplay();
+    updatePitchBendDisplay();
+    updatePitchBendScrollPosition();
+  }
+
   wheelL.setOnChange((hz, userInitiated) => {
     if (userInitiated) cancelBowlCapture('left');
-    if (!isApplyingPreset) {
+    if (!tuningInProgress) resetTuningOffsets();
+if (!isApplyingPreset) {
       if (presetSelect) presetSelect.value = '';
       if (binauralPresetSelect) binauralPresetSelect.value = '';
     }
@@ -1759,7 +1773,8 @@
   });
   wheelR.setOnChange((hz, userInitiated) => {
     if (userInitiated) cancelBowlCapture('right');
-    if (!isApplyingPreset) {
+    if (!tuningInProgress) resetTuningOffsets();
+if (!isApplyingPreset) {
       if (presetSelect) presetSelect.value = '';
       if (binauralPresetSelect) binauralPresetSelect.value = '';
     }
@@ -3774,9 +3789,7 @@
   }
 
   // Fine-tune dial functionality
-  let fineTuneOffset = 0; // Accumulated offset in Hz
-  let fineTuneRotation = 0; // Current rotation in degrees (infinite)
-  const fineTuneDial = document.getElementById('fineTuneDial');
+const fineTuneDial = document.getElementById('fineTuneDial');
   const fineTuneRotor = fineTuneDial?.querySelector('.fine-tune-rotor');
   const fineTunePointer = fineTuneDial?.querySelector('.fine-tune-pointer');
   const fineTuneValue = document.getElementById('fineTuneValue');
@@ -3812,19 +3825,23 @@
       const actualDelta = (Math.abs(actualDeltaL) > Math.abs(actualDeltaR)) ? actualDeltaL : actualDeltaR;
       
       fineTuneOffset += actualDelta;
-      
-      // Sync pitch bend offset (they share the same purpose)
-      if (typeof pitchBendOffset !== 'undefined') {
-        pitchBendOffset += actualDelta;
-        if (typeof pitchBendScrollPos !== 'undefined') pitchBendScrollPos += actualDelta * 10;
-        if (typeof updatePitchBendDisplay === 'function') updatePitchBendDisplay();
-        if (typeof updatePitchBendScrollPosition === 'function') updatePitchBendScrollPosition();
-      }
-      
+      fineTuneRotation += (actualDelta / 10) * 360; // 1 full rotation = 10 Hz
+
+      // Pitch bend mirrors the same offset
+      pitchBendOffset += actualDelta;
+      pitchBendScrollPos += actualDelta * 10;
+      updatePitchBendDisplay();
+      updatePitchBendScrollPosition();
+
       // Set the new frequencies
-      wheelL.setHz(newL, true);
-      wheelR.setHz(newR, true);
-      
+      tuningInProgress = true;
+      try {
+        wheelL.setHz(newL, true);
+        wheelR.setHz(newR, true);
+      } finally {
+        tuningInProgress = false;
+      }
+
       // Update overtones if we have an active fundamental
       // Use the left wheel frequency as the fundamental for overtones
       if (currentOvertonesFundamental > 0) {
@@ -3869,8 +3886,7 @@
       if (deltaAngle < -180) deltaAngle += 360;
       
       lastAngle = currentAngle;
-      fineTuneRotation += deltaAngle;
-      
+
       // Convert rotation to Hz change
       // 1 full rotation (360°) = 10 Hz change
       const deltaHz = (deltaAngle / 360) * 10;
@@ -3897,7 +3913,6 @@
       // Normalize wheel delta (different browsers report different values)
       const delta = e.deltaY || e.deltaX;
       const deltaRotation = -delta * 0.5; // Rotation sensitivity
-      fineTuneRotation += deltaRotation;
       const deltaHz = (deltaRotation / 360) * 10;
       applyFineTune(deltaHz);
     }, { passive: false });
@@ -3913,7 +3928,6 @@
         e.preventDefault();
       }
       if (deltaRotation !== 0) {
-        fineTuneRotation += deltaRotation;
         const deltaHz = (deltaRotation / 360) * 10;
         applyFineTune(deltaHz);
       }
@@ -3943,9 +3957,7 @@
   // ===== PITCH BEND WHEEL =====
   // Duplicates FINE TUNE functionality - scroll up/down to increase/decrease frequency
   // Uses infinite scroll wheel design like a mouse wheel
-  let pitchBendOffset = 0; // Accumulated offset in Hz (same as fineTuneOffset)
-  let pitchBendScrollPos = 0; // Scroll position in pixels (infinite)
-  const pitchBendWheel = document.getElementById('pitchBendWheel');
+const pitchBendWheel = document.getElementById('pitchBendWheel');
   const pitchBendScrollWheel = document.getElementById('pitchBendScrollWheel');
   const pitchBendValue = document.getElementById('pitchBendValue');
   
@@ -3996,9 +4008,14 @@
       fineTuneRotation += (actualDelta / 10) * 360; // Sync rotation too
       
       // Set the new frequencies
-      wheelL.setHz(newL, true);
-      wheelR.setHz(newR, true);
-      
+      tuningInProgress = true;
+      try {
+        wheelL.setHz(newL, true);
+        wheelR.setHz(newR, true);
+      } finally {
+        tuningInProgress = false;
+      }
+
       // Update overtones if we have an active fundamental
       if (currentOvertonesFundamental > 0) {
         currentOvertonesFundamental = newL;
@@ -4182,17 +4199,8 @@
     // Reset mono volume to 0%
     updateMonoVolume(0);
     
-    // Reset fine-tune offset and rotation
-    fineTuneOffset = 0;
-    fineTuneRotation = 0;
-    updateFineTuneDisplay();
-    
-    // Reset pitch bend wheel
-    pitchBendOffset = 0;
-    pitchBendScrollPos = 0;
-    updatePitchBendDisplay();
-    updatePitchBendScrollPosition();
-    
+    resetTuningOffsets();
+
     // === RESET HARMONIC FILTERS ===
     harmonicFilterMode = 'all';
     const harmonicToggle = document.getElementById('harmonicOnlyToggle');
