@@ -71,7 +71,22 @@
   const FREQUENCIES = [0.1, 3, 7.83, 8, 12, 40, 62, 136, 174, 256, 285, 288, 320, 341, 384, 396, 417, 426, 480, 528, 639, 693, 741, 852, 963, 1056, 1200, 1500, 1800, 2100, 2500, 3000, 3500, 4000];
   let SORTED_FREQUENCIES = [...FREQUENCIES].sort((a, b) => a - b);
   const MAX_FREQUENCY_HZ = 4200; // Match piano's top key range (C8 ~4186 Hz)
-  
+
+  // Brainwave bands, then the audible ranges above them; drawn as a ring on each wheel
+  // and named in the hub. A band covers [from, to).
+  const FREQUENCY_BANDS = [
+    { key: 'delta', name: 'Delta', short: 'δ', from: 0.1, to: 4, color: '#3b82f6' },
+    { key: 'theta', name: 'Theta', short: 'θ', from: 4, to: 8, color: '#8b5cf6' },
+    { key: 'alpha', name: 'Alpha', short: 'α', from: 8, to: 13, color: '#22c55e' },
+    { key: 'beta', name: 'Beta', short: 'β', from: 13, to: 30, color: '#f59e0b' },
+    { key: 'gamma', name: 'Gamma', short: 'γ', from: 30, to: 100, color: '#ef4444' },
+    { key: 'tones', name: 'Tones', short: 'T', from: 100, to: 1000, color: '#14b8a6' },
+    { key: 'high', name: 'High', short: 'H', from: 1000, to: MAX_FREQUENCY_HZ, color: '#64748b' }
+  ];
+  function bandForFrequency(hz) {
+    return FREQUENCY_BANDS.find(band => hz < band.to) ?? FREQUENCY_BANDS[FREQUENCY_BANDS.length - 1];
+  }
+
   // Proper Solfeggio frequency colors based on sound healing and chakra associations
   const GALAXY_COLORS = {
     0.1: {
@@ -187,14 +202,15 @@
   function createWheel(root, initialTopHz = SORTED_FREQUENCIES[0] || 174) {
     root.innerHTML = `
       <div class="rotor"></div>
+      <svg class="bands" viewBox="0 0 200 200" aria-hidden="true" focusable="false"></svg>
       <div class="pointer"></div>
       <div class="inner-circle">
         <div class="inner-pointer"></div>
       </div>
       <div class="labels"></div>
       <div class="hub">
-        <div class="hz">—</div>
-        <div class="sub">Hz</div>
+        <div class="hub-value"><span class="hz">—</span><span class="sub">Hz</span></div>
+        <div class="band-name">—</div>
         <div class="galaxy-name">—</div>
       </div>
     `;
@@ -206,8 +222,12 @@
     root.setAttribute('aria-valuemax', String(MAX_FREQUENCY_HZ));
 
     const rotor  = root.querySelector('.rotor');
+    const bands = root.querySelector('.bands');
+    const bandName = root.querySelector('.hub .band-name');
+    let labelElements = [];
+    let wheelReady = false; // pointer state exists once the wheel is initialised
     const pointer = root.querySelector('.pointer');
-    const innerCircle = root.querySelector('.inner-circle');
+const innerCircle = root.querySelector('.inner-circle');
     const innerPointer = root.querySelector('.inner-pointer');
     const labels = root.querySelector('.labels');
     const hubHz  = root.querySelector('.hub .hz');
@@ -251,12 +271,47 @@
       return String(freq);
     }
 
+    // Band ring on the rim: one arc per band between the wheel angles of its limits,
+    // with its name along the arc (a Greek letter when the arc is too short for it).
+    function layoutBands(widthPx) {
+      if (!bands) return;
+      const R = 91; // centreline radius in viewBox units (the viewBox is 200 wide)
+      const idPrefix = `${root.id || 'wheel'}-band`;
+      const point = angle => {
+        const rad = (angle - 90) * Math.PI / 180;
+        return [(100 + R * Math.cos(rad)).toFixed(2), (100 + R * Math.sin(rad)).toFixed(2)];
+      };
+      let defs = '', arcs = '', texts = '';
+      for (const band of FREQUENCY_BANDS) {
+        const a1 = mapFrequencyToAngle(Math.max(band.from, SORTED_FREQUENCIES[0]));
+        const a2 = band.to >= MAX_FREQUENCY_HZ ? 360 : mapFrequencyToAngle(band.to);
+        if (a2 <= a1) continue;
+        const gap = 0.6; // degrees between arcs
+        const start = a1 + gap, end = a2 - gap;
+        const large = end - start > 180 ? 1 : 0;
+        const [x1, y1] = point(start), [x2, y2] = point(end);
+        arcs += `<path class="band band-${band.key}" d="M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2}" stroke="${band.color}"/>`;
+        // names along the lower half run the other way round so they read upright
+        const mid = (start + end) / 2;
+        const reversed = mid > 90 && mid < 270;
+        const id = `${idPrefix}-${band.key}`;
+        defs += reversed
+          ? `<path id="${id}" d="M ${x2} ${y2} A ${R} ${R} 0 ${large} 0 ${x1} ${y1}"/>`
+          : `<path id="${id}" d="M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2}"/>`;
+        const arcPx = (widthPx / 200) * R * (end - start) * Math.PI / 180;
+        const label = arcPx >= band.name.length * 7 ? band.name.toUpperCase() : band.short;
+        texts += `<text class="band-label"><textPath href="#${id}" xlink:href="#${id}" startOffset="50%" text-anchor="middle">${label}</textPath></text>`;
+      }
+      bands.innerHTML = `<defs>${defs}</defs>${arcs}${texts}`;
+    }
+
     // place label positions around the circle with sorted frequencies (lowest at 12 o'clock)
     function layoutLabels() {
       labels.innerHTML = '';
       const b = root.getBoundingClientRect();
-      const r = b.width/2 - 28;
-      // keep the pointer pivot aligned with the wheel radius across screen sizes
+      layoutBands(b.width);
+      const r = b.width/2 - 44; // inside the band ring
+// keep the pointer pivot aligned with the wheel radius across screen sizes
       pointer.style.transformOrigin = `50% calc(50% + ${b.width/2}px)`;
       // Set inner pointer pivot to inner circle radius
       innerPointer.style.transformOrigin = `50% calc(50% + ${b.width * 0.2}px)`;
@@ -272,9 +327,18 @@
         s.textContent = formatFrequencyLabel(SORTED_FREQUENCIES[i]);
         labels.appendChild(s);
       }
+      labelElements = [...labels.children];
+      highlightNearestLabel();
+    }
+
+    // The anchor label nearest the pointer is emphasised.
+    function highlightNearestLabel() {
+      if (!wheelReady || !labelElements.length) return;
+      const nearest = Math.round(pointerAngleVisual / step) % labelElements.length;
+      labelElements.forEach((el, i) => el.classList.toggle('is-active', i === nearest));
     }
     layoutLabels();
-    // Make labels clickable to jump directly
+// Make labels clickable to jump directly
     labels.addEventListener('click', (e) => {
       const target = e.target;
       if (!(target instanceof Element)) return;
@@ -317,6 +381,7 @@
     } else {
       continuousFrequency = initialTopHz;
     }
+    wheelReady = true;
     applyRotation();
 
     // drag to rotate pointer - ONLY when touching the pointer itself
@@ -547,7 +612,13 @@
       hubHz.textContent = currentHz.toFixed(3);
       root.setAttribute('aria-valuenow', currentHz.toFixed(3));
       root.setAttribute('aria-valuetext', `${currentHz.toFixed(3)} Hz`);
-      
+      const band = bandForFrequency(currentHz);
+      if (bandName) {
+        bandName.textContent = band.name.toUpperCase();
+        bandName.style.color = band.color;
+      }
+      highlightNearestLabel();
+
       // Update galaxy colors dynamically - interpolate between frequencies
       const colors = getInterpolatedColors(currentHz);
       if (colors) {
