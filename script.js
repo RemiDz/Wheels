@@ -3737,7 +3737,36 @@ originalOvertonesFundamental = currentOvertonesFundamental;
   const INTERVAL_SHORT_NAMES = ['8ve', 'm2nd', 'M2nd', 'm3rd', 'M3rd', 'P4th', 'tritone', 'P5th', 'm6th', 'M6th', 'm7th', 'M7th'];
   const INTERVAL_LONG_NAMES = ['octave', 'minor second', 'major second', 'minor third', 'major third', 'perfect fourth',
     'tritone', 'perfect fifth', 'minor sixth', 'major sixth', 'minor seventh', 'major seventh'];
-  const intervalsToggle = document.getElementById('intervalsToggle');
+  // Consonance group of each interval (colours the cells, the readout and the reference list)
+  // and its character, condensed from the interval table Remi supplied. Indexed like the names.
+  const INTERVAL_TONES = ['perfect', 'sharp', 'mild', 'imperfect', 'imperfect', 'perfect', 'sharp', 'perfect', 'imperfect', 'imperfect', 'mild', 'sharp'];
+  const INTERVAL_EFFECTS = [
+    'Stable, spacious, expansive and safe; supportive, balanced, reliable, uplifting.',
+    "Strong beating, the 'pneumatic drill' of intervals: exciting, scary, exhilarating, consciousness-shifting.",
+    'Close and tight; can beat, more subtly than the minor 2nd; slightly disconcerting for some.',
+    'Sweetly melancholic and gentle; can resonate with and release grief and sadness.',
+    'Happy, light and neutral; a place of rest and repose.',
+    'Harmonious and stable, cheerful and slightly mysterious; warm and exotic.',
+    'Harsh, alien, restless, cold; dangerously exciting, thrilling, dark.',
+    "Uplifting, happy, healing, peaceful: a 'sonic cuddle', the most harmonious interval.",
+    'A space full of possibility, with slight tension and longing.',
+    'Expansive and uplifting; can create an awakening, light-filled space.',
+    'Yearning, desire, tension, mournfulness.',
+    'Aspiration, longing, wanting to resolve; displeasure.'
+  ];
+  const INTERVAL_TONE_GROUPS = [
+    { tone: 'perfect', label: 'Perfect consonances', note: 'open, stable, harmonious' },
+    { tone: 'imperfect', label: 'Imperfect consonances', note: 'warm, emotional colour' },
+    { tone: 'mild', label: 'Mild dissonances', note: 'tension that wants to resolve' },
+    { tone: 'sharp', label: 'Sharp dissonances', note: 'beating, restless, edgy' }
+  ];
+  const INTERVAL_READOUT_IDLE = 'Tap an interval, or move the wheels.';
+
+  function intervalDisplayName(index) {
+    const name = INTERVAL_LONG_NAMES[index];
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+const intervalsToggle = document.getElementById('intervalsToggle');
   const intervalsPanel = document.getElementById('intervalsPanel');
   const intervalsTable = document.getElementById('intervalsTable');
   const intervalOctave = document.getElementById('intervalOctave');
@@ -3757,17 +3786,74 @@ originalOvertonesFundamental = currentOvertonesFundamental;
     if (current) {
       current.classList.remove('is-active');
       current.removeAttribute('aria-current');
+      clearIntervalCellFill(current);
     }
-    if (cell) {
+if (cell) {
       cell.classList.add('is-active');
       cell.setAttribute('aria-current', 'true');
     }
     return true;
   }
 
+  // Fill meters inside the highlighted cell, drawn like the key fills: the lower note rises in
+  // the left half and the upper note in the right half, each as far as the note sits between
+  // its key and the next one, in the colour the keyboard gives that frequency. So the Scroll
+  // wheel fills the cell up and drains it down, and a new cell starts from its own ratios.
+  function intervalFillColor(hz) {
+    const colors = getInterpolatedColors(hz);
+    return colors?.glow || colors?.primary || '#f97316';
+  }
+
+  function setIntervalCellFill(cell, lower, upper, lowerHz, upperHz) {
+    cell.style.setProperty('--fill-lower', lower.ratio.toFixed(3));
+    cell.style.setProperty('--fill-upper', upper.ratio.toFixed(3));
+    cell.style.setProperty('--fill-lower-color', intervalFillColor(lowerHz));
+    cell.style.setProperty('--fill-upper-color', intervalFillColor(upperHz));
+  }
+
+  function clearIntervalCellFill(cell) {
+    for (const name of ['--fill-lower', '--fill-upper', '--fill-lower-color', '--fill-upper-color']) cell.style.removeProperty(name);
+  }
+
+  // The readout above the table names the highlighted interval, its two notes and its
+  // character. Re-rendered only when the pair (or the note-name system) changes.
+  function renderIntervalReadout(lowerKey, upperKey) {
+    const readout = document.getElementById('intervalsReadout');
+    if (!readout) return;
+    const key = lowerKey && upperKey ? `${lowerKey.midi}-${upperKey.midi}-${noteSystem}` : '';
+    if (readout.dataset.pair === key) return;
+    readout.dataset.pair = key;
+    if (!key) {
+      readout.className = 'intervals-readout';
+      readout.textContent = INTERVAL_READOUT_IDLE;
+      return;
+    }
+    const index = (upperKey.midi - lowerKey.midi) % 12;
+    const names = NOTE_NAMES[noteSystem];
+    readout.className = `intervals-readout tone-${INTERVAL_TONES[index]}`;
+    readout.innerHTML = `<strong>${intervalDisplayName(index)}</strong> `
+      + `<span class="intervals-readout-notes">${names[lowerKey.noteIndex]}${lowerKey.octave} · ${names[upperKey.noteIndex]}${upperKey.octave}</span> `
+      + `<span class="intervals-readout-effect">${INTERVAL_EFFECTS[index]}</span>`;
+  }
+
+  function renderIntervalLegend() {
+    const legend = document.getElementById('intervalsLegend');
+    if (!legend) return;
+    let html = '';
+    for (const group of INTERVAL_TONE_GROUPS) {
+      html += `<li class="intervals-legend-group tone-${group.tone}"><span>${group.label}</span> <span class="intervals-legend-note">${group.note}</span></li>`;
+      INTERVAL_TONES.forEach((tone, index) => {
+        if (tone !== group.tone) return;
+        html += `<li class="tone-${tone}"><span class="legend-chip">${INTERVAL_SHORT_NAMES[index]}</span>`
+          + `<span><span class="legend-name">${intervalDisplayName(index)}</span> <span class="legend-effect">${INTERVAL_EFFECTS[index]}</span></span></li>`;
+      });
+    }
+    legend.innerHTML = html;
+  }
+
   // Scroll the table sideways (never the page) so the highlighted cell stays in view.
   function revealIntervalCell(cell) {
-    const scroller = cell.closest('.intervals-scroll');
+const scroller = cell.closest('.intervals-scroll');
     if (!scroller || document.getElementById('intervalsPanel')?.hidden || scroller.scrollWidth <= scroller.clientWidth) return;
     const td = cell.parentElement;
     const pinned = td?.parentElement?.querySelector('th')?.offsetWidth ?? 0;
@@ -3784,16 +3870,28 @@ originalOvertonesFundamental = currentOvertonesFundamental;
   function syncIntervalTableToWheels() {
     const table = document.getElementById('intervalsTable');
     if (!table?.tBodies.length || !wheelL || !wheelR) return;
-    const keyL = getKeySpanForFrequency(wheelL.getHz())?.key ?? null;
-    const keyR = getKeySpanForFrequency(wheelR.getHz())?.key ?? null;
+    const hzL = wheelL.getHz();
+    const hzR = wheelR.getHz();
+    const spanL = getKeySpanForFrequency(hzL);
+    const spanR = getKeySpanForFrequency(hzR);
     let cell = null;
-    if (keyL && keyR && keyL.midi !== keyR.midi) {
-      const [lower, upper] = keyL.midi < keyR.midi ? [keyL, keyR] : [keyR, keyL];
+    let lowerSpan = null;
+    let upperSpan = null;
+    let lowerHz = 0;
+    let upperHz = 0;
+    if (spanL?.key && spanR?.key && spanL.key.midi !== spanR.key.midi) {
+      const lowerIsLeft = spanL.key.midi < spanR.key.midi;
+      [lowerSpan, upperSpan] = lowerIsLeft ? [spanL, spanR] : [spanR, spanL];
+      [lowerHz, upperHz] = lowerIsLeft ? [hzL, hzR] : [hzR, hzL];
+      const lower = lowerSpan.key;
+      const upper = upperSpan.key;
       cell = table.querySelector(`.interval-cell[data-row="${lower.noteIndex}"][data-column="${upper.noteIndex}"]`);
       const octaveSelect = document.getElementById('intervalOctave');
       if (octaveSelect?.querySelector(`option[value="${lower.octave}"]`)) octaveSelect.value = String(lower.octave);
     }
     if (setActiveIntervalCell(cell) && cell) revealIntervalCell(cell);
+    if (cell) setIntervalCellFill(cell, lowerSpan, upperSpan, lowerHz, upperHz);
+    renderIntervalReadout(lowerSpan?.key ?? null, upperSpan?.key ?? null);
   }
 
   function renderIntervalTable() {
@@ -3806,10 +3904,11 @@ originalOvertonesFundamental = currentOvertonesFundamental;
     names.forEach((rowName, row) => {
       body += `<tr><th scope="row">${rowName}</th>`;
       names.forEach((columnName, column) => {
-        const semitones = intervalSemitones(row, column);
-        body += `<td><button type="button" class="interval-cell${semitones % 2 ? ' is-odd' : ''}" data-row="${row}" data-column="${column}" `
-          + `aria-label="${INTERVAL_LONG_NAMES[semitones % 12]} from ${rowName} to ${columnName}">${INTERVAL_SHORT_NAMES[semitones % 12]}</button></td>`;
-      });
+        const index = intervalSemitones(row, column) % 12;
+        body += `<td><button type="button" class="interval-cell tone-${INTERVAL_TONES[index]}" data-row="${row}" data-column="${column}" `
+          + `title="${intervalDisplayName(index)}: ${INTERVAL_EFFECTS[index]}" `
+          + `aria-label="${INTERVAL_LONG_NAMES[index]} from ${rowName} to ${columnName}">${INTERVAL_SHORT_NAMES[index]}</button></td>`;
+});
       body += '</tr>';
     });
     body += '</tbody>';
@@ -3871,7 +3970,8 @@ originalOvertonesFundamental = currentOvertonesFundamental;
     const active = activeIntervalCell();
     if (active) playInterval(Number(active.dataset.row), Number(active.dataset.column));
   });
-renderIntervalTable();
+  renderIntervalLegend();
+  renderIntervalTable();
 
   // Overtone highlighting toggle
   const overtoneHighlightToggle = document.getElementById('overtoneHighlightToggle');

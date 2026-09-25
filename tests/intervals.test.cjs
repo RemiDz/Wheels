@@ -138,3 +138,84 @@ test('the highlighted cell follows the keys the keyboard lights, so the Scroll w
     assert.equal(active(app), '0-7');
   } finally { app.close(); }
 });
+
+const fill = (app, row, column) => {
+  const s = cell(app, row, column).style;
+  return { lower: s.getPropertyValue('--fill-lower'), upper: s.getPropertyValue('--fill-upper'), lowerColor: s.getPropertyValue('--fill-lower-color'), upperColor: s.getPropertyValue('--fill-upper-color') };
+};
+
+test('the highlighted cell fills up as the Scroll wheel raises the pair and drains as it lowers it', async () => {
+  const app = createApp();
+  try {
+    app.click('#intervalsToggle');
+    cell(app, 0, 7).click(); // C4 -> G4, both notes exactly on their keys
+    await app.tick(100);
+    assert.deepEqual([fill(app, 0, 7).lower, fill(app, 0, 7).upper], ['0.000', '0.000']);
+
+    const ratio = hz => app.app.getKeySpanForFrequency(hz).ratio.toFixed(3);
+    app.app.applyPitchBend(10); // C4 + 10 Hz is 0.64 of the way to C#4, G4 + 10 Hz 0.43 of the way to G#4
+    await app.tick(100);
+    assert.equal(active(app), '0-7');
+    assert.equal(fill(app, 0, 7).lower, ratio(app.app.wheelL.getHz()));
+    assert.equal(fill(app, 0, 7).upper, ratio(app.app.wheelR.getHz()));
+    assert.ok(Number(fill(app, 0, 7).lower) > 0.6 && Number(fill(app, 0, 7).upper) > 0.4, JSON.stringify(fill(app, 0, 7)));
+    assert.match(fill(app, 0, 7).lowerColor, /^#[0-9a-f]{6}$/i);
+    assert.match(fill(app, 0, 7).upperColor, /^#[0-9a-f]{6}$/i);
+
+    app.app.applyPitchBend(-5); // draining
+    await app.tick(100);
+    assert.ok(Number(fill(app, 0, 7).lower) < 0.4, fill(app, 0, 7).lower);
+
+    app.app.applyPitchBend(25); // crosses into C#4 / G#4: the old cell empties, the new one starts from its own levels
+    await app.tick(100);
+    assert.equal(active(app), '1-8');
+    assert.deepEqual([fill(app, 0, 7).lower, fill(app, 0, 7).upper, fill(app, 0, 7).lowerColor], ['', '', '']);
+    assert.equal(fill(app, 1, 8).lower, ratio(app.app.wheelL.getHz()));
+    assert.equal(fill(app, 1, 8).upper, ratio(app.app.wheelR.getHz()));
+
+    app.app.wheelL.setHz(440); app.app.wheelR.setHz(440); // no cell, no leftover fill
+    await app.tick(100);
+    assert.equal(active(app), null);
+    assert.equal(fill(app, 1, 8).lower, '');
+  } finally { app.close(); }
+});
+
+test('cells are tinted by consonance group, and the readout and reference describe the intervals', async () => {
+  const app = createApp();
+  try {
+    app.click('#intervalsToggle');
+    const tone = (row, column) => [...cell(app, row, column).classList].find(c => c.startsWith('tone-'));
+    assert.deepEqual([tone(0, 0), tone(0, 5), tone(0, 7)], ['tone-perfect', 'tone-perfect', 'tone-perfect']);
+    assert.deepEqual([tone(0, 3), tone(0, 4), tone(0, 8), tone(0, 9)], ['tone-imperfect', 'tone-imperfect', 'tone-imperfect', 'tone-imperfect']);
+    assert.deepEqual([tone(0, 2), tone(0, 10)], ['tone-mild', 'tone-mild']);
+    assert.deepEqual([tone(0, 1), tone(0, 6), tone(0, 11)], ['tone-sharp', 'tone-sharp', 'tone-sharp']);
+    assert.equal(tone(7, 2), 'tone-perfect', 'G to D is a fifth');
+    assert.match(cell(app, 0, 7).getAttribute('title'), /^Perfect fifth: .*sonic cuddle/);
+
+    const legend = app.document.getElementById('intervalsLegend');
+    assert.equal(legend.querySelectorAll('li.intervals-legend-group').length, 4);
+    assert.equal(legend.querySelectorAll('li:not(.intervals-legend-group)').length, 12);
+    assert.match(legend.textContent, /Tritone/);
+    assert.match(legend.textContent, /pneumatic drill/);
+
+    const readout = app.document.getElementById('intervalsReadout');
+    assert.equal(readout.textContent, 'Tap an interval, or move the wheels.');
+    cell(app, 0, 7).click();
+    await app.tick(100);
+    assert.match(readout.textContent, /^Perfect fifth C4 · G4 Uplifting/);
+    assert.ok(readout.classList.contains('tone-perfect'));
+
+    app.click('#noteSystemToggle');
+    await app.tick(100);
+    assert.match(readout.textContent, /Do4 · Sol4/);
+
+    app.app.wheelL.setHz(261.63); app.app.wheelR.setHz(783.99); // C4 -> G5 reads as a fifth with the real notes
+    await app.tick(100);
+    assert.match(readout.textContent, /^Perfect fifth Do4 · Sol5/);
+
+    app.app.wheelR.setHz(261.63); // unison
+    await app.tick(100);
+    assert.equal(readout.textContent, 'Tap an interval, or move the wheels.');
+    assert.equal(readout.className, 'intervals-readout');
+  } finally { app.close(); }
+});

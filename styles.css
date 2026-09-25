@@ -4264,19 +4264,72 @@ body[data-theme="dark"] .concept-dropdown {
 .intervals-table .intervals-corner { display: flex; flex-direction: column; align-items: flex-end; font-size: 8px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.2; }
 .intervals-table .intervals-corner span:first-child { align-self: flex-start; }
 .intervals-table td { padding: 0; }
+/* Consonance groups colour the cells, the readout and the reference list */
+.tone-perfect { --tone: #0f766e; --tone-rgb: 20, 184, 166; }
+.tone-imperfect { --tone: #b45309; --tone-rgb: 245, 158, 11; }
+.tone-mild { --tone: #6d28d9; --tone-rgb: 139, 92, 246; }
+.tone-sharp { --tone: #be123c; --tone-rgb: 244, 63, 94; }
+body[data-theme="dark"] .tone-perfect { --tone: #5eead4; }
+body[data-theme="dark"] .tone-imperfect { --tone: #fcd34d; }
+body[data-theme="dark"] .tone-mild { --tone: #c4b5fd; }
+body[data-theme="dark"] .tone-sharp { --tone: #fda4af; }
 .interval-cell {
   display: block; width: 100%; min-width: 46px; min-height: 34px; padding: 6px 4px;
-  border-radius: 6px; border: 1px solid var(--panel-border); background: var(--control-bg);
-  color: var(--fg); font-size: 11px; font-weight: 600; cursor: pointer; text-align: center;
+  border-radius: 6px; border: 1px solid rgba(var(--tone-rgb, 139, 92, 246), 0.25);
+  background: rgba(var(--tone-rgb, 139, 92, 246), 0.07);
+  color: var(--tone, var(--fg)); font-size: 11px; font-weight: 600; cursor: pointer; text-align: center;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.interval-cell.is-odd { color: #6d28d9; }
-.interval-cell:hover { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.1); }
+.interval-cell:hover { border-color: rgba(var(--tone-rgb, 139, 92, 246), 0.5); background: rgba(var(--tone-rgb, 139, 92, 246), 0.16); }
 .interval-cell:active { transform: scale(0.97); }
-.interval-cell.is-active { background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(139, 92, 246, 0.18)); border-color: rgba(139, 92, 246, 0.7); box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3); }
-body[data-theme="dark"] .interval-cell.is-odd { color: #c4b5fd; }
+.interval-cell.is-active { background: rgba(var(--tone-rgb, 139, 92, 246), 0.22); border-color: var(--tone); box-shadow: 0 0 0 2px rgba(var(--tone-rgb, 139, 92, 246), 0.3); }
+/* Fill meters in the highlighted cell, drawn like the key fills: the lower note rises in the
+   left half and the upper note in the right half (height = how far each note sits between its
+   key and the next), so the Scroll wheel fills the cell up and drains it down. */
+.interval-cell { position: relative; isolation: isolate; overflow: hidden; }
+.interval-cell::before,
+.interval-cell::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: calc(50% - 1px);
+  height: 0;
+  opacity: 0;
+  border-top: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 2px 2px 0 0;
+  transition: height 0.15s ease, opacity 0.2s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+.interval-cell::before {
+  left: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, var(--fill-lower-color, #f97316) 100%);
+  height: calc(var(--fill-lower, 0) * 100%);
+}
+.interval-cell::after {
+  right: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, var(--fill-upper-color, #fb923c) 100%);
+  height: calc(var(--fill-upper, 0) * 100%);
+}
+.interval-cell.is-active::before,
+.interval-cell.is-active::after { opacity: 0.7; }
+/* Readout of the highlighted interval (fixed height so the table never moves) */
+.intervals-readout { margin: 0 0 10px; min-height: 1.5em; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.intervals-readout strong { color: var(--tone, var(--fg)); font-weight: 800; }
+.intervals-readout-notes { font-weight: 700; color: var(--fg); font-variant-numeric: tabular-nums; }
+/* Reference list of all twelve intervals, grouped by consonance */
+.intervals-reference { margin-top: 12px; font-size: 12px; }
+.intervals-reference summary { cursor: pointer; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.intervals-legend { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
+.intervals-legend li { display: grid; grid-template-columns: 60px 1fr; gap: 8px 10px; align-items: start; line-height: 1.4; }
+.intervals-legend .intervals-legend-group { display: block; margin-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--tone); }
+.intervals-legend-note { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--muted); }
+.legend-chip { display: inline-block; text-align: center; padding: 4px 6px; border-radius: 6px; font-weight: 700; font-size: 11px; color: var(--tone); background: rgba(var(--tone-rgb), 0.1); border: 1px solid rgba(var(--tone-rgb), 0.35); }
+.legend-name { font-weight: 700; color: var(--fg); }
+.legend-effect { color: var(--muted); }
 @media (max-width: 700px) {
   .interval-cell { min-width: 44px; min-height: 40px; font-size: 10px; }
+  .intervals-readout { min-height: 3em; }
 }
 
 .piano-keyboard-wrapper {
