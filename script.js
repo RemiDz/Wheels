@@ -761,11 +761,9 @@ const innerCircle = root.querySelector('.inner-circle');
     const paused = transportPaused;
     const generation = playbackGeneration;
     const request = transportRequest;
-    if (!paused) scheduleAudioUnlockHint();
     try {
       // Queue every request, even if state still reflects an earlier operation.
       await (paused ? audioCtx.suspend() : audioCtx.resume());
-      if (!paused) hideAudioUnlockHint();
     } catch (error) {
 // An obsolete activation must not stop a newer activity or transport action.
       if (generation === playbackGeneration && request === transportRequest) handleAudioError(error);
@@ -853,12 +851,7 @@ const innerCircle = root.querySelector('.inner-circle');
   }
 
   function ensureAudio(){
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-      if (typeof audioCtx.addEventListener === 'function') {
-        audioCtx.addEventListener('statechange', () => { if (audioCtx?.state === 'running') hideAudioUnlockHint(); });
-      }
-    }
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 const make = (pan)=> {
       const osc = audioCtx.createOscillator(); osc.type = 'sine';
       const gain = audioCtx.createGain(); gain.gain.value = 0;
@@ -4342,38 +4335,8 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     if (!wheel1?.started && !harmonicsPlaying && !activeActivity) return;
     syncAudioState().catch(handleAudioError);
   }
-  for (const type of ['pointerup', 'touchend', 'mouseup', 'click', 'keydown']) {
+  for (const type of ['pointerdown', 'pointerup', 'touchend', 'mousedown', 'mouseup', 'click', 'keydown']) {
     document.addEventListener(type, unlockAudioOnGesture, { capture: true, passive: true });
-  }
-
-  // A scroll (trackpad or mouse wheel) never ends in a gesture that can start audio on
-  // iOS, nor in a fresh desktop tab. If the context is still suspended shortly after a
-  // play request and no finger is down, say what will start it; the next tap does.
-  const AUDIO_UNLOCK_HINT = 'Tap or click anywhere to start the sound.';
-  let audioHintTimer = null;
-  let pointerIsDown = false;
-  document.addEventListener('pointerdown', () => { pointerIsDown = true; }, { capture: true, passive: true });
-  for (const type of ['pointerup', 'pointercancel']) {
-    document.addEventListener(type, () => { pointerIsDown = false; }, { capture: true, passive: true });
-  }
-  window.addEventListener('blur', () => { pointerIsDown = false; });
-  function hideAudioUnlockHint() {
-    if (typeof document === 'undefined') return; // page already torn down
-    const status = document.getElementById('audioStatus');
-    if (status && status.textContent === AUDIO_UNLOCK_HINT) status.hidden = true;
-  }
-  function scheduleAudioUnlockHint() {
-    if (audioHintTimer) return;
-    audioHintTimer = window.setTimeout(() => {
-      audioHintTimer = null;
-      if (typeof document === 'undefined' || !audioCtx || transportPaused || audioCtx.state !== 'suspended') return;
-      if (pointerIsDown) { scheduleAudioUnlockHint(); return; } // the release will start it
-      if (!wheel1?.started && !harmonicsPlaying && !activeActivity) return;
-      const status = document.getElementById('audioStatus');
-      if (!status) return;
-      status.textContent = AUDIO_UNLOCK_HINT;
-      status.hidden = false;
-    }, 500);
   }
 document.getElementById('reset').addEventListener('click', ()=> {
     stopAllPlayback();
