@@ -1330,9 +1330,6 @@
     }
   }, 100);
   window.addEventListener('resize', resizeSpectrogramCanvas);
-  spectrogramCanvas?.closest('details')?.addEventListener('toggle', event => {
-    if (event.currentTarget.open) resizeSpectrogramCanvas();
-  });
   
   // Start continuous waveform animation
   function startSpectrogramAnimation() {

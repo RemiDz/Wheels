@@ -100,6 +100,14 @@
 
   <div class="grid">
     <div class="wheel-container">
+      <div class="wheel-readout" role="group" aria-label="Left wheel frequency">
+        <div class="wheel-readout-label">Left wheel</div>
+        <div class="wheel-readout-values">
+          <span class="wheel-readout-frequency" id="leftWheelFreq">—</span>
+          <span class="wheel-readout-note" id="leftWheelNote" title="Nearest piano note">—</span>
+          <span class="wheel-readout-offset" id="leftWheelOffset" title="Difference from the nearest piano note">—</span>
+        </div>
+      </div>
       <div class="wheel" id="wheelL" aria-label="Left wheel"></div>
       <div class="wheel-controls">
         <div class="pan-control">
@@ -162,23 +170,16 @@
       
       </div>
       <div class="live-info-section">
-        <div class="live-info-label"></div>
         <div class="live-info-content">
-          <div class="live-info-wheels">
-            <div class="live-info-wheel-wrapper">
-              <div class="live-info-item-label">Left Wheel</div>
-              <div class="live-info-item">
-                <div class="live-info-item-note" id="leftWheelNote">—</div>
-                <div class="live-info-item-offset" id="leftWheelOffset">—</div>
-                <div class="live-info-item-freq" id="leftWheelFreq">—</div>
-              </div>
+          <div class="spectrogram-container">
+            <div class="spectrogram-header">
+              <span class="spectrogram-title">Waveform</span>
             </div>
-            <div class="live-info-wheel-wrapper">
-              <div class="live-info-item-label">Right Wheel</div>
-              <div class="live-info-item">
-                <div class="live-info-item-note" id="rightWheelNote">—</div>
-                <div class="live-info-item-offset" id="rightWheelOffset">—</div>
-                <div class="live-info-item-freq" id="rightWheelFreq">—</div>
+            <div class="spectrogram-wrapper" id="spectrogramWrapper">
+              <canvas id="spectrogramCanvas" width="200" height="80"></canvas>
+              <div class="spectrogram-legend">
+                <div class="legend-item legend-left"><span class="legend-dot"></span>L</div>
+                <div class="legend-item legend-right"><span class="legend-dot"></span>R</div>
               </div>
             </div>
           </div>
@@ -235,19 +236,7 @@
           <a href="#pianoReference" id="bowlViewPiano">Piano reference ↓</a>
         </div>
         <details class="bowl-capture-details">
-          <summary>Captured tones &amp; waveform</summary>
-          <div class="spectrogram-container">
-            <div class="spectrogram-header">
-              <span class="spectrogram-title">Waveform</span>
-            </div>
-            <div class="spectrogram-wrapper" id="spectrogramWrapper">
-              <canvas id="spectrogramCanvas" width="200" height="80"></canvas>
-              <div class="spectrogram-legend">
-                <div class="legend-item legend-left"><span class="legend-dot"></span>L</div>
-                <div class="legend-item legend-right"><span class="legend-dot"></span>R</div>
-              </div>
-            </div>
-          </div>
+          <summary>Captured tones &amp; interval</summary>
         <div class="bowl-results">
           <div class="bowl-result" data-bowl-result="left"><span class="bowl-result-label">Left tone</span><strong id="bowlLeftFrequency">Not captured</strong><span id="bowlLeftNote">Saved to the left wheel</span></div>
           <div class="bowl-result" data-bowl-result="right"><span class="bowl-result-label">Right tone</span><strong id="bowlRightFrequency">Not captured</strong><span id="bowlRightNote">Saved to the right wheel</span></div>
@@ -258,6 +247,14 @@
       </section>
     </div>
     <div class="wheel-container">
+      <div class="wheel-readout" role="group" aria-label="Right wheel frequency">
+        <div class="wheel-readout-label">Right wheel</div>
+        <div class="wheel-readout-values">
+          <span class="wheel-readout-frequency" id="rightWheelFreq">—</span>
+          <span class="wheel-readout-note" id="rightWheelNote" title="Nearest piano note">—</span>
+          <span class="wheel-readout-offset" id="rightWheelOffset" title="Difference from the nearest piano note">—</span>
+        </div>
+      </div>
       <div class="wheel" id="wheelR" aria-label="Right wheel"></div>
       <div class="wheel-controls">
         <div class="pan-control">

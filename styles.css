@@ -2548,7 +2548,8 @@ button .ripple {
   align-items: center;
   gap: 12px;
   height: 100%;
-  justify-content: center;
+  /* Keep wheels anchored when the centre capture details expand. */
+  justify-content: flex-start;
 }
 .wheel { width:min(90vw,480px); max-width:100%; flex-shrink:0; aspect-ratio:1/1; position:relative; user-select:none; -webkit-user-select:none; -ms-user-select:none; -webkit-touch-callout:none; touch-action:none; }
 .wheel, .wheel * { -webkit-tap-highlight-color: rgba(0,0,0,0); }
@@ -3500,44 +3501,11 @@ body:not([data-theme="dark"]) .fine-tune-value {
   min-height: 0;
 }
 
-.live-info-label {
-  font-weight: 700;
-  font-size: 11px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .live-info-content {
   display: flex;
   flex-direction: column;
   gap: 3px;
   width: 100%;
-}
-
-.live-info-wheels {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-}
-
-.live-info-wheel-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.live-info-wheel-wrapper > .live-info-item-label {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  text-align: center;
-  white-space: nowrap;
 }
 
 .live-info-item {
@@ -3554,14 +3522,6 @@ body:not([data-theme="dark"]) .fine-tune-value {
   justify-content: center;
   min-width: 0;
   width: 100%;
-}
-
-/* Fixed height for wheel info containers to prevent layout shift */
-.live-info-wheel-wrapper .live-info-item {
-  height: 58px;
-  min-height: 58px;
-  max-height: 58px;
-  overflow: hidden;
 }
 
 .live-info-item.frequency-diff {
@@ -3581,40 +3541,13 @@ body:not([data-theme="dark"]) .fine-tune-value {
   margin-bottom: 2px;
 }
 
-.live-info-item-note {
-  font-size: 18px;
-  font-weight: 900;
-  color: var(--fg);
-  text-align: center;
-  white-space: nowrap;
-  line-height: 1.1;
-}
-
-.live-info-item-note.below-hearing {
-  font-size: 22px;
-  color: #ef4444;
-  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5));
-}
-
-.live-info-item-offset {
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(139, 92, 246, 0.9);
-  text-align: center;
-  white-space: nowrap;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
-}
-
-.live-info-item-freq {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  white-space: nowrap;
-  line-height: 1.2;
-}
+/* Quiet, compact readouts keep each frequency beside its own instrument. */
+.wheel-readout { width: 100%; max-width: 360px; min-height: 54px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 2px 6px 10px; border-bottom: 1px solid var(--panel-border); }
+.wheel-readout-label { color: var(--muted); font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: .1em; }
+.wheel-readout-values { display: flex; align-items: baseline; justify-content: center; gap: 8px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wheel-readout-frequency { color: var(--fg); font-size: 15px; font-weight: 600; }
+.wheel-readout-note { color: var(--muted); font-size: 12px; font-weight: 500; }
+.wheel-readout-offset { color: var(--muted); font-size: 10px; }
 
 .live-info-item-value {
   font-size: 14px;
