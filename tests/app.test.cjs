@@ -305,7 +305,7 @@ test('harmonic volume and mute are usable without mouse-wheel input', async t =>
   const slider = env.document.querySelector('[data-harmonic="1"] .overtone-volume-slider');
   slider.value = '80'; slider.dispatchEvent(new env.window.Event('input', { bubbles: true }));
   assert.equal(env.document.querySelector('[data-harmonic="1"] .overtone-volume-label').textContent, '80%');
-  assert.ok(Math.abs(env.app.state.harmonicOscillators[0].gain.gain.value - 0.04) < 1e-9);
+  assert.ok(Math.abs(env.app.state.harmonicOscillators[0].gain.gain.value - 0.368) < 1e-9); // 80 % of the 0.46 fundamental level
   env.key('[data-harmonic="1"] .overtone-content', 'Enter');
   assert.equal(env.app.state.harmonicOscillators[0].gain.gain.value, 0);
   assert.equal(env.document.querySelector('[data-harmonic="1"] .overtone-content').getAttribute('aria-pressed'), 'true');

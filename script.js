@@ -888,7 +888,13 @@ monoOsc1 = monoOsc2 = null;
   let showOvertoneHighlights = false;
   let wheelMuteStatesBeforeOvertones = { left: false, right: false };
   let currentOvertonesFundamental = 0; // Moved here to avoid TDZ issues
-  
+  // Overtones Demo state (declared early: generateOvertones runs during start-up)
+  let overtonesDemoRunning = false;
+  let overtonesDemoOscillators = [];
+  let overtonesDemoGains = [];
+  let overtonesDemoTimeouts = [];
+  let overtonesDemoMasterGain = null;
+
   // Binaural handling for sub-audible selections
   const BINAURAL_MIN_AUDIBLE_HZ = 20;
   // Use a low carrier at the audibility threshold to avoid high-pitched region for sub-audible beats
@@ -1630,16 +1636,14 @@ monoOsc1 = monoOsc2 = null;
     }
     if (applied) {
       resetTuningOffsets();
-
+      // Set the fundamental before starting audio so the harmonics are built once.
+      setOvertonesFundamental(freq, keyEl);
       ensurePlaying();
       scheduleOscillatorSync();
       keyEl.classList.add('is-triggered');
       setTimeout(() => keyEl.classList.remove('is-triggered'), 160);
-      
-      // Keep the selected key and its overtones in sync immediately.
-      setOvertonesFundamental(freq, keyEl);
     }
-    
+
     
     return applied;
   }
@@ -1793,6 +1797,12 @@ monoOsc1 = monoOsc2 = null;
   wheelL.setOnChange((hz, userInitiated) => {
     if (userInitiated) cancelBowlCapture('left');
     if (!tuningInProgress) resetTuningOffsets();
+    // Play Overtones follows the left wheel as its fundamental
+    if (showOvertoneHighlights && !overtonesDemoRunning && hz >= BINAURAL_MIN_AUDIBLE_HZ && hz !== currentOvertonesFundamental) {
+      currentOvertonesFundamental = hz;
+      activeOvertoneKey = null;
+      updateOvertones();
+    }
 if (!isApplyingPreset) {
       if (presetSelect) presetSelect.value = '';
       if (binauralPresetSelect) binauralPresetSelect.value = '';
@@ -2208,8 +2218,11 @@ if (!isApplyingPreset) {
   // Calculate gain for a harmonic based on user-set volume (1-100%)
   function getHarmonicGain(harmonicIndex) {
     const volumePercent = harmonicVolumes[harmonicIndex];
-    const baseGain = 0.8 / 16; // Reserve headroom for the sum of all 16 partials
-    const frequency = currentOvertonesFundamental * (harmonicIndex + 1);
+    // Natural 1/n rolloff. At the default 50 % the fundamental sits at 0.23, close to a
+    // wheel voice, and the 16 partials sum to 0.78; at 100 % their coherent peak
+    // (0.46 x 1.85) still stays under full scale.
+    const baseGain = 0.46 / (harmonicIndex + 1);
+const frequency = currentOvertonesFundamental * (harmonicIndex + 1);
     if (audioCtx && frequency >= audioCtx.sampleRate / 2) return 0;
     return baseGain * (volumePercent / 100);
   }
@@ -2970,13 +2983,7 @@ if (!isApplyingPreset) {
   const overtonesDemoOverlay = document.getElementById('overtonesDemoOverlay');
   const overtonesDemoLabel = document.getElementById('overtonesDemoLabel');
   
-  // Overtones Demo state
-  let overtonesDemoRunning = false;
-  let overtonesDemoOscillators = [];
-  let overtonesDemoGains = [];
-  let overtonesDemoTimeouts = [];
-  let overtonesDemoMasterGain = null;
-  const OVERTONES_DEMO_FUNDAMENTAL_START = 111; // Slightly above A2 for demo effect
+const OVERTONES_DEMO_FUNDAMENTAL_START = 111; // Slightly above A2 for demo effect
   const OVERTONES_DEMO_FUNDAMENTAL_END = 110; // End at true A2
   
   // Store original states to restore after demo
@@ -3135,65 +3142,42 @@ if (!isApplyingPreset) {
   // Animate fundamental frequency change (smooth transition)
   function animateFundamentalChange(fromFreq, toFreq, duration) {
     return new Promise(resolve => {
-      if (!overtonesDemoRunning) {
+      if (!overtonesDemoRunning || !audioCtx) {
         resolve();
         return;
       }
-      
+      // Glide on the audio clock so a hidden tab cannot stall the demo; the display
+      // follows on the pausable scheduler.
+      const now = audioCtx.currentTime;
+      const seconds = duration / 1000;
+      for (let h = 1; h <= 8; h++) {
+        const osc = overtonesDemoOscillators[h];
+        if (!osc) continue;
+        try {
+          osc.frequency.cancelScheduledValues(now);
+          osc.frequency.setValueAtTime(fromFreq * h, now);
+          osc.frequency.linearRampToValueAtTime(toFreq * h, now + seconds);
+        } catch {
+          osc.frequency.value = toFreq * h;
+        }
+      }
       const startTime = playback.now();
-      
-      function animate(currentTime) {
+      const display = () => {
         if (!overtonesDemoRunning) {
           resolve();
           return;
         }
-        
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        // Ease in-out for smooth transition
-        const eased = -(Math.cos(Math.PI * progress) - 1) / 2;
-        
-        // Calculate current fundamental
-        const currentFundamental = fromFreq + (toFreq - fromFreq) * eased;
-        
-        // Update the fundamental frequency
-        currentOvertonesFundamental = currentFundamental;
-        
-        // Update all oscillator frequencies
-        for (let h = 1; h <= 8; h++) {
-          const osc = overtonesDemoOscillators[h];
-          if (osc && audioCtx) {
-            const newFreq = currentFundamental * h;
-            try {
-              osc.frequency.setValueAtTime(newFreq, audioCtx.currentTime);
-            } catch (e) {
-              osc.frequency.value = newFreq;
-            }
-          }
-        }
-        
-        // Update overtone display (throttled)
+        const progress = Math.min((playback.now() - startTime) / duration, 1);
+        currentOvertonesFundamental = fromFreq + (toFreq - fromFreq) * progress;
         updateOvertones();
-        
-        // Update piano key highlighting
         updateOvertoneHighlights();
-        
-        if (progress < 1) {
-          playback.requestAnimationFrame(animate);
-        } else {
-          // Ensure we end exactly at target
-          currentOvertonesFundamental = toFreq;
-          updateOvertones();
-          updateOvertoneHighlights();
-          resolve();
-        }
-      }
-      
-      playback.requestAnimationFrame(animate);
+        if (progress < 1) overtonesDemoTimeouts.push(playback.setTimeout(display, 100));
+        else resolve();
+      };
+      display();
     });
   }
-  
+
   // Stop all demo audio
   function stopOvertonesDemoAudio() {
     // Clear all timeouts
@@ -3411,8 +3395,10 @@ if (!isApplyingPreset) {
   // Start overtones demo
   function startOvertonesDemo() {
     if (overtonesDemoRunning) return;
+    // beginActivity switches Play Overtones off; remember the user's choice first.
+    const wasShowingOvertones = showOvertoneHighlights;
     beginActivity('overtones-demo');
-    
+
     // Stop any existing harmonic playback
     stopHarmonicOscillators();
     
@@ -3425,8 +3411,8 @@ if (!isApplyingPreset) {
     
     // Save original states to restore later
     originalHarmonicMutedState = [...harmonicMutedState];
-    originalShowOvertoneHighlights = showOvertoneHighlights;
-    originalOvertonesFundamental = currentOvertonesFundamental;
+    originalShowOvertoneHighlights = wasShowingOvertones;
+originalOvertonesFundamental = currentOvertonesFundamental;
     
     // Set all harmonics to muted initially (they'll be unmuted one by one)
     harmonicMutedState = Array(16).fill(true);
@@ -3460,9 +3446,15 @@ if (!isApplyingPreset) {
       originalHarmonicMutedState = null;
     }
     
-    // Restore original showOvertoneHighlights state
+    // Restore original showOvertoneHighlights state; that mode keeps the wheels muted
     showOvertoneHighlights = originalShowOvertoneHighlights;
-    
+    if (showOvertoneHighlights) {
+      wheelMuteStatesBeforeOvertones.left = wheelLMuted;
+      wheelMuteStatesBeforeOvertones.right = wheelRMuted;
+      wheelLMuted = wheelRMuted = true;
+      updateMuteButtons();
+    }
+
     // Update the overtone toggle button visual state
     const overtoneHighlightToggle = document.getElementById('overtoneHighlightToggle');
     if (overtoneHighlightToggle) {
@@ -3479,10 +3471,12 @@ if (!isApplyingPreset) {
       originalOvertonesFundamental = null;
     }
     
-    // Clear all piano key overtone highlights
+    // Redraw the piano for the restored mode
     clearOvertoneHighlights();
+    if (showOvertoneHighlights) updateOvertoneHighlights();
+    else updateKeyboardHighlights();
   }
-  
+
   // Stop overtones demo (interrupted)
   function stopOvertonesDemo() {
     if (!overtonesDemoRunning && originalOvertonesFundamental === null) return;
@@ -3609,11 +3603,15 @@ if (!isApplyingPreset) {
       updateOscillators();
       updateMuteButtons();
       
+      // Without a chosen piano key, the left wheel is the fundamental (when audible)
+      if (currentOvertonesFundamental < BINAURAL_MIN_AUDIBLE_HZ && wheelL.getHz() >= BINAURAL_MIN_AUDIBLE_HZ) {
+        setOvertonesFundamental(wheelL.getHz());
+      }
       // Start playing harmonics if we have an active fundamental
       if (currentOvertonesFundamental > 0) {
         startHarmonicOscillators();
       }
-    } else {
+} else {
       overtoneHighlightToggle.classList.remove('is-active');
       
       // Restore previous mute states when overtones are disabled
