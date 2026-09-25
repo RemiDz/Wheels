@@ -72,18 +72,23 @@
   let SORTED_FREQUENCIES = [...FREQUENCIES].sort((a, b) => a - b);
   const MAX_FREQUENCY_HZ = 4200; // Match piano's top key range (C8 ~4186 Hz)
 
-  // Brainwave bands, then the audible ranges above them; drawn as a ring on each wheel
-  // and named in the hub. A band covers [from, to).
+  // Brainwave bands end with Gamma at about 100 Hz; above that the ring continues with the
+  // sound spectrum's standard names. Drawn as a ring on each wheel and named in the hub.
+  // A band covers [from, to).
   const FREQUENCY_BANDS = [
-    { key: 'delta', name: 'Delta', short: 'δ', from: 0.1, to: 4, color: '#3b82f6' },
-    { key: 'theta', name: 'Theta', short: 'θ', from: 4, to: 8, color: '#8b5cf6' },
-    { key: 'alpha', name: 'Alpha', short: 'α', from: 8, to: 13, color: '#22c55e' },
-    { key: 'beta', name: 'Beta', short: 'β', from: 13, to: 30, color: '#f59e0b' },
-    { key: 'gamma', name: 'Gamma', short: 'γ', from: 30, to: 100, color: '#ef4444' },
-    { key: 'tones', name: 'Tones', short: 'T', from: 100, to: 1000, color: '#14b8a6' },
-    { key: 'high', name: 'High', short: 'H', from: 1000, to: MAX_FREQUENCY_HZ, color: '#64748b' }
+    { key: 'delta', name: 'Delta', short: 'δ', from: 0.1, to: 4, color: '#60a5fa' },
+    { key: 'theta', name: 'Theta', short: 'θ', from: 4, to: 8, color: '#a78bfa' },
+    { key: 'alpha', name: 'Alpha', short: 'α', from: 8, to: 13, color: '#4ade80' },
+    { key: 'beta', name: 'Beta', short: 'β', from: 13, to: 30, color: '#fbbf24' },
+    { key: 'gamma', name: 'Gamma', short: 'γ', from: 30, to: 100, color: '#f87171' },
+    { key: 'bass', name: 'Bass', short: 'B', from: 100, to: 250, color: '#2dd4bf' },
+    { key: 'low-mid', name: 'Low mid', short: 'LM', from: 250, to: 500, color: '#5eead4' },
+    { key: 'mid', name: 'Mid', short: 'M', from: 500, to: 2000, color: '#99f6e4' },
+    { key: 'upper-mid', name: 'Upper mid', short: 'UM', from: 2000, to: MAX_FREQUENCY_HZ, color: '#ccfbf1' }
   ];
-  function bandForFrequency(hz) {
+  // Human hearing starts around 20 Hz; below that the wheel plays infrasound.
+  const HEARING_LIMIT_HZ = 20;
+function bandForFrequency(hz) {
     return FREQUENCY_BANDS.find(band => hz < band.to) ?? FREQUENCY_BANDS[FREQUENCY_BANDS.length - 1];
   }
 
@@ -271,36 +276,51 @@ const innerCircle = root.querySelector('.inner-circle');
       return String(freq);
     }
 
-    // Band ring on the rim: one arc per band between the wheel angles of its limits,
-    // with its name along the arc (a Greek letter when the arc is too short for it).
+    // Rings on the rim, drawn from the wheel's own angle mapping. Outer ring: one arc per
+    // band with its name along the arc (a short form when the arc cannot hold the name) and
+    // a thin accent in the band's colour. Inner ring: the human hearing range.
     function layoutBands(widthPx) {
       if (!bands) return;
-      const R = 91; // centreline radius in viewBox units (the viewBox is 200 wide)
       const idPrefix = `${root.id || 'wheel'}-band`;
-      const point = angle => {
+      const point = (radius, angle) => {
         const rad = (angle - 90) * Math.PI / 180;
-        return [(100 + R * Math.cos(rad)).toFixed(2), (100 + R * Math.sin(rad)).toFixed(2)];
+        return [(100 + radius * Math.cos(rad)).toFixed(2), (100 + radius * Math.sin(rad)).toFixed(2)];
       };
+      const angleOf = hz => hz >= MAX_FREQUENCY_HZ ? 360 : mapFrequencyToAngle(Math.max(hz, SORTED_FREQUENCIES[0]));
+      // arc from a1 to a2 (degrees clockwise from 12 o'clock) at a radius; text paths along
+      // the lower half run the other way round so their names read upright
+      const arc = (radius, a1, a2, forText = false) => {
+        const large = a2 - a1 > 180 ? 1 : 0;
+        const [x1, y1] = point(radius, a1), [x2, y2] = point(radius, a2);
+        const mid = (a1 + a2) / 2;
+        if (forText && mid > 90 && mid < 270) return `M ${x2} ${y2} A ${radius} ${radius} 0 ${large} 0 ${x1} ${y1}`;
+        return `M ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2}`;
+      };
+      const fits = (radius, a1, a2, text) => (widthPx / 200) * radius * (a2 - a1) * Math.PI / 180 >= text.length * 6.5;
       let defs = '', arcs = '', texts = '';
+      const gap = 0.7; // degrees between arcs
+      const R = 92, ACCENT = 97.6; // band ring centreline and its outer accent line
       for (const band of FREQUENCY_BANDS) {
-        const a1 = mapFrequencyToAngle(Math.max(band.from, SORTED_FREQUENCIES[0]));
-        const a2 = band.to >= MAX_FREQUENCY_HZ ? 360 : mapFrequencyToAngle(band.to);
+        const a1 = angleOf(band.from) + gap, a2 = angleOf(band.to) - gap;
         if (a2 <= a1) continue;
-        const gap = 0.6; // degrees between arcs
-        const start = a1 + gap, end = a2 - gap;
-        const large = end - start > 180 ? 1 : 0;
-        const [x1, y1] = point(start), [x2, y2] = point(end);
-        arcs += `<path class="band band-${band.key}" d="M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2}" stroke="${band.color}"/>`;
-        // names along the lower half run the other way round so they read upright
-        const mid = (start + end) / 2;
-        const reversed = mid > 90 && mid < 270;
         const id = `${idPrefix}-${band.key}`;
-        defs += reversed
-          ? `<path id="${id}" d="M ${x2} ${y2} A ${R} ${R} 0 ${large} 0 ${x1} ${y1}"/>`
-          : `<path id="${id}" d="M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2}"/>`;
-        const arcPx = (widthPx / 200) * R * (end - start) * Math.PI / 180;
-        const label = arcPx >= band.name.length * 7 ? band.name.toUpperCase() : band.short;
+        arcs += `<path class="band band-${band.key}" d="${arc(R, a1, a2)}"/>`;
+        arcs += `<path class="band-accent" d="${arc(ACCENT, a1, a2)}" stroke="${band.color}"/>`;
+        defs += `<path id="${id}" d="${arc(R, a1, a2, true)}"/>`;
+        const label = fits(R, a1, a2, band.name) ? band.name.toUpperCase() : band.short;
         texts += `<text class="band-label"><textPath href="#${id}" xlink:href="#${id}" startOffset="50%" text-anchor="middle">${label}</textPath></text>`;
+      }
+      const H = 82; // hearing ring
+      const limit = angleOf(HEARING_LIMIT_HZ);
+      for (const part of [
+        { key: 'infrasound', name: 'Infrasound', a1: gap, a2: limit - gap },
+        { key: 'audible', name: 'Audible range', a1: limit + gap, a2: 360 - gap }
+      ]) {
+        const id = `${idPrefix}-${part.key}`;
+        arcs += `<path class="hearing hearing-${part.key}" d="${arc(H, part.a1, part.a2)}"/>`;
+        defs += `<path id="${id}" d="${arc(H, part.a1, part.a2, true)}"/>`;
+        const label = fits(H, part.a1, part.a2, part.name) ? part.name.toUpperCase() : '';
+        if (label) texts += `<text class="hearing-label"><textPath href="#${id}" xlink:href="#${id}" startOffset="50%" text-anchor="middle">${label}</textPath></text>`;
       }
       bands.innerHTML = `<defs>${defs}</defs>${arcs}${texts}`;
     }
@@ -310,7 +330,7 @@ const innerCircle = root.querySelector('.inner-circle');
       labels.innerHTML = '';
       const b = root.getBoundingClientRect();
       layoutBands(b.width);
-      const r = b.width/2 - 44; // inside the band ring
+      const r = b.width/2 - 58; // inside the band and hearing rings
 // keep the pointer pivot aligned with the wheel radius across screen sizes
       pointer.style.transformOrigin = `50% calc(50% + ${b.width/2}px)`;
       // Set inner pointer pivot to inner circle radius

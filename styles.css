@@ -2865,8 +2865,10 @@ body:not([data-theme="dark"]) .hub .galaxy-name {
   text-shadow: none;
 }
 
-body:not([data-theme="dark"]) .bands .band { opacity: 0.7; }
-body:not([data-theme="dark"]) .bands .band-label { stroke: rgba(0,0,0,0.2); }
+body:not([data-theme="dark"]) .bands .band { stroke: rgba(15, 23, 42, 0.3); }
+body:not([data-theme="dark"]) .bands .hearing-infrasound { stroke: rgba(71, 85, 105, 0.5); }
+body:not([data-theme="dark"]) .bands .hearing-audible { stroke: rgba(255, 255, 255, 0.85); }
+body:not([data-theme="dark"]) .bands .hearing-label { fill: rgba(30, 41, 59, 0.75); }
 
 /* Light mode pointers - prismatic glow */
 body:not([data-theme="dark"]) .pointer {
@@ -3167,7 +3169,7 @@ body:not([data-theme="dark"]) .fine-tune-value {
     0 0 25px var(--galaxy-glow, rgba(147, 112, 219, 0.4));
   transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.hub .hub-value { display: flex; align-items: baseline; justify-content: center; gap: 3px; line-height: 1; }
+.hub .hub-value { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: baseline; justify-content: center; gap: 3px; line-height: 1; white-space: nowrap; }
 .hub .hz {
   font-weight:800;
   font-size:clamp(15px,3.2vw,26px);
@@ -3183,32 +3185,39 @@ body:not([data-theme="dark"]) .fine-tune-value {
   letter-spacing:.2px;
 }
 .hub .band-name {
-  margin-top: 4px;
+  position: absolute; left: 6%; right: 6%; top: 66%;
   font-size: clamp(7px,1.3vw,9.5px);
   font-weight: 800;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .hub .galaxy-name {
-  margin-top: 2px;
+  position: absolute; left: 4%; right: 4%; top: 12%;
   color: rgba(255,255,255,0.72);
   font-size: clamp(6px,1.1vw,8px);
+  line-height: 1.15;
   font-weight: 600;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
 }
 
 /* Band ring: one arc per brainwave band (and the tone ranges above), under the pointer */
 .wheel .bands { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.bands .band { fill: none; stroke-width: 11; opacity: 0.55; }
-.bands .band-label { fill: #ffffff; font-size: 5.4px; font-weight: 700; letter-spacing: 0.7px; dominant-baseline: middle; opacity: 0.95; paint-order: stroke; stroke: rgba(0,0,0,0.25); stroke-width: 0.5px; }
+.bands .band { fill: none; stroke: rgba(15, 23, 42, 0.34); stroke-width: 9; }
+.bands .band-accent { fill: none; stroke-width: 1.6; opacity: 0.9; }
+.bands .band-label { fill: rgba(255,255,255,0.92); font-size: 4.6px; font-weight: 700; letter-spacing: 0.6px; dominant-baseline: middle; }
+.bands .hearing { fill: none; stroke-width: 2.2; }
+.bands .hearing-infrasound { stroke: rgba(148, 163, 184, 0.55); stroke-dasharray: 1.2 1.2; }
+.bands .hearing-audible { stroke: rgba(255, 255, 255, 0.42); }
+.bands .hearing-label { fill: rgba(255,255,255,0.7); font-size: 3.4px; font-weight: 700; letter-spacing: 0.7px; dominant-baseline: middle; }
 
 .labels { position:absolute; inset:0; pointer-events:auto; }
 .labels span {
   position:absolute; transform: translate(-50%,-50%);
-  font-weight:600; font-variant-numeric: tabular-nums; font-size:clamp(10px,1.7vw,13px);
-  color: rgba(226,232,240,0.78); text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+  font-weight:600; font-variant-numeric: tabular-nums; font-size:clamp(9px,1.5vw,12px);
+color: rgba(226,232,240,0.78); text-shadow: 0 1px 2px rgba(0,0,0,0.55);
   cursor: pointer;
   transition: color 0.15s ease, transform 0.15s ease;
 }

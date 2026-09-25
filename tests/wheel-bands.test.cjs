@@ -9,11 +9,15 @@ test('each wheel draws one arc per band with its name along the arc', () => {
   try {
     for (const id of ['wheelL', 'wheelR']) {
       const arcs = [...app.document.querySelectorAll(`#${id} .bands path.band`)];
-      assert.equal(arcs.length, 7, `${id} arcs`);
-      assert.ok(arcs.every(arc => /^M [\d.]+ [\d.]+ A 91 91 0 [01] 1 [\d.]+ [\d.]+$/.test(arc.getAttribute('d'))), 'arc path shape');
+      assert.equal(arcs.length, 9, `${id} arcs`);
+      assert.ok(arcs.every(arc => /^M [\d.]+ [\d.]+ A 92 92 0 [01] 1 [\d.]+ [\d.]+$/.test(arc.getAttribute('d'))), 'arc path shape');
+      assert.equal(app.document.querySelectorAll(`#${id} .bands path.band-accent`).length, 9);
+      assert.equal(app.document.querySelectorAll(`#${id} .bands path.hearing`).length, 2, 'hearing ring arcs');
       // the harness lays the wheel out 400 px wide: the short Alpha and Beta arcs fall back to Greek letters
-      const names = [...app.document.querySelectorAll(`#${id} .bands textPath`)].map(t => t.textContent);
-      assert.deepEqual(names, ['DELTA', 'THETA', 'α', 'β', 'GAMMA', 'TONES', 'HIGH']);
+      const names = [...app.document.querySelectorAll(`#${id} .bands .band-label textPath`)].map(t => t.textContent);
+      assert.deepEqual(names, ['DELTA', 'THETA', 'α', 'β', 'GAMMA', 'BASS', 'LOW MID', 'MID', 'UPPER MID']);
+      const hearing = [...app.document.querySelectorAll(`#${id} .bands .hearing-label textPath`)].map(t => t.textContent);
+      assert.deepEqual(hearing, ['INFRASOUND', 'AUDIBLE RANGE']);
       const ids = [...app.document.querySelectorAll(`#${id} .bands defs path`)].map(p => p.id);
       assert.ok(ids.every(pathId => pathId.startsWith(`${id}-band-`)), 'text path ids are per wheel');
     }
@@ -23,7 +27,7 @@ test('each wheel draws one arc per band with its name along the arc', () => {
 test('the hub names the band under the pointer and keeps the three-decimal value', () => {
   const app = createApp();
   try {
-    const cases = [[0.1, 'DELTA'], [3, 'DELTA'], [4, 'THETA'], [7.83, 'THETA'], [8, 'ALPHA'], [12, 'ALPHA'], [13, 'BETA'], [40, 'GAMMA'], [100, 'TONES'], [174, 'TONES'], [963, 'TONES'], [1000, 'HIGH'], [4200, 'HIGH']];
+    const cases = [[0.1, 'DELTA'], [3, 'DELTA'], [4, 'THETA'], [7.83, 'THETA'], [8, 'ALPHA'], [12, 'ALPHA'], [13, 'BETA'], [40, 'GAMMA'], [100, 'BASS'], [174, 'BASS'], [250, 'LOW MID'], [500, 'MID'], [963, 'MID'], [1000, 'MID'], [2000, 'UPPER MID'], [4200, 'UPPER MID']];
     for (const [hz, band] of cases) {
       app.app.wheelL.setHz(hz);
       assert.equal(bandText(app, 'wheelL'), band, `${hz} Hz`);
