@@ -1330,6 +1330,9 @@
     }
   }, 100);
   window.addEventListener('resize', resizeSpectrogramCanvas);
+  spectrogramCanvas?.closest('details')?.addEventListener('toggle', event => {
+    if (event.currentTarget.open) resizeSpectrogramCanvas();
+  });
   
   // Start continuous waveform animation
   function startSpectrogramAnimation() {
@@ -3675,9 +3678,9 @@
     if (!monoVolumeTrack) return null;
     if (monoTrackMetrics) return monoTrackMetrics;
     const rect = monoVolumeTrack.getBoundingClientRect();
-    const sliderHeight = monoSlider?.offsetHeight || 40;
-    const maxPosition = Math.max(1, rect.height - sliderHeight);
-    monoTrackMetrics = { rect, sliderHeight, maxPosition };
+    const sliderWidth = monoSlider?.offsetWidth || 40;
+    const maxPosition = Math.max(1, rect.width - sliderWidth);
+    monoTrackMetrics = { rect, sliderWidth, maxPosition };
     return monoTrackMetrics;
   };
 
@@ -3702,26 +3705,25 @@
     if (!monoSlider || !monoVolumeTrack) return;
     const metrics = getMonoTrackMetrics();
     if (!metrics) return;
-    // Invert: 0% at bottom, 100% at top
-    const position = ((100 - percent) / 100) * metrics.maxPosition;
-    monoSlider.style.top = (position + (metrics.sliderHeight / 2)) + 'px';
-    monoSlider.style.left = '';
+    // Horizontal travel: 0% at the left, 100% at the right.
+    const position = (percent / 100) * metrics.maxPosition;
+    monoSlider.style.left = (position + (metrics.sliderWidth / 2)) + 'px';
+    monoSlider.style.top = '';
     monoSlider.setAttribute('aria-valuenow', Math.round(percent));
   }
 
-  function getMonoPercentFromClientY(clientY) {
+  function getMonoPercentFromClientX(clientX) {
     const metrics = getMonoTrackMetrics();
-    if (!metrics || typeof clientY !== 'number') return monoVolume * 100;
-    const relativeY = clientY - metrics.rect.top - metrics.sliderHeight / 2;
-    const clampedY = Math.max(0, Math.min(metrics.maxPosition, relativeY));
-    // Invert: top = 100%, bottom = 0%
-    const percent = 100 - (clampedY / metrics.maxPosition) * 100;
+    if (!metrics || typeof clientX !== 'number') return monoVolume * 100;
+    const relativeX = clientX - metrics.rect.left - metrics.sliderWidth / 2;
+    const clampedX = Math.max(0, Math.min(metrics.maxPosition, relativeX));
+    const percent = (clampedX / metrics.maxPosition) * 100;
     return Math.max(0, Math.min(100, percent));
   }
 
   // Mono slider drag handlers
   if (monoSlider && monoVolumeTrack) {
-    monoSlider.setAttribute('aria-orientation', 'vertical');
+    monoSlider.setAttribute('aria-orientation', 'horizontal');
     monoSlider.addEventListener('keydown', e => {
       const deltas = { ArrowUp: 5, ArrowRight: 5, ArrowDown: -5, ArrowLeft: -5, PageUp: 10, PageDown: -10 };
       if (!(e.key in deltas) && e.key !== 'Home' && e.key !== 'End') return;
@@ -3738,14 +3740,14 @@
         monoVolumeTrack.setPointerCapture?.(monoSliderPointer);
       }
       e.preventDefault();
-      updateMonoVolume(getMonoPercentFromClientY(e.clientY));
+      updateMonoVolume(getMonoPercentFromClientX(e.clientX));
     };
     
     const handlePointerMove = (e) => {
       if (!monoSliderDragging) return;
       if (monoSliderPointer !== null && e.pointerId !== monoSliderPointer) return;
       e.preventDefault();
-      updateMonoVolume(getMonoPercentFromClientY(e.clientY));
+      updateMonoVolume(getMonoPercentFromClientX(e.clientX));
     };
     
     const handlePointerUp = (e) => {
@@ -9461,13 +9463,19 @@
   }
 
   function showBowlCaptureActive(active, side) {
+    const focusedControl = document.activeElement;
     bowlUI.listen.disabled = active;
+    bowlUI.listen.hidden = active;
+    bowlUI.play.hidden = active;
     bowlUI.cancel.hidden = !active;
     bowlUI.lock.disabled = true;
+    bowlUI.lock.hidden = !active;
     bowlUI.progressWrap.hidden = !active;
     bowlUI.progress.value = 0;
     bowlUI.inputLevel.value = 0;
     bowlUI.inputLevel.setAttribute('aria-valuetext', 'No input');
+    if (active && focusedControl === bowlUI.listen) bowlUI.cancel.focus({ preventScroll: true });
+    if (!active && [bowlUI.cancel, bowlUI.lock].includes(focusedControl)) bowlUI.listen.focus({ preventScroll: true });
     wheelL.element.classList.toggle('is-bowl-listening', active && side === 'left');
     wheelR.element.classList.toggle('is-bowl-listening', active && side === 'right');
     updateBowlResults();
@@ -9503,7 +9511,7 @@
       bowlUI.live.textContent = reading.frequency ? `${reading.frequency.toFixed(2)} Hz` : '— Hz';
       if (reading.frequency) {
         (side === 'left' ? wheelL : wheelR).setHz(reading.frequency);
-        setBowlStatus(`Listening for the ${side} wheel. Hold the tone steady to lock automatically, or press Lock current tone.`);
+        setBowlStatus('Keep the tone steady to lock automatically, or tap Lock tone.');
       } else {
         const messages = {
           quiet: rms < 0.00002 ? 'No microphone signal yet. Try speaking or playing a tone near the device.'
@@ -9524,7 +9532,7 @@
         capturedBowls[result.channel] = frequency;
         (result.channel === 'left' ? wheelL : wheelR).setHz(frequency);
         bowlUI.live.textContent = `${frequency.toFixed(2)} Hz`;
-        setBowlStatus(`${result.channel === 'left' ? 'Left' : 'Right'} tone locked at ${frequency.toFixed(2)} Hz. Microphone off. ${capturedBowls.left && capturedBowls.right ? 'Play the captured pair or view the piano.' : 'Select the other wheel to capture another sound.'}`);
+        setBowlStatus(`${result.channel === 'left' ? 'Left' : 'Right'} tone locked. Microphone off. ${capturedBowls.left && capturedBowls.right ? 'Both tones are ready.' : 'Select the other wheel next.'}`);
       } else {
         if (preview && !preserveBowlPreview) (preview.side === 'left' ? wheelL : wheelR).setHz(preview.frequency);
         bowlUI.live.textContent = '— Hz';

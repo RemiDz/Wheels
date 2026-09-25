@@ -201,9 +201,36 @@ test('mono mix respects each wheel mute', async t => {
 
 test('mono volume works with a keyboard', t => {
   const env = setup(t); env.key('#monoSlider', 'End');
+  assert.equal(env.document.querySelector('#monoSlider').getAttribute('aria-orientation'), 'horizontal');
   assert.equal(env.document.querySelector('#monoSlider').getAttribute('aria-valuenow'), '100');
   env.key('#monoSlider', 'Home');
   assert.equal(env.document.querySelector('#monoSlider').getAttribute('aria-valuenow'), '0');
+});
+
+test('horizontal Mono dragging follows horizontal position, clamps its ends and stops on pointer cancellation', async t => {
+  const env = setup(t); env.click('#play'); await env.tick(100);
+  const slider = env.document.querySelector('#monoSlider');
+  const track = slider.parentElement;
+  track.getBoundingClientRect = () => ({ left: 100, top: 300, width: 240, height: 44 });
+  const pointer = (target, type, x, y, pointerId = 7) => {
+    const event = new env.window.MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'pointerId', { value: pointerId });
+    target.dispatchEvent(event);
+  };
+  pointer(track, 'pointerdown', 120, 320);
+  assert.equal(env.app.state.monoGain.gain.value, 0);
+  pointer(env.window, 'pointermove', 220, 500);
+  assert.equal(env.app.state.monoGain.gain.value, 0.5);
+  assert.equal(slider.getAttribute('aria-valuenow'), '50');
+  pointer(env.window, 'pointermove', 500, 320, 99);
+  assert.equal(env.app.state.monoGain.gain.value, 0.5, 'Another pointer cannot change this drag');
+  pointer(env.window, 'pointermove', 500, 320);
+  assert.equal(env.app.state.monoGain.gain.value, 1);
+  pointer(env.window, 'pointermove', 0, 320);
+  assert.equal(env.app.state.monoGain.gain.value, 0);
+  pointer(env.window, 'pointercancel', 0, 320);
+  pointer(env.window, 'pointermove', 320, 320);
+  assert.equal(env.app.state.monoGain.gain.value, 0);
 });
 
 test('shared tuning preserves frequency difference at both boundaries', t => {

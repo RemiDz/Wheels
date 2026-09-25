@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nestorium-v8';
+const CACHE_NAME = 'nestorium-v9';
 const ASSETS = [
   './',
   './index.html',
