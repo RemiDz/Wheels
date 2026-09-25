@@ -259,6 +259,7 @@
       <div class="bowl-live-reading" aria-live="off"><span>Detected tone</span><strong id="bowlLiveFrequency">— Hz</strong></div>
     </div>
     <div class="bowl-listening-progress" id="bowlProgressWrap" hidden>
+      <label for="bowlInputLevel">Microphone level</label><meter id="bowlInputLevel" min="0" max="1" value="0" aria-valuetext="No input"></meter>
       <label for="bowlProgress">Tone stability</label><progress id="bowlProgress" max="1" value="0"></progress>
     </div>
     <p id="bowlStatus" class="bowl-status" role="status">Microphone off. Capture one sound at a time; let the first sound fade before capturing the second.</p>

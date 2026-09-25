@@ -9466,6 +9466,8 @@
     bowlUI.lock.disabled = true;
     bowlUI.progressWrap.hidden = !active;
     bowlUI.progress.value = 0;
+    bowlUI.inputLevel.value = 0;
+    bowlUI.inputLevel.setAttribute('aria-valuetext', 'No input');
     wheelL.element.classList.toggle('is-bowl-listening', active && side === 'left');
     wheelR.element.classList.toggle('is-bowl-listening', active && side === 'right');
     updateBowlResults();
@@ -9475,6 +9477,7 @@
     listen: document.getElementById('bowlListen'), lock: document.getElementById('bowlLock'),
     cancel: document.getElementById('bowlCancel'), live: document.getElementById('bowlLiveFrequency'),
     status: document.getElementById('bowlStatus'), progress: document.getElementById('bowlProgress'),
+    inputLevel: document.getElementById('bowlInputLevel'),
     progressWrap: document.getElementById('bowlProgressWrap'), play: document.getElementById('bowlPlayPair'),
     leftFrequency: document.getElementById('bowlLeftFrequency'), rightFrequency: document.getElementById('bowlRightFrequency'),
     leftNote: document.getElementById('bowlLeftNote'), rightNote: document.getElementById('bowlRightNote'),
@@ -9484,19 +9487,27 @@
     onState(state, side) {
       showBowlCaptureActive(true, side);
       bowlUI.live.textContent = '— Hz';
-      setBowlStatus(state === 'requesting' ? 'Allow microphone access when your browser asks. Playback is stopped.'
-        : `Listening for the ${side} wheel. Play one instrument and let its tone settle.`);
+      const messages = {
+        requesting: 'Allow microphone access when your browser asks. Playback is stopped.',
+        starting: 'Microphone connected. Starting the audio input…',
+        listening: `Listening for the ${side} wheel. Play one instrument and watch the microphone level.`
+      };
+      setBowlStatus(messages[state]);
     },
     onReading(reading, side) {
       bowlUI.lock.disabled = !reading.canLock;
       bowlUI.progress.value = reading.progress;
+      const rms = reading.rms || 0;
+      bowlUI.inputLevel.value = rms > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(rms) + 90) / 90)) : 0;
+      bowlUI.inputLevel.setAttribute('aria-valuetext', rms < 0.00002 ? 'No input' : 'Sound reaching the microphone');
       bowlUI.live.textContent = reading.frequency ? `${reading.frequency.toFixed(2)} Hz` : '— Hz';
       if (reading.frequency) {
         (side === 'left' ? wheelL : wheelR).setHz(reading.frequency);
         setBowlStatus(`Listening for the ${side} wheel. Hold the tone steady to lock automatically, or press Lock current tone.`);
       } else {
         const messages = {
-          quiet: `Listening for the ${side} wheel. Move the instrument closer or play it again.`,
+          quiet: rms < 0.00002 ? 'No microphone signal yet. Try speaking or playing a tone near the device.'
+            : 'The microphone signal is very quiet. Move the instrument closer or play it again.',
           noise: 'No clear tone yet. Let the strike settle and keep other sounds quiet.',
           clipping: 'The sound is too loud for the microphone. Move the instrument farther away.',
           range: 'The strongest tone is outside 40–4,000 Hz. Try a different note, instrument or playing position.'

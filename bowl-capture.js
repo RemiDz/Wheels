@@ -1,4 +1,4 @@
-/* Microphone analysis stays on this device. The input is never routed to speakers. */
+/* Microphone analysis stays on this device. A zero-gain output prevents feedback. */
 const BowlAudio = (() => {
   const MIN_HZ = 40;
   const MAX_HZ = 4000;
@@ -16,7 +16,9 @@ const BowlAudio = (() => {
     }
     const rms = Math.sqrt(Math.max(0, squareSum / samples.length - (sum / samples.length) ** 2));
     if (clipped / samples.length > 0.01) return { reason: 'clipping', rms };
-    if (rms < 0.002) return { reason: 'quiet', rms };
+    // Raw device input can be much quieter with automatic gain control disabled.
+    // Spectral concentration and sustained pitch still reject broadband noise.
+    if (rms < 0.0002) return { reason: 'quiet', rms };
 
     const binHz = sampleRate / (spectrum.length * 2);
     const first = Math.max(1, Math.floor(MIN_HZ / binHz));
@@ -34,7 +36,7 @@ const BowlAudio = (() => {
       if (Number.isFinite(spectrum[i])) audiblePeak = Math.max(audiblePeak, spectrum[i]);
     }
     if (audiblePeak > peakDb + 6) return { reason: 'range', rms };
-    if (peakDb < -65 || totalPower === 0) return { reason: 'quiet', rms };
+    if (totalPower === 0) return { reason: 'quiet', rms };
 
     let peakPower = 0;
     for (let i = Math.max(first, peak - 2); i <= Math.min(last, peak + 2); i++) {
@@ -42,6 +44,7 @@ const BowlAudio = (() => {
     }
     const concentration = peakPower / totalPower;
     if (concentration < 0.18) return { reason: 'noise', rms };
+    if (peakDb < -85) return { reason: 'quiet', rms };
     const a = spectrum[peak - 1], b = spectrum[peak], c = spectrum[peak + 1];
     const curvature = a - 2 * b + c;
     const offset = Number.isFinite(curvature) && curvature < 0
@@ -128,11 +131,20 @@ const BowlAudio = (() => {
       }), 45000);
       try {
         session.context = new AudioContext();
-        // Resume in the button gesture, while the permission request may still be open.
-        const resumed = Promise.resolve(session.context.resume()).then(() => true, error => {
+        // Build the graph before activation: some engines initialise rendering lazily.
+        session.analyser = session.context.createAnalyser();
+        session.analyser.fftSize = 32768;
+        session.analyser.smoothingTimeConstant = 0;
+        session.silentOutput = session.context.createGain();
+        session.silentOutput.gain.value = 0;
+        session.analyser.connect(session.silentOutput);
+        session.silentOutput.connect(session.context.destination);
+        // Resume inside the gesture. Observe the audio clock below instead of waiting
+        // indefinitely for a browser's resume promise before connecting the microphone.
+        const resume = () => Promise.resolve(session.context.resume()).catch(error => {
           this.finish(session, 'error', { message: microphoneError(error) });
-          return false;
         });
+        resume();
         const stream = await this.env.navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 },
           video: false
@@ -140,21 +152,19 @@ const BowlAudio = (() => {
         // Stop late grants too: cancellation cannot dismiss the browser's permission prompt.
         if (this.session !== session) { stream.getTracks().forEach(track => track.stop()); return; }
         session.stream = stream;
-        if (!await resumed || this.session !== session) return;
         const tracks = stream.getAudioTracks();
         if (!tracks.length || tracks.every(track => track.readyState === 'ended')) throw new Error('No live audio track');
         session.onEnded = () => this.finish(session, 'error', { message: 'The microphone disconnected. Reconnect it and try again.' });
         tracks.forEach(track => track.addEventListener('ended', session.onEnded));
-        session.analyser = session.context.createAnalyser();
-        session.analyser.fftSize = 32768;
-        session.analyser.smoothingTimeConstant = 0;
         session.source = session.context.createMediaStreamSource(stream);
         session.source.connect(session.analyser);
+        if (session.context.state !== 'running') resume();
         session.spectrum = new Float32Array(session.analyser.frequencyBinCount);
         session.samples = new Float32Array(session.analyser.fftSize);
         session.startedAt = this.env.performance.now();
-        session.warmup = session.analyser.fftSize / session.context.sampleRate * 1000 + 80;
-        this.onState('listening', channel);
+        session.startedAudioTime = session.context.currentTime;
+        session.warmup = session.analyser.fftSize / session.context.sampleRate + 0.08;
+        this.onState('starting', channel);
         this.poll(session);
       } catch (error) {
         this.finish(session, 'error', { message: microphoneError(error) });
@@ -164,12 +174,25 @@ const BowlAudio = (() => {
     poll(session) {
       if (this.session !== session) return;
       try {
+        const now = this.env.performance.now();
+        const audioTime = session.context.currentTime;
+        if (!session.listening) {
+          if (session.context.state === 'running' && audioTime > session.startedAudioTime) {
+            session.listening = true;
+            this.onState('listening', session.channel);
+          } else if (now - session.startedAt >= 6000) {
+            this.finish(session, 'error', { message: 'Microphone access is allowed, but the audio engine did not start. Press Start listening again; if it persists, reload this page in your browser.' });
+            return;
+          } else {
+            session.timer = this.env.setTimeout(() => this.poll(session), 80);
+            return;
+          }
+        }
         if (session.context.state !== 'running') {
           this.finish(session, 'error', { message: 'Microphone listening was interrupted. Press Start listening to try again.' });
           return;
         }
-        const now = this.env.performance.now();
-        if (now - session.startedAt >= session.warmup) {
+        if (audioTime - session.startedAudioTime >= session.warmup) {
           session.analyser.getFloatFrequencyData(session.spectrum);
           session.analyser.getFloatTimeDomainData(session.samples);
           const reading = detectTone(session.spectrum, session.samples, session.context.sampleRate);
@@ -203,6 +226,7 @@ const BowlAudio = (() => {
       });
       try { session.source?.disconnect(); } catch {}
       try { session.analyser?.disconnect(); } catch {}
+      try { session.silentOutput?.disconnect(); } catch {}
       try { session.context?.close()?.catch(() => {}); } catch {}
       this.onFinish({ reason, channel: session.channel, ...data });
     }

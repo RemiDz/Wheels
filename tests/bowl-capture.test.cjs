@@ -226,3 +226,48 @@ test('an interrupted microphone context releases its stream and keeps the previo
   assert.equal(env.app.wheelL.getHz(), 222);
   assert.match(env.document.querySelector('#bowlStatus').textContent, /interrupted/);
 });
+
+test('a quiet microphone tone is visible on the input meter and captures accurately', async t => {
+  const env = setup(t, { input: signal({ tones: [[440, 0.001]], noise: 0.0002 }) });
+  env.click('#bowlListen'); await env.tick(1100);
+  assert.ok(Math.abs(env.app.wheelL.getHz() - 440) < 0.2);
+  assert.ok(env.document.querySelector('#bowlInputLevel').value > 0);
+  const sink = env.mic.gains[0];
+  assert.equal(sink.gain.value, 0, 'Microphone output remains completely muted');
+  assert.equal(sink.connections[0], env.mic.contexts[0].destination);
+  await env.tick(1400);
+  assert.match(env.document.querySelector('#bowlLeftFrequency').textContent, /440/);
+  assert.equal(env.mic.streams[0].track.readyState, 'ended');
+  assert.equal(sink.connections.length, 0, 'The silent output is released after capture');
+});
+
+test('capture can start when the audio clock runs but the resume promise stays pending', async t => {
+  const env = setup(t, { pendingResume: true });
+  env.click('#bowlListen'); await env.tick(2500);
+  assert.match(env.document.querySelector('#bowlLeftFrequency').textContent, /440/);
+  assert.equal(env.mic.streams[0].track.readyState, 'ended');
+});
+
+test('an audio engine that never starts releases the allowed microphone and reports the startup failure', async t => {
+  const env = setup(t, { stalled: true }); env.app.wheelL.setHz(222);
+  env.click('#bowlListen'); await env.tick(200);
+  assert.match(env.document.querySelector('#bowlStatus').textContent, /Starting/);
+  await env.tick(6100);
+  assert.match(env.document.querySelector('#bowlStatus').textContent, /audio engine did not start/);
+  assert.equal(env.mic.streams[0].track.readyState, 'ended');
+  assert.equal(env.mic.contexts[0].state, 'closed');
+  assert.equal(env.document.querySelector('#bowlListen').disabled, false);
+  assert.equal(env.app.wheelL.getHz(), 222);
+});
+
+test('the input meter distinguishes silence from unpitched sound without locking either', async t => {
+  const env = setup(t, { input: signal({ tones: [] }) });
+  env.click('#bowlListen'); await env.tick(1500);
+  assert.equal(env.document.querySelector('#bowlInputLevel').value, 0);
+  assert.match(env.document.querySelector('#bowlStatus').textContent, /No microphone signal/);
+  env.mic.input = signal({ tones: [], noise: 0.003 }); await env.tick(1500);
+  assert.ok(env.document.querySelector('#bowlInputLevel').value > 0);
+  assert.match(env.document.querySelector('#bowlStatus').textContent, /No clear tone/);
+  assert.equal(env.document.querySelector('#bowlLock').disabled, true);
+  assert.equal(env.document.querySelector('#bowlLeftFrequency').textContent, 'Not captured');
+});

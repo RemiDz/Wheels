@@ -41,19 +41,26 @@ function signal({ tones = [[440, 0.3]], sampleRate = 48000, noise = 0, dc = 0, c
   return { spectrum, samples, sampleRate };
 }
 
-function microphone(env, { pending = false, rejection = null, input = signal() } = {}) {
+function microphone(env, { pending = false, rejection = null, input = signal(), pendingResume = false, stalled = false } = {}) {
   const w = env.window;
   const originalContext = w.AudioContext;
-  const mic = { input, contexts: [], requests: [], streams: [], sources: [] };
+  const mic = { input, contexts: [], requests: [], streams: [], sources: [], gains: [] };
   class Context extends originalContext {
     constructor() { super(); this.sampleRate = 48000; mic.contexts.push(this); }
+    resume() {
+      if (stalled) return new Promise(() => {});
+      const resumed = super.resume();
+      return pendingResume ? new Promise(() => {}) : resumed;
+    }
+    createGain() { const gain = super.createGain(); mic.gains.push(gain); return gain; }
     close() { this.state = 'closed'; return Promise.resolve(); }
     createAnalyser() {
       return {
+        connections: [], connect(to) { this.connections.push(to); },
         fftSize: 32768, get frequencyBinCount() { return this.fftSize / 2; },
         getFloatFrequencyData(array) { array.set(mic.input.spectrum); },
         getFloatTimeDomainData(array) { array.set(mic.input.samples); },
-        disconnect() {}
+        disconnect() { this.connections = []; }
       };
     }
     createMediaStreamSource() {

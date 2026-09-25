@@ -38,6 +38,16 @@ test('DC offset is excluded from input level and does not shift a real tone', ()
   assert.ok(Math.abs(detect({ tones: [[432, 0.1]], dc: 0.2 }).frequency - 432) < 0.1);
 });
 
+test('quiet sustained notes pass while similarly quiet broadband noise and silence do not', () => {
+  for (const frequency of [110, 440, 136.1, 963, 2000]) {
+    const result = detect({ tones: [[frequency, 0.001]], noise: 0.0002 });
+    assert.ok(Math.abs(result.frequency - frequency) < 0.2, JSON.stringify(result));
+  }
+  for (const noise of [0, 0.0002, 0.001, 0.003]) {
+    assert.equal(detect({ tones: [], noise }).frequency, undefined);
+  }
+});
+
 test('stable capture waits for sustained pitch; silence and note changes restart the window', () => {
   const stable = new StableTone();
   let result;
