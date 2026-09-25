@@ -324,9 +324,12 @@
         <button class="overtone-highlight-toggle" id="overtoneHighlightToggle" aria-label="Toggle overtone highlights">
           <span class="toggle-label">Play Overtones</span>
         </button>
+        <button class="intervals-toggle" id="intervalsToggle" aria-expanded="false" aria-controls="intervalsPanel" aria-label="Show the intervals table">
+          <span class="toggle-label">Intervals</span>
+        </button>
       </div>
     </div>
-    <p class="bowl-piano-summary" id="bowlPianoSummary" hidden></p>
+<p class="bowl-piano-summary" id="bowlPianoSummary" hidden></p>
     <div class="piano-keyboard-wrapper">
       <div class="pitch-bend-wheel" id="pitchBendWheel" role="slider" aria-label="Pitch bend wheel" tabindex="0">
         <div class="pitch-bend-label">Scroll</div>
@@ -339,6 +342,24 @@
         <div class="pitch-bend-value" id="pitchBendValue">+0.000</div>
       </div>
       <div id="pianoKeyboard" class="piano-keyboard"></div>
+    </div>
+    <div class="intervals-panel" id="intervalsPanel" hidden>
+      <div class="intervals-header">
+        <p class="intervals-help">Rows are the lower note, columns the upper note. Tap an interval to play both notes: the lower on the left wheel, the upper on the right.</p>
+        <label class="intervals-octave">Octave
+          <select id="intervalOctave" aria-label="Octave of the lower note">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select>
+        </label>
+      </div>
+      <div class="intervals-scroll">
+        <table class="intervals-table" id="intervalsTable" aria-label="Intervals between notes"></table>
+      </div>
     </div>
   </section>
 

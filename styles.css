@@ -4196,7 +4196,8 @@ body[data-theme="dark"] .concept-dropdown {
 }
 
 .note-system-toggle,
-.overtone-highlight-toggle {
+.overtone-highlight-toggle,
+.intervals-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4215,7 +4216,8 @@ body[data-theme="dark"] .concept-dropdown {
 }
 
 .note-system-toggle:hover,
-.overtone-highlight-toggle:hover {
+.overtone-highlight-toggle:hover,
+.intervals-toggle:hover {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.1));
   border-color: rgba(139, 92, 246, 0.4);
   transform: translateY(-1px);
@@ -4223,21 +4225,58 @@ body[data-theme="dark"] .concept-dropdown {
 }
 
 .note-system-toggle:active,
-.overtone-highlight-toggle:active {
+.overtone-highlight-toggle:active,
+.intervals-toggle:active {
   transform: translateY(0);
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
-.overtone-highlight-toggle.is-active {
+.overtone-highlight-toggle.is-active,
+.intervals-toggle.is-active {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(139, 92, 246, 0.15));
   border-color: rgba(139, 92, 246, 0.6);
   box-shadow: 0 3px 8px rgba(139, 92, 246, 0.3);
 }
 
 .note-system-toggle .toggle-label,
-.overtone-highlight-toggle .toggle-label {
+.overtone-highlight-toggle .toggle-label,
+.intervals-toggle .toggle-label {
   line-height: 1;
   white-space: nowrap;
+}
+
+/* Intervals table under the piano: rows = lower note, columns = upper note */
+.intervals-panel { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--panel-border); }
+.intervals-panel[hidden] { display: none; }
+.intervals-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 10px; }
+.intervals-help { margin: 0; flex: 1 1 260px; font-size: 12px; color: var(--muted); }
+.intervals-octave { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.intervals-octave select { padding: 4px 8px; border-radius: 6px; border: 2px solid var(--panel-border); background: var(--control-bg); color: var(--fg); font-size: 12px; font-weight: 700; }
+.intervals-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+.intervals-table { border-collapse: separate; border-spacing: 2px; min-width: 620px; width: 100%; font-variant-numeric: tabular-nums; }
+.intervals-table th { padding: 4px 4px; font-size: 11px; font-weight: 800; color: var(--fg); text-align: center; white-space: nowrap; }
+.intervals-table thead th { position: sticky; top: 0; }
+/* pinned row labels and corner: an opaque background (the panel colour is translucent) and a shadow that fills the 2 px cell gap */
+.intervals-table th[scope="row"],
+.intervals-table thead th:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg); box-shadow: 2px 0 0 var(--bg), -2px 0 0 var(--bg); }
+.intervals-table th[scope="row"] { text-align: right; padding-right: 8px; }
+.intervals-table thead th:first-child { z-index: 2; }
+.intervals-table .intervals-corner { display: flex; flex-direction: column; align-items: flex-end; font-size: 8px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; line-height: 1.2; }
+.intervals-table .intervals-corner span:first-child { align-self: flex-start; }
+.intervals-table td { padding: 0; }
+.interval-cell {
+  display: block; width: 100%; min-width: 46px; min-height: 34px; padding: 6px 4px;
+  border-radius: 6px; border: 1px solid var(--panel-border); background: var(--control-bg);
+  color: var(--fg); font-size: 11px; font-weight: 600; cursor: pointer; text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.interval-cell.is-odd { color: #6d28d9; }
+.interval-cell:hover { border-color: rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.1); }
+.interval-cell:active { transform: scale(0.97); }
+.interval-cell.is-active { background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(139, 92, 246, 0.18)); border-color: rgba(139, 92, 246, 0.7); box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3); }
+body[data-theme="dark"] .interval-cell.is-odd { color: #c4b5fd; }
+@media (max-width: 700px) {
+  .interval-cell { min-width: 44px; min-height: 40px; font-size: 10px; }
 }
 
 .piano-keyboard-wrapper {

@@ -3726,8 +3726,100 @@ originalOvertonesFundamental = currentOvertonesFundamental;
     // Update piano keyboard labels
     updatePianoKeyLabels();
     updateOvertones();
+    renderIntervalTable();
   });
-  
+
+  // ===== INTERVALS TABLE =====
+  // A 12 x 12 table of the intervals between note classes: rows are the lower note,
+  // columns the upper note (an octave up when the column is at or below the row).
+  // Tapping a cell plays the pair: lower note on the left wheel, upper on the right.
+  const INTERVAL_SHORT_NAMES = ['8ve', 'm2nd', 'M2nd', 'm3rd', 'M3rd', 'P4th', 'tritone', 'P5th', 'm6th', 'M6th', 'm7th', 'M7th'];
+  const INTERVAL_LONG_NAMES = ['octave', 'minor second', 'major second', 'minor third', 'major third', 'perfect fourth',
+    'tritone', 'perfect fifth', 'minor sixth', 'major sixth', 'minor seventh', 'major seventh'];
+  const intervalsToggle = document.getElementById('intervalsToggle');
+  const intervalsPanel = document.getElementById('intervalsPanel');
+  const intervalsTable = document.getElementById('intervalsTable');
+  const intervalOctave = document.getElementById('intervalOctave');
+  let activeIntervalCell = null;
+
+  function intervalSemitones(lowerIndex, upperIndex) {
+    return ((upperIndex - lowerIndex) % 12 + 12) % 12 || 12;
+  }
+
+  function renderIntervalTable() {
+    if (!intervalsTable) return;
+    const names = NOTE_NAMES[noteSystem];
+    let head = '<thead><tr><th scope="col" class="intervals-corner"><span>lower</span><span>upper</span></th>';
+    for (const name of names) head += `<th scope="col">${name}</th>`;
+    head += '</tr></thead>';
+    let body = '<tbody>';
+    names.forEach((rowName, row) => {
+      body += `<tr><th scope="row">${rowName}</th>`;
+      names.forEach((columnName, column) => {
+        const semitones = intervalSemitones(row, column);
+        body += `<td><button type="button" class="interval-cell${semitones % 2 ? ' is-odd' : ''}" data-row="${row}" data-column="${column}" `
+          + `aria-label="${INTERVAL_LONG_NAMES[semitones % 12]} from ${rowName} to ${columnName}">${INTERVAL_SHORT_NAMES[semitones % 12]}</button></td>`;
+      });
+      body += '</tr>';
+    });
+    body += '</tbody>';
+    intervalsTable.innerHTML = head + body;
+    activeIntervalCell = null;
+  }
+
+  function playInterval(row, column) {
+    const octave = Number(intervalOctave?.value) || 4;
+    const lowerMidi = 12 * (octave + 1) + row;
+    const upperMidi = lowerMidi + intervalSemitones(row, column);
+    const lowerHz = midiToFrequency(lowerMidi);
+    const upperHz = midiToFrequency(upperMidi);
+    const lowerKey = pianoKeys[lowerMidi - KEYBOARD_START_MIDI];
+    const upperKey = pianoKeys[upperMidi - KEYBOARD_START_MIDI];
+    prepareManualPlayback();
+    resetTuningOffsets();
+    wheelL.setHz(lowerHz);
+    wheelR.setHz(upperHz);
+    // both notes must sound
+    if (wheelLMuted || wheelRMuted) {
+      wheelLMuted = wheelRMuted = false;
+      updateMuteButtons();
+    }
+    setOvertonesFundamental(lowerHz, lowerKey?.element ?? null);
+    ensureAudio();
+    syncAudioState().catch(handleAudioError);
+    startAudio();
+    setTransportActive('play');
+    scheduleOscillatorSync();
+    // show both keys
+    if (pianoKeyboardEl && lowerKey?.element && upperKey?.element) {
+      const low = Math.min(lowerKey.element.offsetLeft, upperKey.element.offsetLeft);
+      const high = Math.max(lowerKey.element.offsetLeft + lowerKey.element.offsetWidth, upperKey.element.offsetLeft + upperKey.element.offsetWidth);
+      pianoKeyboardEl.scrollLeft = Math.max(0, (low + high - pianoKeyboardEl.clientWidth) / 2);
+    }
+  }
+
+  if (intervalsToggle && intervalsPanel) {
+    intervalsToggle.addEventListener('click', () => {
+      const expanded = intervalsToggle.getAttribute('aria-expanded') === 'true';
+      intervalsToggle.setAttribute('aria-expanded', String(!expanded));
+      intervalsToggle.classList.toggle('is-active', !expanded);
+      intervalsPanel.hidden = expanded;
+      if (!expanded && !intervalsTable.tBodies.length) renderIntervalTable();
+    });
+  }
+  intervalsTable?.addEventListener('click', event => {
+    const cell = event.target instanceof Element ? event.target.closest('.interval-cell') : null;
+    if (!cell) return;
+    playInterval(Number(cell.dataset.row), Number(cell.dataset.column));
+    activeIntervalCell?.classList.remove('is-active');
+    activeIntervalCell = cell;
+    cell.classList.add('is-active');
+  });
+  intervalOctave?.addEventListener('change', () => {
+    if (activeIntervalCell) playInterval(Number(activeIntervalCell.dataset.row), Number(activeIntervalCell.dataset.column));
+  });
+  renderIntervalTable();
+
   // Overtone highlighting toggle
   const overtoneHighlightToggle = document.getElementById('overtoneHighlightToggle');
   
