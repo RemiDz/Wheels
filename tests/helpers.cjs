@@ -75,7 +75,7 @@ function createApp({ blockedStorage = false, delayedResume = false, delayedSuspe
   w.AudioContext = AudioContext;
   const expose = `
     window.testApp = {
-      wheelL, wheelR, frequencyToNote, getDetailedFreqInfo, applyFineTune, applyPitchBend,
+      wheelL, wheelR, frequencyToNote, getDetailedFreqInfo, getKeySpanForFrequency, applyFineTune, applyPitchBend,
       startProgram, stopProgram, startDynamicJourney, startQuickStart, startDemo,
       startOvertonesDemo, startTheoryDemo, stopSchoolDemo, generateOvertones,
       RELAXATION_PROGRAMS, DYNAMIC_JOURNEYS, QUICK_START_PRESETS, calculateHarmonicFrequencies,

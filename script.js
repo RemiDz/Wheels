@@ -1064,23 +1064,30 @@
     freqLabelMap.clear();
   }
   
+  // Note tables are written to two decimals, so a frequency may sit a fraction of a cent
+  // below its own key. NOTE_TOLERANCE (in semitones, half a cent) keeps it on that key.
+  const NOTE_TOLERANCE = 0.005;
+
+  function frequencyToMidi(freq) {
+    return 12 * Math.log2(freq / 440) + 69;
+  }
+
+  // The key at or below the frequency (within half a cent) plus the fill ratio towards the next key.
   function getKeySpanForFrequency(freq) {
-    if (!Number.isFinite(freq) || !pianoKeys.length) return null;
-    if (freq <= pianoKeys[0].frequency) {
-      const span = Math.max(1e-6, (pianoKeys[0].nextFrequency ?? pianoKeys[0].frequency + 1) - pianoKeys[0].frequency);
-      const ratio = Math.max(0, Math.min(1, (freq - pianoKeys[0].frequency) / span));
-      return { key: pianoKeys[0], ratio };
-    }
-    for (let i = 0; i < pianoKeys.length; i++) {
-      const current = pianoKeys[i];
-      const nextKey = pianoKeys[i + 1];
-      if (!nextKey || freq < nextKey.frequency) {
-        const span = Math.max(1e-6, (nextKey?.frequency ?? (current.frequency + 1)) - current.frequency);
-        const ratio = Math.max(0, Math.min(1, (freq - current.frequency) / span));
-        return { key: current, ratio };
-      }
-    }
-    return { key: pianoKeys[pianoKeys.length - 1], ratio: 1 };
+    if (!Number.isFinite(freq) || freq <= 0 || !pianoKeys.length) return null;
+    const index = Math.floor(frequencyToMidi(freq) + NOTE_TOLERANCE) - KEYBOARD_START_MIDI;
+    if (index < 0 || index >= pianoKeys.length) return null;
+    const key = pianoKeys[index];
+    const nextFrequency = index + 1 < pianoKeys.length ? pianoKeys[index + 1].frequency : key.frequency + 1;
+    const span = Math.max(1e-6, nextFrequency - key.frequency);
+    const ratio = Math.max(0, Math.min(1, (freq - key.frequency) / span));
+    return { key, ratio };
+  }
+
+  // The nearest key (within ±50 cents) for whole-key highlights.
+  function getNearestKeyForFrequency(freq) {
+    if (!Number.isFinite(freq) || freq <= 0 || !pianoKeys.length) return null;
+    return pianoKeys[Math.round(frequencyToMidi(freq)) - KEYBOARD_START_MIDI] ?? null;
   }
 
   function clearKeyHighlight(side) {
@@ -1162,11 +1169,12 @@
     // Calculate the MIDI note number (can be fractional)
     const noteNumber = 12 * Math.log2(frequency / A4) + A4_MIDI;
     
-    // Floor to get the note at or below the frequency (always positive cents)
-    const baseMidi = Math.floor(noteNumber + 1e-9);
+    // Floor to get the note at or below the frequency (always positive cents),
+    // allowing half a cent so two-decimal note frequencies name their own note.
+    const baseMidi = Math.floor(noteNumber + NOTE_TOLERANCE);
     
-    // Calculate cents deviation from the base note (always 0 to +99 cents)
-    const cents = Math.max(0, Math.min(99, Math.round((noteNumber - baseMidi) * 100)));
+    // Calculate cents deviation from the base note (0 to +99 cents)
+    const cents = Math.max(0, Math.round((noteNumber - baseMidi) * 100));
     
     // Calculate base frequency and Hz offset
     const baseFreq = A4 * Math.pow(2, (baseMidi - A4_MIDI) / 12);
@@ -2658,8 +2666,8 @@
     const A4 = 440;
     const A4_MIDI = 69;
     const noteNumber = 12 * Math.log2(frequency / A4) + A4_MIDI;
-    const baseMidi = Math.floor(noteNumber + 1e-9);
-    const cents = Math.max(0, Math.min(99, Math.round((noteNumber - baseMidi) * 100)));
+    const baseMidi = Math.floor(noteNumber + NOTE_TOLERANCE);
+    const cents = Math.max(0, Math.round((noteNumber - baseMidi) * 100));
     const exactNoteFreq = midiToFrequency(baseMidi);
     const hzOffset = Math.max(0, frequency - exactNoteFreq);
     
@@ -4550,10 +4558,10 @@
 
   // Highlight piano key for a frequency
   function highlightSchoolKey(frequency) {
-    const keySpan = getKeySpanForFrequency(frequency);
-    if (keySpan?.key?.element) {
-      keySpan.key.element.classList.add('school-demo-active');
-      schoolDemoHighlightedKeys.push(keySpan.key.element);
+    const key = getNearestKeyForFrequency(frequency);
+    if (key?.element) {
+      key.element.classList.add('school-demo-active');
+      schoolDemoHighlightedKeys.push(key.element);
     }
   }
 
