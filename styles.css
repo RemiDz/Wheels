@@ -2462,6 +2462,10 @@ button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
 /* icon glyph and label stay on one line (iOS draws the emoji glyph wider) */
 #play, #pause, #stop, #reset { white-space: nowrap; }
 
+/* audio status line under the transport (unlock hint, activation errors) */
+#audioStatus { margin: 6px auto 0; padding: 6px 14px; width: fit-content; max-width: 100%; border-radius: 999px; background: var(--panel-bg); border: 1px solid var(--panel-border); color: var(--fg); font-size: 12px; font-weight: 600; text-align: center; }
+#audioStatus[hidden] { display: none; }
+
 /* Transport button styles - more modern and matching page aesthetic */
 #play { 
   background: linear-gradient(135deg, #10b981, #059669);
