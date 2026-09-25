@@ -961,23 +961,30 @@ monoOsc1 = monoOsc2 = null;
     rampGain(monoOsc2._gain.gain, wheelRMuted ? 0 : 0.125);
   }
   
+  // Wheel changes reach the oscillators on the next animation frame. Hidden pages get
+  // no frames, so a timer takes over there and a pending frame is flushed on hiding.
   const scheduleOscillatorSync = (() => {
-    let scheduled = false;
-    const enqueue = window.requestAnimationFrame 
-      ? window.requestAnimationFrame.bind(window)
-      : (cb) => setTimeout(cb, 16);
+    let handle = null;
+    let viaTimer = false;
+    const run = () => {
+      handle = null;
+      updateOscillators();
+      updateKeyboardHighlights();
+      updateLiveInfo();
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && handle !== null && !viaTimer) {
+        window.cancelAnimationFrame(handle);
+        run();
+      }
+    });
     return () => {
-      if (scheduled) return;
-      scheduled = true;
-      enqueue(() => {
-        scheduled = false;
-        updateOscillators();
-        updateKeyboardHighlights();
-        updateLiveInfo();
-      });
+      if (handle !== null) return;
+      viaTimer = document.visibilityState === 'hidden';
+      handle = viaTimer ? window.setTimeout(run, 50) : window.requestAnimationFrame(run);
     };
   })();
-  
+
   // Presets
   // Harmonic interval presets based on OM frequency (136.10 Hz) as C
   // Ordered by the overtone series - consecutive harmonic ratios first, then compound intervals
@@ -3512,6 +3519,7 @@ originalOvertonesFundamental = currentOvertonesFundamental;
     overtonesDemoRunning = false;
     stopOvertonesDemoAudio();
     setTransportActive('stop');
+    if (activeActivity === 'overtones-demo') activeActivity = null;
     
     // Update button state
     if (overtonesDemoBtn) {
@@ -4174,6 +4182,8 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
         (activeActivity === 'overtones-demo' && !overtonesDemoRunning)) prepareManualPlayback();
     const request = ++transportRequest;
     transportPaused = false;
+    // Manual playback is an activity from the click on, so Pause during activation is honoured
+    if (!activeActivity) activeActivity = 'manual';
     try {
       ensureAudio();
       await syncAudioState();
@@ -4187,6 +4197,8 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
   document.getElementById('pause').addEventListener('click', async ()=>{
     cancelBowlCapture();
     if (!audioCtx) return;
+    if (programFadingOut) { stopProgram(true); return; }
+    if (!wheel1?.started && !harmonicsPlaying && !activeActivity) return;
     const request = ++transportRequest;
     transportPaused = true;
     playback.pause();
@@ -5246,7 +5258,11 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
       theoryDemoBtnText.textContent = 'Demo';
     }
     clearTheoryDemoLabel();
-    if (wasRunning && !stoppingPlayback) { playback.clear(); stopAudio(); }
+    if (wasRunning && !stoppingPlayback) {
+      playback.clear();
+      stopAudio();
+      if (activeActivity === 'theory') { activeActivity = null; transportPaused = false; }
+    }
   }
   
   function endTheoryDemo() {
@@ -6340,11 +6356,12 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     // Set frequencies on the wheels
     wheelL.setHz(targetLeft);
     wheelR.setHz(targetRight);
-    
+
     // Update the audio
     updateOscillators();
+    return { targetLeft, targetRight };
   }
-  
+
   // Update program display
   function updateProgramDisplay(elapsed) {
     if (!currentProgram) return;
@@ -6364,19 +6381,19 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     // Update phase display
     document.getElementById('phaseBadge').textContent = `Phase ${index + 1} of ${currentProgram.phases.length}`;
     document.getElementById('phaseName').textContent = phase.name;
-    document.getElementById('phaseFreqL').textContent = `${phase.leftHz.toFixed(1)} Hz`;
-    document.getElementById('phaseFreqR').textContent = `${phase.rightHz.toFixed(1)} Hz`;
-    document.getElementById('phaseBinaural').textContent = `${phase.binauralHz.toFixed(1)} Hz`;
     document.getElementById('phaseDescription').textContent = phase.description;
-    
+
     // Update frequency-responsive visuals
     const overallProgress = elapsed / currentProgram.duration;
     updateFrequencyVisuals(programDisplay, phase.binauralHz, overallProgress);
-    
-    // Update frequencies if phase changed
+
+    // Update frequencies (gliding into the next phase during its last 5 s) and show what plays
     currentPhaseIndex = index;
-    updateProgramFrequencies(phase, phaseProgress);
-    
+    const { targetLeft, targetRight } = updateProgramFrequencies(phase, phaseProgress);
+    document.getElementById('phaseFreqL').textContent = `${targetLeft.toFixed(1)} Hz`;
+    document.getElementById('phaseFreqR').textContent = `${targetRight.toFixed(1)} Hz`;
+    document.getElementById('phaseBinaural').textContent = `${Math.abs(targetRight - targetLeft).toFixed(1)} Hz`;
+
     return elapsed >= currentProgram.duration;
   }
   
@@ -6655,9 +6672,10 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
       // Fade out audio over 3 seconds
       const completed = await fadeOutAudio(3);
       if (!completed || generation !== playbackGeneration) return;
-      
+
       programFadingOut = false;
-    } else {
+      if (activeActivity === 'guided') activeActivity = null;
+} else {
       // Immediate stop (no fade)
       stopAudio();
     }
@@ -7690,12 +7708,11 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
   }
   
   // Calculate the ending frequencies of a phase (for transition blending)
-  function getPhaseEndFrequencies(phase) {
-    // Get frequencies at the very end of the phase
-    return calculateHarmonicFrequencies(phase, phase.duration * 0.99, phase.duration);
-  }
-  
-  // Update dynamic journey display
+  // The last pair written to the wheels; phase crossfades start from here, not from a
+  // recomputed 99 % point that the breathing modulation may have left by several Hz.
+  let lastDynamicFrequencies = null;
+
+// Update dynamic journey display
   function updateDynamicJourneyDisplay() {
     if (!dynamicJourneyRunning || dynamicJourneyStartTime === null) return;
     
@@ -7703,10 +7720,10 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     const journey = currentDynamicJourney;
     
     if (elapsed >= journey.duration) {
-      stopDynamicJourney();
+      endDynamicJourney();
       return;
     }
-    
+
     // Update elapsed time
     document.getElementById('dynamicJourneyElapsed').textContent = formatDynamicTime(elapsed);
     
@@ -7737,9 +7754,8 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     // Handle phase transition - detect when phase changes
     if (phaseIndex !== currentDynamicPhaseIndex) {
       // Store the previous phase's ending frequencies for crossfade
-      if (currentDynamicPhaseIndex >= 0 && currentDynamicPhaseIndex < journey.phases.length) {
-        const prevPhase = journey.phases[currentDynamicPhaseIndex];
-        previousPhaseEndFreqs = getPhaseEndFrequencies(prevPhase);
+      if (currentDynamicPhaseIndex >= 0 && lastDynamicFrequencies) {
+        previousPhaseEndFreqs = lastDynamicFrequencies;
       }
       phaseTransitionStartTime = elapsed;
       currentDynamicPhaseIndex = phaseIndex;
@@ -7784,7 +7800,8 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
       wheelL.setHz(leftHz);
       wheelR.setHz(rightHz);
     }
-    
+    lastDynamicFrequencies = { leftHz, rightHz };
+
     // Update frequency-responsive visuals
     const overallProgress = elapsed / journey.duration;
     updateFrequencyVisuals(dynamicJourneyDisplay, binauralHz, overallProgress);
@@ -7808,6 +7825,7 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     currentHarmonicInterval = ''; // Reset harmonic tracking
     previousPhaseEndFreqs = null; // Reset transition state
     phaseTransitionStartTime = null;
+    lastDynamicFrequencies = null;
     dynamicJourneyRunning = true;
     
     // Ensure audio is ready
@@ -7865,6 +7883,18 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     updateDynamicJourneyDisplay();
   }
   
+  // A journey that reaches its end fades out over 3 s instead of cutting
+  function endDynamicJourney() {
+    if (!dynamicJourneyRunning) return;
+    dynamicJourneyRunning = false;
+    dynamicJourneyStart.querySelector('.btn-text').textContent = 'Ending...';
+    fadeOutAudio(3).then(completed => {
+      if (!completed) return;
+      stopDynamicJourney();
+      if (activeActivity === 'dynamic') activeActivity = null;
+    });
+  }
+
   // Stop dynamic journey
   function stopDynamicJourney() {
     if (!dynamicJourneyRunning && !currentDynamicJourney) return; // Already stopped
@@ -8730,14 +8760,14 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     // Update overlay UI
     updateQuickStartOverlay(step.label, step.brainwave, stepIndex, sequence.length, overallProgress, elapsedDuration);
     
-    // Get current frequencies
-    const currentLeft = wheelL.getHz();
-    const currentRight = wheelR.getHz();
-    
+    // Get current frequencies; a silent sub-audible wheel snaps to the step instead of sweeping up
+    const currentLeft = wheelL.getHz() >= BINAURAL_MIN_AUDIBLE_HZ ? wheelL.getHz() : step.left;
+    const currentRight = wheelR.getHz() >= BINAURAL_MIN_AUDIBLE_HZ ? wheelR.getHz() : step.right;
+
     // Get current pan values (convert from -1..1 to -100..100)
     const currentLeftPan = Math.round(wheelLPan * 100);
     const currentRightPan = Math.round(wheelRPan * 100);
-    
+
     // Check if step has pan values
     const hasPan = typeof step.leftPan === 'number' && typeof step.rightPan === 'number';
     
@@ -8785,6 +8815,19 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     }, 100);
   }
   
+  // Journeys and demos animate the pans; the user's positions come back afterwards.
+  let quickStartUserPans = null;
+  let demoUserPans = null;
+  function restoreUserPans(pans, updateSliderUI) {
+    if (!pans) return;
+    const left = Math.round(pans.left * 100);
+    const right = Math.round(pans.right * 100);
+    setPan('wheelL', left);
+    setPan('wheelR', right);
+    updateSliderUI('wheelL', left);
+    updateSliderUI('wheelR', right);
+  }
+
   // Start a quick start preset
   function startQuickStart(preset) {
     if (quickStartRunning) {
@@ -8811,6 +8854,7 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
       presetData.sequence = generateMysterySequence();
     }
     
+    quickStartUserPans = { left: wheelLPan, right: wheelRPan };
     quickStartRunning = true;
     quickStartCurrentPreset = preset;
     quickStartCurrentStep = 0;
@@ -8889,12 +8933,10 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
       quickStartDisplay.hidden = true;
     }
     
-    // Reset pan to defaults
-    setPan('wheelL', -100);
-    setPan('wheelR', 100);
-    updateQSPanSliderUI('wheelL', -100);
-    updateQSPanSliderUI('wheelR', 100);
-    
+    // Give the user's pan positions back
+    restoreUserPans(quickStartUserPans, updateQSPanSliderUI);
+    quickStartUserPans = null;
+
     // Stop audio playback
     stopAudio();
     setTransportActive('stop');
@@ -9228,9 +9270,10 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
       stopQuickStart();
     }
     
+    demoUserPans = { left: wheelLPan, right: wheelRPan };
     demoRunning = true;
     demoCurrentStep = 0;
-    
+
     // Update button state
     if (demoBtn) {
       demoBtn.classList.add('is-running');
@@ -9281,7 +9324,9 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     if (demoOverlay) {
       demoOverlay.hidden = true;
     }
-    
+
+    restoreUserPans(demoUserPans, updatePanSliderUI);
+    demoUserPans = null;
     if (!stoppingPlayback) { playback.clear(); stopAudio(); }
   }
   
@@ -9312,13 +9357,15 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     // Stop audio playback
     stopAudio();
     setTransportActive('stop');
-    
-    // Reset pan controls to defaults (doesn't trigger audio)
-    setPan('wheelL', DEMO_DEFAULTS.leftPan);
-    setPan('wheelR', DEMO_DEFAULTS.rightPan);
-    updatePanSliderUI('wheelL', DEMO_DEFAULTS.leftPan);
-    updatePanSliderUI('wheelR', DEMO_DEFAULTS.rightPan);
-    
+    if (activeActivity === 'demo') activeActivity = null;
+
+    // Give the user's pans back and leave an audible pair on the wheels (the last
+    // step parks them at 1 Hz), without starting playback
+    restoreUserPans(demoUserPans, updatePanSliderUI);
+    demoUserPans = null;
+    wheelL.setHz(DEMO_DEFAULTS.leftFreq);
+    wheelR.setHz(DEMO_DEFAULTS.rightFreq);
+
     // Hide overlay after a moment
     playback.setTimeout(() => {
       if (demoOverlay) {
