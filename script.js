@@ -29,7 +29,6 @@
     stopAudio();
     playback.clear();
     schoolPlayback.clear();
-    isProgrammaticChange = false;
     isApplyingPreset = false;
     activeActivity = null;
     stoppingPlayback = false;
@@ -1580,8 +1579,6 @@
       setTransportActive('play');
     };
     
-    // Set flag to prevent wheel onChange from triggering auto-play again
-    isProgrammaticChange = true;
     
     if (keyboardTargetsState.left) {
       wheelL.setHz(freq);
@@ -1612,8 +1609,6 @@
       setOvertonesFundamental(freq, keyEl);
     }
     
-    // Reset flag after a short delay
-    setTimeout(() => { isProgrammaticChange = false; }, 100);
     
     return applied;
   }
@@ -1670,17 +1665,20 @@
 
   const presetSelect = document.getElementById('presetSelect');
   let isApplyingPreset = false;
-  let isProgrammaticChange = false; // Track programmatic changes (piano keys, reset)
   
   presetSelect?.addEventListener('change', () => {
     const presetIndex = parseInt(presetSelect.value);
     if (!isNaN(presetIndex) && presetIndex >= 0 && presetIndex < PRESETS.length) {
       prepareManualPlayback();
       const preset = PRESETS[presetIndex];
+      // Both wheels change synchronously; the flag only spans those two calls.
       isApplyingPreset = true;
-      isProgrammaticChange = true;
-      wheelL.setHz(preset.left);
-      wheelR.setHz(preset.right);
+      try {
+        wheelL.setHz(preset.left);
+        wheelR.setHz(preset.right);
+      } finally {
+        isApplyingPreset = false;
+      }
       
       // Clear binaural preset selection
       const binauralPresetSelect = document.getElementById('binauralPresetSelect');
@@ -1693,11 +1691,6 @@
       setTransportActive('play');
       
       scheduleOscillatorSync();
-      // Reset flags after a short delay to allow wheel changes to complete
-      setTimeout(() => {
-        isApplyingPreset = false;
-        isProgrammaticChange = false;
-      }, 100);
     }
   });
 
@@ -1726,9 +1719,12 @@
       prepareManualPlayback();
       const preset = BINAURAL_PRESETS[presetKey];
       isApplyingPreset = true;
-      isProgrammaticChange = true;
-      wheelL.setHz(preset.left);
-      wheelR.setHz(preset.right);
+      try {
+        wheelL.setHz(preset.left);
+        wheelR.setHz(preset.right);
+      } finally {
+        isApplyingPreset = false;
+      }
       
       // Clear musical preset selection
       if (presetSelect) presetSelect.value = '';
@@ -1740,11 +1736,6 @@
       setTransportActive('play');
       
       scheduleOscillatorSync();
-      // Reset flags after a short delay to allow wheel changes to complete
-      setTimeout(() => {
-        isApplyingPreset = false;
-        isProgrammaticChange = false;
-      }, 100);
     }
   });
 
@@ -3638,8 +3629,6 @@
       newFundamental = Math.max(0.1, Math.min(MAX_FREQUENCY_HZ, newFundamental));
       
       // Update wheels to match the new fundamental (same as clicking the key)
-      isProgrammaticChange = true;
-      
       if (keyboardTargetsState.left) {
         wheelL.setHz(newFundamental);
       }
@@ -3656,9 +3645,6 @@
       syncAudioState().catch(handleAudioError);
       startAudio();
       setTransportActive('play');
-      
-      // Reset flag after a short delay
-      setTimeout(() => { isProgrammaticChange = false; }, 100);
     } else if (keyboardTargetsState.left || keyboardTargetsState.right) {
       // Scrolling over keyboard background - nudge wheels as before
       const direction = e.deltaY < 0 ? 1 : -1;
@@ -4177,8 +4163,6 @@
     setBowlStatus('Microphone off. Select a wheel and capture a sound.');
     if (bowlUI) bowlUI.live.textContent = '— Hz';
     
-    // Set flag to prevent auto-play on reset
-    isProgrammaticChange = true;
     
     // === RESET WHEELS ===
     wheelL.reset();
@@ -4273,8 +4257,6 @@
     // Reset transport state
     setTransportActive('stop');
     
-    // Reset flag after a short delay
-    setTimeout(() => { isProgrammaticChange = false; }, 100);
   });
 
   // No category switching needed - only Solfeggio & Chakra frequencies available
