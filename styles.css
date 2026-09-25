@@ -2545,7 +2545,10 @@ button .ripple {
   mix-blend-mode: screen;
 }
 @keyframes ripple { to { transform: scale(8); opacity: 0; } }
-.grid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(240px, .65fr) minmax(0, 1fr); gap:18px; align-items:stretch; }
+/* The centre column keeps a 200 px floor and takes a smaller share of the free space than a wheel,
+   so the wheels get the room (Remi: the middle section was too wide). Its two-column rows stack
+   when it is narrow; see the container query under .mono-control-container. */
+.grid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(200px, .45fr) minmax(0, 1fr); gap:18px; align-items:stretch; }
 @media (max-width:700px){ .grid{ grid-template-columns:1fr; } }
 .wheel-container {
   min-width: 0;
@@ -3437,6 +3440,7 @@ color: rgba(226,232,240,0.78); text-shadow: 0 1px 2px rgba(0,0,0,0.55);
   backdrop-filter: blur(6px);
   height: auto;
   justify-content: flex-start;
+  container-type: inline-size;
 }
 
 .mono-control-label {
@@ -8151,4 +8155,12 @@ body:not([data-theme="dark"]) .program-display .timer-total {
 #pianoReference { scroll-margin-top: 120px; }
 @media (max-width: 640px) {
   #pianoReference { scroll-margin-top: 145px; }
+}
+
+/* Narrow centre column (see .grid): the preset selects and the capture buttons stack instead of
+   squeezing. Kept at the end of the file so it wins over the two-column rules of equal specificity. */
+@container (max-width: 236px) {
+  .centre-presets { grid-template-columns: minmax(0, 1fr); }
+  .bowl-capture-toolbar { grid-template-columns: minmax(0, 1fr); }
+  #bowlPlayPair, #bowlLock { grid-column: 1; grid-row: 2; }
 }
