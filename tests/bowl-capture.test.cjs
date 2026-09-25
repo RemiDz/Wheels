@@ -118,11 +118,11 @@ test('silence never enables Lock and capture times out with the microphone off',
   assert.equal(env.app.wheelL.getHz(), 222);
   await env.tick(41000);
   assert.equal(env.mic.streams[0].track.readyState, 'ended');
-  assert.match(env.document.querySelector('#bowlStatus').textContent, /No tone was captured/);
+  assert.match(env.document.querySelector('#bowlStatus').textContent, /No steady tone was heard/);
 });
 
 test('manual Lock accepts a recent valid pitch and microphone disconnection discards a preview', async t => {
-  const env = setup(t); env.click('#bowlListen'); await env.tick(1100);
+  const env = setup(t); env.click('#bowlListen'); await env.tick(1400); // Lock needs about half a second of steady readings
   assert.equal(env.document.querySelector('#bowlLock').disabled, false);
   env.click('#bowlLock');
   assert.match(env.document.querySelector('#bowlStatus').textContent, /Left tone locked/);
@@ -200,7 +200,7 @@ test('a late permission error from an old request cannot cancel or relabel a new
 });
 
 test('a lost tone cannot be manually locked from a stale reading', async t => {
-  const env = setup(t); env.click('#bowlListen'); await env.tick(1100);
+  const env = setup(t); env.click('#bowlListen'); await env.tick(1400);
   assert.equal(env.document.querySelector('#bowlLock').disabled, false);
   env.mic.input = signal({ tones: [] }); await env.tick(100);
   assert.equal(env.document.querySelector('#bowlLock').disabled, true);

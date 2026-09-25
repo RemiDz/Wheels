@@ -9580,7 +9580,9 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
       bowlUI.inputLevel.setAttribute('aria-valuetext', rms < 0.00002 ? 'No input' : 'Sound reaching the microphone');
       bowlUI.live.textContent = reading.frequency ? `${reading.frequency.toFixed(2)} Hz` : '— Hz';
       if (reading.frequency) {
-        (side === 'left' ? wheelL : wheelR).setHz(reading.frequency);
+        // A live preview is not a user choice: it must not clear a chosen preset.
+        isApplyingPreset = true;
+        try { (side === 'left' ? wheelL : wheelR).setHz(reading.frequency); } finally { isApplyingPreset = false; }
         setBowlStatus('Keep the tone steady to lock automatically, or tap Lock tone.');
       } else {
         const messages = {
@@ -9604,7 +9606,10 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
         bowlUI.live.textContent = `${frequency.toFixed(2)} Hz`;
         setBowlStatus(`${result.channel === 'left' ? 'Left' : 'Right'} tone locked. Microphone off. ${capturedBowls.left && capturedBowls.right ? 'Both tones are ready.' : 'Select the other wheel next.'}`);
       } else {
-        if (preview && !preserveBowlPreview) (preview.side === 'left' ? wheelL : wheelR).setHz(preview.frequency);
+        if (preview && !preserveBowlPreview) {
+          isApplyingPreset = true;
+          try { (preview.side === 'left' ? wheelL : wheelR).setHz(preview.frequency); } finally { isApplyingPreset = false; }
+        }
         bowlUI.live.textContent = '— Hz';
         setBowlStatus(result.message ? `${result.message} Microphone off.` : 'Capture cancelled. Microphone off; saved tones are unchanged.');
       }
