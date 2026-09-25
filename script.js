@@ -714,6 +714,21 @@
     param.linearRampToValueAtTime(target, now + duration);
   }
 
+  // Fade every sounding voice (wheels, mono mix, harmonics) to target. Returns true when
+  // something was fading, so a caller can wait for it before suspending the context.
+  function fadeActiveVoices(target, seconds = RELEASE_SECONDS) {
+    if (!audioCtx || audioCtx.state !== 'running') return false;
+    let any = false;
+    const fade = gainNode => {
+      if (!gainNode) return;
+      try { fadeParam(gainNode.gain, target, seconds); any = true; } catch { /* leave as is */ }
+    };
+    [wheel1, wheel2].forEach(voice => { if (voice?.started) fade(voice.gain); });
+    [monoOsc1, monoOsc2].forEach(osc => { if (osc?.started) fade(osc._gain); });
+    harmonicOscillators.forEach(harmonic => { if (harmonic?.started) fade(harmonic.gain); });
+    return any;
+  }
+
   // Oscillators must never be cut at full amplitude: fade their gains to silence,
   // stop them just after, and disconnect everything they own once they have ended.
   const RELEASE_SECONDS = 0.03;
@@ -4194,6 +4209,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
       playback.resume();
       schoolPlayback.resume();
       if (!['school', 'theory', 'overtones-demo'].includes(activeActivity)) startAudio();
+      if (harmonicsPlaying) updateHarmonicFrequencies(); // restores harmonic levels faded for Pause
       setTransportActive('play');
     } catch (error) { if (request === transportRequest) handleAudioError(error); }
   });
@@ -4206,6 +4222,10 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
     transportPaused = true;
     playback.pause();
     schoolPlayback.pause();
+    // Suspending cuts the output at whatever sample is playing (a click of up to the full
+    // level, louder or softer with the phase): fade the voices first, then suspend.
+    if (fadeActiveVoices(0)) await new Promise(resolve => window.setTimeout(resolve, (RELEASE_SECONDS + 0.05) * 1000));
+    if (request !== transportRequest) return;
     try {
       await syncAudioState();
       if (request === transportRequest) setTransportActive('pause');

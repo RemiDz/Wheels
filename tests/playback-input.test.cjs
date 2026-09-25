@@ -77,7 +77,8 @@ test('a failed attempt to restore the latest transport state shows a retry messa
   const resume = ctx.resume.bind(ctx);
   let calls = 0;
   ctx.resume = () => ++calls === 1 ? resume() : Promise.reject(new Error('Audio device unavailable'));
-  env.click('#pause'); env.click('#play'); await env.tick(300);
+  env.click('#pause'); await env.tick(80); // past the pause fade, so the suspend is requested and then superseded
+  env.click('#play'); await env.tick(300);
   assert.equal(env.document.querySelector('#audioStatus').hidden, false);
   assert.equal(env.document.querySelector('#play').classList.contains('is-active'), false);
   assert.equal(ctx.oscillators.filter(osc => osc.running).length, 0);
