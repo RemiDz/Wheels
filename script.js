@@ -383,6 +383,28 @@ const innerCircle = root.querySelector('.inner-circle');
       }
       bands.innerHTML = `<defs>${defs}</defs>${arcs}<g class="ticks">${ticks}</g>${texts}`;
       tickElements = [...bands.querySelectorAll('.tick-major')];
+      drawBookmark();
+    }
+
+    // A captured tone is bookmarked on the rim: a radial line over the tick scale and a dot
+    // in the gap between the hearing ring and the band ring, so the wheel can wander off and
+    // the captured position stays visible.
+    let bookmarkHz = null, bookmarkColor = '#ffffff';
+    function drawBookmark() {
+      if (!bands) return;
+      bands.querySelector('.bookmark')?.remove();
+      if (!Number.isFinite(bookmarkHz) || bookmarkHz <= 0) return;
+      const angle = bookmarkHz >= MAX_FREQUENCY_HZ ? 360 : mapFrequencyToAngle(Math.max(bookmarkHz, SORTED_FREQUENCIES[0]));
+      const point = radius => {
+        const rad = (angle - 90) * Math.PI / 180;
+        return [(100 + radius * Math.cos(rad)).toFixed(2), (100 + radius * Math.sin(rad)).toFixed(2)];
+      };
+      const [x1, y1] = point(76.4), [x2, y2] = point(83.2), [cx, cy] = point(85.3);
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'bookmark');
+      g.dataset.hz = String(bookmarkHz);
+      g.innerHTML = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${bookmarkColor}"/><circle cx="${cx}" cy="${cy}" r="1.7" fill="${bookmarkColor}"/>`;
+      bands.appendChild(g);
     }
 
     // place label positions around the circle with sorted frequencies (lowest at 12 o'clock)
@@ -816,7 +838,8 @@ highlightNearestLabel();
       },
       element: root,
       focus: focusWheel,
-      nudge: nudgeFrequency
+      nudge: nudgeFrequency,
+      setBookmark: (hz, color = '#ffffff') => { bookmarkHz = hz; bookmarkColor = color; drawBookmark(); }
     };
   }
 
@@ -1867,6 +1890,14 @@ monoOsc1 = monoOsc2 = null;
   }
 
   function handlePianoPointerDown(e) {
+    const marker = e.target.closest('.captured-marker');
+    if (marker) {
+      // the captured-tone marker brings its own wheel back instead of playing the key
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      recallCapturedTones([marker.dataset.side]);
+      return;
+    }
     const keyEl = e.target.closest('.piano-key');
     if (!keyEl || !pianoKeyboardEl?.contains(keyEl)) return;
     if (e.button !== undefined && e.button !== 0) return;
@@ -1876,6 +1907,11 @@ monoOsc1 = monoOsc2 = null;
   }
 
   function handlePianoKeydown(e) {
+    const marker = e.target.closest('.captured-marker');
+    if (marker) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); recallCapturedTones([marker.dataset.side]); }
+      return;
+    }
     const keyEl = e.target.closest('.piano-key');
     if (!keyEl || !pianoKeyboardEl?.contains(keyEl)) return;
     if (e.key === 'Enter' || e.key === ' ') {
@@ -10009,11 +10045,73 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     } else {
       bowlUI.intervalDetail.textContent = 'Compare notes, cents and frequency ratio';
     }
+    updateCapturedMarkers();
     const pianoSummary = document.getElementById('bowlPianoSummary');
     pianoSummary.hidden = !capturedBowls.left && !capturedBowls.right;
     const describeWheel = hz => `${hz.toFixed(2)} Hz${hz >= 20 ? ` (${bowlNoteLabel(hz)})` : ' (below hearing)'}`;
     const wheelInterval = BowlAudio.describeInterval(wheelL.getHz(), wheelR.getHz());
     pianoSummary.textContent = `Left: ${describeWheel(wheelL.getHz())} · Right: ${describeWheel(wheelR.getHz())}${wheelInterval ? ` · ${wheelInterval.name}` : ''}`;
+  }
+
+  // Captured tones stay visible while the wheels move: a marker line on the piano key at
+  // the captured position (tap it to bring that wheel back), a bookmark on each wheel's rim
+  // and the Captured tones button under Piano Reference. Idempotent: updateBowlResults runs
+  // on every wheel change, so nothing is rebuilt unless a captured value changed.
+  const capturedMarkers = { left: null, right: null };
+  function updateCapturedMarkers() {
+    for (const side of ['left', 'right']) {
+      const hz = capturedBowls[side];
+      const current = capturedMarkers[side];
+      if (current && current.hz === hz && current.element.isConnected) continue;
+      current?.element.remove();
+      capturedMarkers[side] = null;
+      const wheel = side === 'left' ? wheelL : wheelR;
+      const span = hz ? getKeySpanForFrequency(hz) : null;
+      const color = hz ? (getInterpolatedColors(hz)?.glow || '#ffffff') : '#ffffff';
+      wheel?.setBookmark(hz || null, color);
+      if (!span?.key?.element) continue;
+      const marker = document.createElement('span');
+      marker.className = `captured-marker captured-marker-${side}`;
+      marker.dataset.side = side;
+      marker.dataset.frequency = String(hz);
+      marker.style.setProperty('--captured-fill', span.ratio.toFixed(3));
+      marker.style.setProperty('--captured-color', color);
+      marker.setAttribute('role', 'button');
+      marker.tabIndex = 0;
+      marker.setAttribute('aria-label', `Captured ${side} tone ${hz.toFixed(2)} Hz. Bring the ${side} wheel back to it.`);
+      marker.title = `Captured ${side} tone: ${hz.toFixed(2)} Hz. Tap to bring the ${side} wheel back to it.`;
+      marker.dataset.letter = side === 'left' ? 'L' : 'R';
+      span.key.element.appendChild(marker);
+      capturedMarkers[side] = { hz, element: marker };
+    }
+    const button = document.getElementById('capturedTonesButton');
+    if (button) {
+      const count = ['left', 'right'].filter(side => capturedBowls[side]).length;
+      button.disabled = !count;
+      button.title = count ? `Bring the wheel${count > 1 ? 's' : ''} back to the captured tone${count > 1 ? 's' : ''}` : 'Capture a tone with Sound Capture first';
+    }
+  }
+
+  // Bring the wheels back to the captured tones: both sides restore the stereo pair as
+  // Play both does; one side moves only its own wheel and unmutes it.
+  function recallCapturedTones(sides = ['left', 'right']) {
+    const wanted = sides.filter(side => capturedBowls[side]);
+    if (!wanted.length) return false;
+    const both = wanted.length === 2;
+    beginActivity('bowl-comparison');
+    activeActivity = 'manual';
+    if (wanted.includes('left')) { wheelL.setHz(capturedBowls.left); wheelLMuted = false; }
+    if (wanted.includes('right')) { wheelR.setHz(capturedBowls.right); wheelRMuted = false; }
+    updateMuteButtons();
+    if (both) {
+      setPan('wheelL', -100);
+      setPan('wheelR', 100);
+      document.querySelector('.pan-slider[data-wheel="wheelL"]').value = -100;
+      document.querySelector('.pan-slider[data-wheel="wheelR"]').value = 100;
+      updateMonoVolume(0);
+    }
+    document.getElementById('play').click();
+    return true;
   }
 
   function showBowlCaptureActive(active, side) {
@@ -10117,30 +10215,25 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
   }));
   bowlUI.play.addEventListener('click', () => {
     if (!capturedBowls.left || !capturedBowls.right) return;
-    beginActivity('bowl-comparison');
-    activeActivity = 'manual';
-    wheelL.setHz(capturedBowls.left);
-    wheelR.setHz(capturedBowls.right);
-    wheelLMuted = wheelRMuted = false;
-    updateMuteButtons();
-    setPan('wheelL', -100);
-    setPan('wheelR', 100);
-    document.querySelector('.pan-slider[data-wheel="wheelL"]').value = -100;
-    document.querySelector('.pan-slider[data-wheel="wheelR"]').value = 100;
-    updateMonoVolume(0);
-    document.getElementById('play').click();
+    recallCapturedTones(['left', 'right']);
   });
-  document.getElementById('bowlViewPiano').addEventListener('click', event => {
-    event.preventDefault();
-    const section = document.getElementById('pianoReference');
-    section.focus({ preventScroll: true });
-    section.scrollIntoView({ block: 'start' });
+  const scrollPianoToWheels = () => {
     const keys = [wheelL.getHz(), wheelR.getHz()].map(hz => getKeySpanForFrequency(hz)?.key?.element).filter(Boolean);
     if (keys.length) {
       const low = Math.min(...keys.map(key => key.offsetLeft));
       const high = Math.max(...keys.map(key => key.offsetLeft + key.offsetWidth));
       pianoKeyboardEl.scrollLeft = Math.max(0, (low + high - pianoKeyboardEl.clientWidth) / 2);
     }
+  };
+  document.getElementById('bowlViewPiano').addEventListener('click', event => {
+    event.preventDefault();
+    const section = document.getElementById('pianoReference');
+    section.focus({ preventScroll: true });
+    section.scrollIntoView({ block: 'start' });
+    scrollPianoToWheels();
+  });
+  document.getElementById('capturedTonesButton')?.addEventListener('click', () => {
+    if (recallCapturedTones()) scrollPianoToWheels();
   });
   window.addEventListener('pagehide', () => cancelBowlCapture());
   document.addEventListener('visibilitychange', () => { if (document.hidden) cancelBowlCapture(); });

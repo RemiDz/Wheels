@@ -324,3 +324,70 @@ test('a single saved tone, damaged storage and blocked storage are all handled',
   assert.match(blocked.document.querySelector('#bowlLeftFrequency').textContent, /^(439|440)\.\d\d Hz$/, 'capture works without storage');
   assert.ok(mic.streams.every(s => s.track.readyState === 'ended'));
 });
+
+test('captured tones stay marked on the piano and the wheels while the wheels move, and the markers bring them back', async t => {
+  const env = setup(t);
+  env.click('#bowlListen'); await env.tick(2300);
+  env.target('right'); env.mic.input = signal({ tones: [[660, 0.3]] });
+  env.click('#bowlListen'); await env.tick(2300);
+  const left = env.app.wheelL.getHz(), right = env.app.wheelR.getHz();
+  const q = s => env.document.querySelector(s);
+  const markerL = q('.captured-marker-left'), markerR = q('.captured-marker-right');
+  assert.ok(markerL && markerR, 'one marker per captured side');
+  assert.equal(markerL.dataset.letter, 'L'); assert.equal(markerR.dataset.letter, 'R');
+  assert.equal(markerL.closest('.piano-key').dataset.note, 'A4');
+  assert.equal(markerR.closest('.piano-key').dataset.note, 'E5');
+  assert.equal(markerL.closest('.piano-key').classList.contains('is-left'), true, 'the live fill and the marker start on the same key');
+  assert.ok(Math.abs(parseFloat(markerL.style.getPropertyValue('--captured-fill')) - env.app.getKeySpanForFrequency(left).ratio) < 0.001);
+  assert.equal(q('#capturedTonesButton').disabled, false);
+  assert.equal(q('#wheelL .bands .bookmark').dataset.hz, String(left));
+  assert.equal(q('#wheelR .bands .bookmark').dataset.hz, String(right));
+  assert.equal(q('#wheelL .bands .bookmark circle').getAttribute('fill'), markerL.style.getPropertyValue('--captured-color'));
+
+  // an accidental piano tap moves the left wheel: the live fill moves, the marker stays
+  q('.piano-key[data-note="C4"]').dispatchEvent(new env.window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+  await env.tick(250);
+  assert.notEqual(env.app.wheelL.getHz(), left);
+  assert.equal(q('.piano-key.is-left').dataset.note, 'C4');
+  assert.equal(q('.captured-marker-left'), markerL, 'same marker element, not rebuilt');
+  assert.equal(markerL.closest('.piano-key').dataset.note, 'A4');
+  assert.equal(q('#wheelL .bands .bookmark').dataset.hz, String(left), 'the wheel bookmark stays too');
+
+  // tapping the marker brings only that wheel back
+  env.app.wheelR.setHz(300);
+  markerL.dispatchEvent(new env.window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+  await env.tick(250);
+  assert.equal(env.app.wheelL.getHz(), left);
+  assert.equal(env.app.wheelR.getHz(), 300, 'the other wheel is left alone');
+  assert.equal(q('.piano-key.is-left').dataset.note, 'A4');
+  assert.equal(env.app.state.wheel1.osc.running, true, 'and it plays');
+
+  // the Piano Reference button restores the stereo pair like Play both
+  env.click('.mute-btn[data-wheel="wheelR"]');
+  env.click('#capturedTonesButton'); await env.tick(250);
+  assert.equal(env.app.wheelL.getHz(), left); assert.equal(env.app.wheelR.getHz(), right);
+  assert.equal(env.app.state.wheelRMuted, false);
+  assert.equal(env.app.state.wheel1.panner.pan.value, -1); assert.equal(env.app.state.wheel2.panner.pan.value, 1);
+
+  // Enter on a focused marker works like a tap; Reset clears everything
+  env.app.wheelR.setHz(300);
+  markerR.dispatchEvent(new env.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  await env.tick(250);
+  assert.equal(env.app.wheelR.getHz(), right);
+  env.click('#reset');
+  assert.equal(q('.captured-marker'), null);
+  assert.equal(q('.bands .bookmark'), null);
+  assert.equal(q('#capturedTonesButton').disabled, true);
+});
+
+test('a saved pair from an earlier visit is marked as soon as the page opens', () => {
+  const app = createApp({ seedStorage: { 'nestorium-captured-tones': JSON.stringify({ left: 261.63, right: 392, savedAt: 1 }) } });
+  try {
+    assert.equal(app.errors.length, 0);
+    assert.equal(app.document.querySelector('.captured-marker-left').closest('.piano-key').dataset.note, 'C4');
+    assert.equal(app.document.querySelector('.captured-marker-right').closest('.piano-key').dataset.note, 'G4');
+    assert.equal(app.document.querySelectorAll('.bands .bookmark').length, 2);
+    assert.equal(app.document.querySelector('#capturedTonesButton').disabled, false);
+    assert.equal(app.document.querySelector('.piano-key.is-left'), null, 'the wheels have not moved yet');
+  } finally { app.close(); }
+});
