@@ -271,3 +271,56 @@ test('the input meter distinguishes silence from unpitched sound without locking
   assert.equal(env.document.querySelector('#bowlLock').disabled, true);
   assert.equal(env.document.querySelector('#bowlLeftFrequency').textContent, 'Not captured');
 });
+
+test('captured tones are saved in local storage and come back on the next visit', async t => {
+  const env = setup(t);
+  env.click('#bowlListen'); await env.tick(2300);
+  env.target('right'); env.mic.input = signal({ tones: [[660, 0.3]] });
+  env.click('#bowlListen'); await env.tick(2300);
+  const left = env.app.wheelL.getHz(), right = env.app.wheelR.getHz();
+  const saved = JSON.parse(env.window.localStorage.getItem('nestorium-captured-tones'));
+  assert.equal(saved.left, left); assert.equal(saved.right, right);
+  assert.ok(Number.isFinite(saved.savedAt));
+
+  // a later visit: the pair is listed, Play both is lit and restores the wheels
+  const later = createApp({ seedStorage: { 'nestorium-captured-tones': JSON.stringify({ ...saved, savedAt: Date.UTC(2026, 8, 25, 12) }) } });
+  t.after(() => later.close());
+  assert.equal(later.errors.length, 0);
+  assert.equal(later.document.querySelector('#bowlLeftFrequency').textContent, `${left.toFixed(2)} Hz`);
+  assert.equal(later.document.querySelector('#bowlRightFrequency').textContent, `${right.toFixed(2)} Hz`);
+  assert.match(later.document.querySelector('#bowlInterval').textContent, /Perfect fifth/);
+  assert.equal(later.document.querySelector('#bowlPlayPair').disabled, false);
+  assert.match(later.document.querySelector('#bowlStatus').textContent, /Both captured tones from 25 Sept? are saved: press Play both/);
+  assert.equal(later.app.wheelL.getHz(), 0.1, 'restoring does not move the wheels by itself');
+  later.click('#bowlPlayPair'); await later.tick(100);
+  assert.equal(later.app.wheelL.getHz(), left); assert.equal(later.app.wheelR.getHz(), right);
+  assert.equal(later.app.state.wheel1.osc.running, true);
+  later.click('#reset');
+  assert.equal(later.window.localStorage.getItem('nestorium-captured-tones'), null, 'Reset forgets the pair');
+  assert.equal(later.document.querySelector('#bowlPlayPair').disabled, true);
+});
+
+test('a single saved tone, damaged storage and blocked storage are all handled', async t => {
+  const single = createApp({ seedStorage: { 'nestorium-captured-tones': JSON.stringify({ left: null, right: 528, savedAt: 1 }) } });
+  t.after(() => single.close());
+  assert.equal(single.document.querySelector('#bowlLeftFrequency').textContent, 'Not captured');
+  assert.equal(single.document.querySelector('#bowlRightFrequency').textContent, '528.00 Hz');
+  assert.equal(single.document.querySelector('#bowlPlayPair').disabled, true, 'needs both tones');
+  assert.match(single.document.querySelector('#bowlStatus').textContent, /Your captured right tone from .* is saved\./);
+
+  for (const junk of ['{', '[1,2]', JSON.stringify({ left: 5, right: 99999 }), JSON.stringify({ left: 'a', right: null })]) {
+    const damaged = createApp({ seedStorage: { 'nestorium-captured-tones': junk } });
+    assert.equal(damaged.errors.length, 0, junk);
+    assert.equal(damaged.document.querySelector('#bowlPlayPair').disabled, true, junk);
+    assert.equal(damaged.document.querySelector('#bowlStatus').textContent, 'Microphone off.', junk);
+    damaged.close();
+  }
+
+  const blocked = createApp({ blockedStorage: true });
+  const mic = microphone(blocked);
+  t.after(() => { blocked.window.dispatchEvent(new blocked.window.Event('pagehide')); blocked.close(); });
+  blocked.click('#bowlListen'); await blocked.tick(2300);
+  assert.equal(blocked.errors.length, 0);
+  assert.match(blocked.document.querySelector('#bowlLeftFrequency').textContent, /^(439|440)\.\d\d Hz$/, 'capture works without storage');
+  assert.ok(mic.streams.every(s => s.track.readyState === 'ended'));
+});

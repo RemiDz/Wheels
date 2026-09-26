@@ -11,6 +11,27 @@
   let bowlPreview = null;
   let preserveBowlPreview = false;
   const capturedBowls = { left: null, right: null };
+  // Captured tones survive a reload (and the next day) so a pair recorded earlier can be
+  // played again; Reset clears them. Storage may be blocked (private mode), so both
+  // directions swallow errors.
+  const CAPTURED_TONES_KEY = 'nestorium-captured-tones';
+  function saveCapturedBowls() {
+    try {
+      if (!capturedBowls.left && !capturedBowls.right) localStorage.removeItem(CAPTURED_TONES_KEY);
+      else localStorage.setItem(CAPTURED_TONES_KEY, JSON.stringify({ left: capturedBowls.left, right: capturedBowls.right, savedAt: Date.now() }));
+    } catch { /* not essential */ }
+  }
+  function restoreCapturedBowls() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CAPTURED_TONES_KEY) || 'null');
+      if (!saved || typeof saved !== 'object') return null;
+      const valid = hz => Number.isFinite(hz) && hz >= BowlAudio.MIN_HZ && hz <= BowlAudio.MAX_HZ ? hz : null;
+      capturedBowls.left = valid(saved.left);
+      capturedBowls.right = valid(saved.right);
+      if (!capturedBowls.left && !capturedBowls.right) return null;
+      return Number.isFinite(saved.savedAt) ? new Date(saved.savedAt) : null;
+    } catch { return null; }
+  }
 
   function stopAllPlayback() {
     if (stoppingPlayback) return;
@@ -4677,6 +4698,7 @@ const pitchBendWheel = document.getElementById('pitchBendWheel');
   document.getElementById('reset').addEventListener('click', ()=> {
 stopAllPlayback();
     capturedBowls.left = capturedBowls.right = null;
+    saveCapturedBowls();
     setBowlStatus('Microphone off. Select a wheel and capture a sound.');
     if (bowlUI) bowlUI.live.textContent = '— Hz';
     
@@ -10064,6 +10086,7 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
       if (result.reason === 'locked') {
         const frequency = Math.round(result.frequency * 100) / 100;
         capturedBowls[result.channel] = frequency;
+        saveCapturedBowls();
         (result.channel === 'left' ? wheelL : wheelR).setHz(frequency);
         bowlUI.live.textContent = `${frequency.toFixed(2)} Hz`;
         setBowlStatus(`${result.channel === 'left' ? 'Left' : 'Right'} tone locked. Microphone off. ${capturedBowls.left && capturedBowls.right ? 'Both tones are ready.' : 'Select the other wheel next.'}`);
@@ -10124,6 +10147,14 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && bowlCapture.active) { event.preventDefault(); cancelBowlCapture(); }
   });
+  {
+    const savedAt = restoreCapturedBowls();
+    if (capturedBowls.left || capturedBowls.right) {
+      const when = savedAt ? ` from ${savedAt.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : '';
+      const which = capturedBowls.left && capturedBowls.right ? 'Both captured tones' : `Your captured ${capturedBowls.left ? 'left' : 'right'} tone`;
+      setBowlStatus(`Microphone off. ${which}${when} ${capturedBowls.left && capturedBowls.right ? 'are' : 'is'} saved${capturedBowls.left && capturedBowls.right ? ': press Play both to hear them again.' : '.'}`);
+    }
+  }
   updateBowlResults();
 
   // PWA: register service worker

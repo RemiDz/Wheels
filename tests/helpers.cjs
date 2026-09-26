@@ -3,7 +3,7 @@ const path = require('node:path');
 const { JSDOM } = require('jsdom');
 const FakeTimers = require('@sinonjs/fake-timers');
 
-function createApp({ blockedStorage = false, delayedResume = false, delayedSuspend = false, rejectResume = false, frameMs = 100 } = {}) {
+function createApp({ blockedStorage = false, seedStorage = null, delayedResume = false, delayedSuspend = false, rejectResume = false, frameMs = 100 } = {}) {
   const root = path.resolve(__dirname, '..');
   const dom = new JSDOM(fs.readFileSync(path.join(root, 'index.html'), 'utf8'), {
     url: 'http://localhost/', runScripts: 'outside-only', pretendToBeVisual: true,
@@ -30,6 +30,8 @@ function createApp({ blockedStorage = false, delayedResume = false, delayedSuspe
   if (blockedStorage) Object.defineProperty(w, 'localStorage', {
     get() { throw new w.DOMException('Storage blocked', 'SecurityError'); },
   });
+  // Values a previous visit would have left behind (each JSDOM has its own storage).
+  if (seedStorage) for (const [key, value] of Object.entries(seedStorage)) w.localStorage.setItem(key, value);
   class Param {
     constructor(value = 0, ctx = null) { this.value = value; this.ctx = ctx; this.events = []; }
     record(type, value, time) {
