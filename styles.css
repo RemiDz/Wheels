@@ -5236,16 +5236,11 @@ body[data-theme="dark"] .tone-sharp { --tone: #fda4af; }
   display: block;
 }
 
-/* Link back to the Harmonic Waves hub (harmonicwaves.app lists Nestorium) */
-.footer-hub { margin: 12px 0 0; }
-.footer-hub a {
-  color: var(--fg);
-  font-weight: 600;
-  text-decoration: none;
-  border-bottom: 1px solid var(--panel-border);
-  transition: opacity 0.3s ease;
-}
-.footer-hub a:hover { opacity: 0.7; }
+/* Link back to the Harmonic Waves hub (harmonicwaves.app lists Nestorium): a note, then the
+   hub's badge and name centred like the Harmonic Sounds credit above it */
+.footer-hub { margin: 16px 0 0; }
+.footer-hub + .footer-branding { margin-top: 8px; }
+.footer-hub + .footer-branding .footer-logo { border-radius: 50%; }
 
 /* Mobile optimizations */
 @media (max-width: 800px) {

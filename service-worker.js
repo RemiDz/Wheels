@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nestorium-v11';
+const CACHE_NAME = 'nestorium-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS = [
   './manifest.webmanifest',
   './favicon.svg',
   './HarmonicSounds.webp',
+  './HarmonicWaves.png',
   './Nestorium_Tutorial.pdf'
 ];
 const assetURLs = new Set(ASSETS.map(path => new URL(path, self.registration.scope).href));
