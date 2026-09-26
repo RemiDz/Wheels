@@ -93,9 +93,9 @@
   const HEARING_LIMIT_HZ = 20;
   // Wheel scale geometry: the anchor labels sit at this fraction of the wheel width from
   // the centre (68 of the 200 SVG units), and each sector between two anchors is split by
-  // minor ticks into this many equal frequency steps.
+  // minor ticks into this many equal frequency steps (2 = one mid tick; 4 looked too busy).
   const LABEL_RADIUS = 0.34;
-  const TICK_SUBDIVISIONS = 4;
+  const TICK_SUBDIVISIONS = 2;
 function bandForFrequency(hz) {
     return FREQUENCY_BANDS.find(band => hz < band.to) ?? FREQUENCY_BANDS[FREQUENCY_BANDS.length - 1];
   }
@@ -343,8 +343,8 @@ const innerCircle = root.querySelector('.inner-circle');
         }
       }
       // Tick scale just inside the hearing ring: a major tick at every anchor frequency
-      // (aligned with its label) and TICK_SUBDIVISIONS - 1 minor ticks across each sector,
-      // the middle one a little longer. The pointer's angle mapping is linear inside a
+      // (aligned with its label) and TICK_SUBDIVISIONS - 1 minor ticks across each sector
+      // (the middle one a little longer). The pointer's angle mapping is linear inside a
       // sector, so the minor ticks mark equal frequency steps between two anchors.
       // ticks stop short of the hearing ring so they never touch its labels
       const TICK_OUTER = 79.6, sectorAngle = 360 / SORTED_FREQUENCIES.length;
@@ -357,7 +357,7 @@ const innerCircle = root.querySelector('.inner-circle');
         ticks += tick(i * sectorAngle, 75.2, 'tick-major').replace('<line', `<line data-index="${i}"`);
         for (let k = 1; k < TICK_SUBDIVISIONS; k++) {
           const mid = TICK_SUBDIVISIONS % 2 === 0 && k === TICK_SUBDIVISIONS / 2;
-          ticks += tick((i + k / TICK_SUBDIVISIONS) * sectorAngle, mid ? 76.8 : 77.8, mid ? 'tick-minor tick-mid' : 'tick-minor');
+          ticks += tick((i + k / TICK_SUBDIVISIONS) * sectorAngle, mid ? 77.4 : 77.8, mid ? 'tick-minor tick-mid' : 'tick-minor');
         }
       }
       bands.innerHTML = `<defs>${defs}</defs>${arcs}<g class="ticks">${ticks}</g>${texts}`;

@@ -55,14 +55,14 @@ test('the anchor label nearest the pointer is emphasised', () => {
   } finally { app.close(); }
 });
 
-test('a tick scale sits inside the hearing ring: one major tick per anchor label, three minors per sector', () => {
+test('a tick scale sits inside the hearing ring: one major tick per anchor label, one mid tick per sector', () => {
   const app = createApp();
   try {
     const majors = [...app.document.querySelectorAll('#wheelL .bands .tick-major')];
     const minors = [...app.document.querySelectorAll('#wheelL .bands .tick-minor')];
     const labels = [...app.document.querySelectorAll('#wheelL .labels span')];
     assert.equal(majors.length, labels.length, 'one major tick per label');
-    assert.equal(minors.length, labels.length * 3, 'three minor ticks per sector');
+    assert.equal(minors.length, labels.length, 'one mid tick per sector');
     assert.equal(app.document.querySelectorAll('#wheelL .bands .tick-mid').length, labels.length, 'the middle minor is longer');
     // the first major tick points straight up at 12 o'clock, between the labels and the hearing ring
     assert.equal(majors[0].getAttribute('x1'), '100.00');

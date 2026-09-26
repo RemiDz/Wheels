@@ -2879,7 +2879,7 @@ body:not([data-theme="dark"]) .bands .hearing-audible { stroke: rgba(255, 255, 2
 body:not([data-theme="dark"]) .bands .hearing-label { fill: rgba(30, 41, 59, 0.75); }
 body:not([data-theme="dark"]) .bands .tick-major { stroke: rgba(30, 41, 59, 0.7); }
 body:not([data-theme="dark"]) .bands .tick-minor { stroke: rgba(30, 41, 59, 0.3); }
-body:not([data-theme="dark"]) .bands .tick-mid { stroke: rgba(30, 41, 59, 0.45); }
+body:not([data-theme="dark"]) .bands .tick-mid { stroke: rgba(30, 41, 59, 0.32); }
 body:not([data-theme="dark"]) .bands .tick-major.is-active { stroke: #1a202c; filter: drop-shadow(0 0 1.5px rgba(255,255,255,1)); }
 
 /* Light mode pointers - prismatic glow */
@@ -3235,9 +3235,9 @@ body:not([data-theme="dark"]) .fine-tune-value {
 .bands .hearing-label { fill: rgba(255,255,255,0.7); font-size: 3.4px; font-weight: 700; letter-spacing: 0.7px; dominant-baseline: middle; }
 /* Tick scale inside the hearing ring: majors at the anchor labels, minors between them */
 .bands .tick { stroke-linecap: round; }
-.bands .tick-major { stroke: rgba(255, 255, 255, 0.72); stroke-width: 1.1; }
-.bands .tick-minor { stroke: rgba(255, 255, 255, 0.28); stroke-width: 0.6; }
-.bands .tick-mid { stroke: rgba(255, 255, 255, 0.42); }
+.bands .tick-major { stroke: rgba(255, 255, 255, 0.62); stroke-width: 1; }
+.bands .tick-minor { stroke: rgba(255, 255, 255, 0.26); stroke-width: 0.55; }
+.bands .tick-mid { stroke: rgba(255, 255, 255, 0.3); }
 .bands .tick-major.is-active { stroke: #ffffff; stroke-width: 1.8; filter: drop-shadow(0 0 1.5px rgba(255,255,255,0.9)); }
 
 .labels { position:absolute; inset:0; pointer-events:auto; }
