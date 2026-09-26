@@ -328,26 +328,36 @@ const innerCircle = root.querySelector('.inner-circle');
         { key: 'audible', name: 'Audible range', a1: limit + gap, a2: 360 - gap }
       ]) {
         const id = `${idPrefix}-${part.key}`;
-        arcs += `<path class="hearing hearing-${part.key}" d="${arc(H, part.a1, part.a2)}"/>`;
         defs += `<path id="${id}" d="${arc(H, part.a1, part.a2, true)}"/>`;
         const label = fits(H, part.a1, part.a2, part.name) ? part.name.toUpperCase() : '';
-        if (label) texts += `<text class="hearing-label"><textPath href="#${id}" xlink:href="#${id}" startOffset="50%" text-anchor="middle">${label}</textPath></text>`;
+        if (label) {
+          // the ring breaks under its label (the text sits on the ring's centreline, so an
+          // unbroken ring would strike through the letters); ~2.65 units per letter plus padding
+          const mid = (part.a1 + part.a2) / 2;
+          const halfDeg = (label.length * 2.65 / 2 + 2.5) / H * 180 / Math.PI;
+          arcs += `<path class="hearing hearing-${part.key}" d="${arc(H, part.a1, mid - halfDeg)}"/>`;
+          arcs += `<path class="hearing hearing-${part.key}" d="${arc(H, mid + halfDeg, part.a2)}"/>`;
+          texts += `<text class="hearing-label"><textPath href="#${id}" xlink:href="#${id}" startOffset="50%" text-anchor="middle">${label}</textPath></text>`;
+        } else {
+          arcs += `<path class="hearing hearing-${part.key}" d="${arc(H, part.a1, part.a2)}"/>`;
+        }
       }
       // Tick scale just inside the hearing ring: a major tick at every anchor frequency
       // (aligned with its label) and TICK_SUBDIVISIONS - 1 minor ticks across each sector,
       // the middle one a little longer. The pointer's angle mapping is linear inside a
       // sector, so the minor ticks mark equal frequency steps between two anchors.
-      const TICK_OUTER = 80.4, sectorAngle = 360 / SORTED_FREQUENCIES.length;
+      // ticks stop short of the hearing ring so they never touch its labels
+      const TICK_OUTER = 79.6, sectorAngle = 360 / SORTED_FREQUENCIES.length;
       const tick = (angle, inner, cls) => {
         const [x1, y1] = point(inner, angle), [x2, y2] = point(TICK_OUTER, angle);
         return `<line class="tick ${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
       };
       let ticks = '';
       for (let i = 0; i < SORTED_FREQUENCIES.length; i++) {
-        ticks += tick(i * sectorAngle, 76, 'tick-major').replace('<line', `<line data-index="${i}"`);
+        ticks += tick(i * sectorAngle, 75.2, 'tick-major').replace('<line', `<line data-index="${i}"`);
         for (let k = 1; k < TICK_SUBDIVISIONS; k++) {
           const mid = TICK_SUBDIVISIONS % 2 === 0 && k === TICK_SUBDIVISIONS / 2;
-          ticks += tick((i + k / TICK_SUBDIVISIONS) * sectorAngle, mid ? 77.6 : 78.6, mid ? 'tick-minor tick-mid' : 'tick-minor');
+          ticks += tick((i + k / TICK_SUBDIVISIONS) * sectorAngle, mid ? 76.8 : 77.8, mid ? 'tick-minor tick-mid' : 'tick-minor');
         }
       }
       bands.innerHTML = `<defs>${defs}</defs>${arcs}<g class="ticks">${ticks}</g>${texts}`;

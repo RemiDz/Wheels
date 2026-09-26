@@ -12,7 +12,7 @@ test('each wheel draws one arc per band with its name along the arc', () => {
       assert.equal(arcs.length, 8, `${id} arcs`);
       assert.ok(arcs.every(arc => /^M [\d.]+ [\d.]+ A 92 92 0 [01] 1 [\d.]+ [\d.]+$/.test(arc.getAttribute('d'))), 'arc path shape');
       assert.equal(app.document.querySelectorAll(`#${id} .bands path.band-accent`).length, 8);
-      assert.equal(app.document.querySelectorAll(`#${id} .bands path.hearing`).length, 2, 'hearing ring arcs');
+      assert.equal(app.document.querySelectorAll(`#${id} .bands path.hearing`).length, 4, 'hearing ring arcs, each broken under its label');
       // the harness lays the wheel out 400 px wide: the short Alpha and Beta arcs fall back to Greek letters
       const names = [...app.document.querySelectorAll(`#${id} .bands .band-label textPath`)].map(t => t.textContent);
       assert.deepEqual(names, ['DELTA', 'THETA', 'α', 'β', 'GAMMA', 'LOW', 'MID', 'HIGH']);
@@ -66,8 +66,8 @@ test('a tick scale sits inside the hearing ring: one major tick per anchor label
     assert.equal(app.document.querySelectorAll('#wheelL .bands .tick-mid').length, labels.length, 'the middle minor is longer');
     // the first major tick points straight up at 12 o'clock, between the labels and the hearing ring
     assert.equal(majors[0].getAttribute('x1'), '100.00');
-    assert.equal(majors[0].getAttribute('y1'), '24.00');
-    assert.equal(majors[0].getAttribute('y2'), '19.60');
+    assert.equal(majors[0].getAttribute('y1'), '24.80');
+    assert.equal(majors[0].getAttribute('y2'), '20.40');
     // each major tick shares its angle with its label (label radius 0.34 of the 400 px harness wheel)
     labels.forEach((label, i) => {
       const dx = parseFloat(label.style.left) - 200, dy = parseFloat(label.style.top) - 200;
