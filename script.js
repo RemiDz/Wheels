@@ -91,6 +91,11 @@
   }
 // Human hearing starts around 20 Hz; below that the wheel plays infrasound.
   const HEARING_LIMIT_HZ = 20;
+  // Wheel scale geometry: the anchor labels sit at this fraction of the wheel width from
+  // the centre (68 of the 200 SVG units), and each sector between two anchors is split by
+  // minor ticks into this many equal frequency steps.
+  const LABEL_RADIUS = 0.34;
+  const TICK_SUBDIVISIONS = 4;
 function bandForFrequency(hz) {
     return FREQUENCY_BANDS.find(band => hz < band.to) ?? FREQUENCY_BANDS[FREQUENCY_BANDS.length - 1];
   }
@@ -235,6 +240,7 @@ function bandForFrequency(hz) {
     const bandName = root.querySelector('.hub .band-name');
     const bandRange = root.querySelector('.hub .band-range');
 let labelElements = [];
+    let tickElements = []; // one major tick per anchor label, in label order
     let wheelReady = false; // pointer state exists once the wheel is initialised
     const pointer = root.querySelector('.pointer');
 const innerCircle = root.querySelector('.inner-circle');
@@ -327,7 +333,25 @@ const innerCircle = root.querySelector('.inner-circle');
         const label = fits(H, part.a1, part.a2, part.name) ? part.name.toUpperCase() : '';
         if (label) texts += `<text class="hearing-label"><textPath href="#${id}" xlink:href="#${id}" startOffset="50%" text-anchor="middle">${label}</textPath></text>`;
       }
-      bands.innerHTML = `<defs>${defs}</defs>${arcs}${texts}`;
+      // Tick scale just inside the hearing ring: a major tick at every anchor frequency
+      // (aligned with its label) and TICK_SUBDIVISIONS - 1 minor ticks across each sector,
+      // the middle one a little longer. The pointer's angle mapping is linear inside a
+      // sector, so the minor ticks mark equal frequency steps between two anchors.
+      const TICK_OUTER = 80.4, sectorAngle = 360 / SORTED_FREQUENCIES.length;
+      const tick = (angle, inner, cls) => {
+        const [x1, y1] = point(inner, angle), [x2, y2] = point(TICK_OUTER, angle);
+        return `<line class="tick ${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+      };
+      let ticks = '';
+      for (let i = 0; i < SORTED_FREQUENCIES.length; i++) {
+        ticks += tick(i * sectorAngle, 76, 'tick-major').replace('<line', `<line data-index="${i}"`);
+        for (let k = 1; k < TICK_SUBDIVISIONS; k++) {
+          const mid = TICK_SUBDIVISIONS % 2 === 0 && k === TICK_SUBDIVISIONS / 2;
+          ticks += tick((i + k / TICK_SUBDIVISIONS) * sectorAngle, mid ? 77.6 : 78.6, mid ? 'tick-minor tick-mid' : 'tick-minor');
+        }
+      }
+      bands.innerHTML = `<defs>${defs}</defs>${arcs}<g class="ticks">${ticks}</g>${texts}`;
+      tickElements = [...bands.querySelectorAll('.tick-major')];
     }
 
     // place label positions around the circle with sorted frequencies (lowest at 12 o'clock)
@@ -335,7 +359,15 @@ const innerCircle = root.querySelector('.inner-circle');
       labels.innerHTML = '';
       const b = root.getBoundingClientRect();
       layoutBands(b.width);
-      const r = b.width/2 - 58; // inside the band and hearing rings
+      // the label text scales with the wheel (styles.css reads --wheel-px)
+      root.style.setProperty('--wheel-px', `${b.width}px`);
+      const r = b.width * LABEL_RADIUS; // inside the tick scale, band and hearing rings
+      // On small wheels neighbouring three-digit labels would touch along the top and
+      // bottom, so every other label steps inward (the ticks still mark the true angle).
+      const fontPx = Math.min(16, Math.max(10, b.width * 0.031));
+      const pitch = 2 * Math.PI * r / SORTED_FREQUENCIES.length;
+      const staggerPx = pitch < fontPx * 1.95 ? b.width * 0.05 : 0;
+      labels.classList.toggle('is-staggered', staggerPx > 0);
       // keep the pointer pivot aligned with the wheel radius across screen sizes
 pointer.style.transformOrigin = `50% calc(50% + ${b.width/2}px)`;
       // Set inner pointer pivot to inner circle radius
@@ -343,8 +375,9 @@ pointer.style.transformOrigin = `50% calc(50% + ${b.width/2}px)`;
       for (let i = 0; i < SORTED_FREQUENCIES.length; i++) {
         const angle = -90 + (360 / SORTED_FREQUENCIES.length) * i; // Start at 12 o'clock (-90°)
         const rad = angle * Math.PI / 180;
-        const x = b.width/2 + r * Math.cos(rad);
-        const y = b.height/2 + r * Math.sin(rad);
+        const radius = r - (i % 2 ? staggerPx : 0);
+        const x = b.width/2 + radius * Math.cos(rad);
+        const y = b.height/2 + radius * Math.sin(rad);
         const s = document.createElement('span');
         s.style.left = x + 'px';
         s.style.top = y + 'px';
@@ -361,6 +394,7 @@ pointer.style.transformOrigin = `50% calc(50% + ${b.width/2}px)`;
       if (!wheelReady || !labelElements.length) return;
       const nearest = Math.round(pointerAngleVisual / step) % labelElements.length;
       labelElements.forEach((el, i) => el.classList.toggle('is-active', i === nearest));
+      tickElements.forEach((el, i) => el.classList.toggle('is-active', i === nearest));
     }
     layoutLabels();
 // Make labels clickable to jump directly

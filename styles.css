@@ -2877,6 +2877,10 @@ body:not([data-theme="dark"]) .bands .band { stroke: rgba(15, 23, 42, 0.3); }
 body:not([data-theme="dark"]) .bands .hearing-infrasound { stroke: rgba(71, 85, 105, 0.5); }
 body:not([data-theme="dark"]) .bands .hearing-audible { stroke: rgba(255, 255, 255, 0.85); }
 body:not([data-theme="dark"]) .bands .hearing-label { fill: rgba(30, 41, 59, 0.75); }
+body:not([data-theme="dark"]) .bands .tick-major { stroke: rgba(30, 41, 59, 0.7); }
+body:not([data-theme="dark"]) .bands .tick-minor { stroke: rgba(30, 41, 59, 0.3); }
+body:not([data-theme="dark"]) .bands .tick-mid { stroke: rgba(30, 41, 59, 0.45); }
+body:not([data-theme="dark"]) .bands .tick-major.is-active { stroke: #1a202c; filter: drop-shadow(0 0 1.5px rgba(255,255,255,1)); }
 
 /* Light mode pointers - prismatic glow */
 body:not([data-theme="dark"]) .pointer {
@@ -3229,12 +3233,21 @@ body:not([data-theme="dark"]) .fine-tune-value {
 .bands .hearing-infrasound { stroke: rgba(148, 163, 184, 0.55); stroke-dasharray: 1.2 1.2; }
 .bands .hearing-audible { stroke: rgba(255, 255, 255, 0.42); }
 .bands .hearing-label { fill: rgba(255,255,255,0.7); font-size: 3.4px; font-weight: 700; letter-spacing: 0.7px; dominant-baseline: middle; }
+/* Tick scale inside the hearing ring: majors at the anchor labels, minors between them */
+.bands .tick { stroke-linecap: round; }
+.bands .tick-major { stroke: rgba(255, 255, 255, 0.72); stroke-width: 1.1; }
+.bands .tick-minor { stroke: rgba(255, 255, 255, 0.28); stroke-width: 0.6; }
+.bands .tick-mid { stroke: rgba(255, 255, 255, 0.42); }
+.bands .tick-major.is-active { stroke: #ffffff; stroke-width: 1.8; filter: drop-shadow(0 0 1.5px rgba(255,255,255,0.9)); }
 
 .labels { position:absolute; inset:0; pointer-events:auto; }
 .labels span {
   position:absolute; transform: translate(-50%,-50%);
-  font-weight:600; font-variant-numeric: tabular-nums; font-size:clamp(9px,1.5vw,12px);
-color: rgba(226,232,240,0.78); text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+  font-weight:600; font-variant-numeric: tabular-nums;
+  /* scales with the wheel: 15 px on a 480 px wheel, never below 10 px (script.js sets --wheel-px) */
+  font-size: clamp(10px, calc(var(--wheel-px, 400px) * 0.031), 16px);
+  line-height: 1;
+  color: rgba(232,236,244,0.86); text-shadow: 0 1px 2px rgba(0,0,0,0.6);
   cursor: pointer;
   transition: color 0.15s ease, transform 0.15s ease;
 }
@@ -5329,7 +5342,6 @@ body[data-theme="dark"] .tone-sharp { --tone: #fda4af; }
 
 @media (min-width: 701px) and (max-width: 900px) {
   .grid { gap: 12px; }
-  .wheel .labels span { font-size: clamp(8px,1.1vw,10px); }
   .wheel .hub { inset: 33%; padding: 4px; }
   .wheel .hub .hz { font-size: 16px; }
   .wheel .hub .sub { font-size: 8px; }

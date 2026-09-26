@@ -54,3 +54,50 @@ test('the anchor label nearest the pointer is emphasised', () => {
     assert.deepEqual(active(), ['0.1'], 'a full turn is nearest the first label again');
   } finally { app.close(); }
 });
+
+test('a tick scale sits inside the hearing ring: one major tick per anchor label, three minors per sector', () => {
+  const app = createApp();
+  try {
+    const majors = [...app.document.querySelectorAll('#wheelL .bands .tick-major')];
+    const minors = [...app.document.querySelectorAll('#wheelL .bands .tick-minor')];
+    const labels = [...app.document.querySelectorAll('#wheelL .labels span')];
+    assert.equal(majors.length, labels.length, 'one major tick per label');
+    assert.equal(minors.length, labels.length * 3, 'three minor ticks per sector');
+    assert.equal(app.document.querySelectorAll('#wheelL .bands .tick-mid').length, labels.length, 'the middle minor is longer');
+    // the first major tick points straight up at 12 o'clock, between the labels and the hearing ring
+    assert.equal(majors[0].getAttribute('x1'), '100.00');
+    assert.equal(majors[0].getAttribute('y1'), '24.00');
+    assert.equal(majors[0].getAttribute('y2'), '19.60');
+    // each major tick shares its angle with its label (label radius 0.34 of the 400 px harness wheel)
+    labels.forEach((label, i) => {
+      const dx = parseFloat(label.style.left) - 200, dy = parseFloat(label.style.top) - 200;
+      const tx = parseFloat(majors[i].getAttribute('x2')) - 100, ty = parseFloat(majors[i].getAttribute('y2')) - 100;
+      assert.ok(Math.abs(Math.atan2(dy, dx) - Math.atan2(ty, tx)) < 0.01, `tick ${i} angle`);
+    });
+    // the emphasised label's tick is emphasised too
+    const activeTick = () => [...app.document.querySelectorAll('#wheelL .bands .tick-major.is-active')].map(t => t.dataset.index);
+    assert.deepEqual(activeTick(), ['0']);
+    app.app.wheelL.setHz(174);
+    assert.deepEqual(activeTick(), [String(labels.findIndex(l => l.dataset.frequency === '174'))]);
+  } finally { app.close(); }
+});
+
+test('label size follows the wheel and alternate labels step inward on small wheels', () => {
+  const app = createApp();
+  try {
+    const wheel = app.document.querySelector('#wheelL');
+    const labels = () => [...wheel.querySelectorAll('.labels span')];
+    const radius = el => Math.hypot(parseFloat(el.style.left) - 200, parseFloat(el.style.top) - 200);
+    assert.equal(wheel.style.getPropertyValue('--wheel-px'), '400px');
+    assert.equal(wheel.querySelector('.labels').classList.contains('is-staggered'), false, 'a 400 px wheel has room');
+    assert.ok(labels().every(l => Math.abs(radius(l) - 136) < 0.01), 'all labels at 0.34 of the width');
+    // shrink to an iPad-portrait wheel: neighbouring three-digit labels would touch
+    app.window.HTMLElement.prototype.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 280, bottom: 280, width: 280, height: 280 });
+    app.window.dispatchEvent(new app.window.Event('resize'));
+    assert.equal(wheel.style.getPropertyValue('--wheel-px'), '280px');
+    assert.equal(wheel.querySelector('.labels').classList.contains('is-staggered'), true);
+    const small = labels().map(l => Math.hypot(parseFloat(l.style.left) - 140, parseFloat(l.style.top) - 140));
+    small.forEach((r, i) => assert.ok(Math.abs(r - (i % 2 ? 81.2 : 95.2)) < 0.01, `label ${i} radius ${r}`));
+    assert.equal(wheel.querySelectorAll('.bands .tick-major').length, labels().length, 'ticks redrawn');
+  } finally { app.close(); }
+});
