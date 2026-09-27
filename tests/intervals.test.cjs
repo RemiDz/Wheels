@@ -239,3 +239,28 @@ test('cells are tinted by consonance group, and the readout and reference descri
     assert.equal(readout.className, 'intervals-readout');
   } finally { app.close(); }
 });
+
+test('the gauge shows where the gap between the wheels sits between two intervals', async () => {
+  const app = createApp();
+  try {
+    const gauge = app.document.getElementById('intervalGauge');
+    const read = () => ({ lower: gauge.querySelector('.gauge-lower').textContent, upper: gauge.querySelector('.gauge-upper').textContent,
+      value: gauge.querySelector('.gauge-value').textContent, pos: gauge.style.getPropertyValue('--gauge-pos'), cls: gauge.className });
+    app.app.wheelL.setHz(222); app.app.wheelR.setHz(255); // 240 cents: leaning to the major second
+    await app.tick(100);
+    assert.equal(gauge.hidden, false);
+    assert.deepEqual(read(), { lower: 'M2nd 200 ¢', upper: 'm3rd 300 ¢', value: '240 ¢ · M2nd +40 ¢', pos: '39.9%', cls: 'interval-gauge tone-mild' });
+
+    app.app.wheelL.setHz(392); app.app.wheelR.setHz(261.63); // an exact fifth, either way round
+    await app.tick(100);
+    assert.deepEqual(read(), { lower: 'P5th 700 ¢', upper: 'm6th 800 ¢', value: '700 ¢ · P5th exactly', pos: '0.0%', cls: 'interval-gauge tone-perfect' });
+
+    app.app.wheelL.setHz(261.63); app.app.wheelR.setHz(261.63 * 2 ** (15.6 / 12)); // 1560 cents: beyond the octave, leaning to 8ve+M3rd
+    await app.tick(100);
+    assert.deepEqual([read().lower, read().upper, read().value], ['8ve+m3rd 1500 ¢', '8ve+M3rd 1600 ¢', '1560 ¢ · 8ve+M3rd -40 ¢']);
+
+    app.app.wheelL.setHz(7.83); // below hearing: no gauge
+    await app.tick(100);
+    assert.equal(gauge.hidden, true);
+  } finally { app.close(); }
+});

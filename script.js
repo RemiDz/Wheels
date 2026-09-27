@@ -10341,6 +10341,41 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     // the Intervals table below; the Sound Capture panel keeps the ratio-based reading
     const wheelInterval = describeNamedInterval(wheelL.getHz(), wheelR.getHz());
     pianoSummary.textContent = `Left: ${describeWheel(wheelL.getHz())} · Right: ${describeWheel(wheelR.getHz())}${wheelInterval ? ` · ${wheelInterval}` : ''}`;
+    updateIntervalGauge(wheelL.getHz(), wheelR.getHz());
+  }
+
+  // Short name of an interval of k semitones for the gauge ends (compound ones keep the
+  // octave: "8ve+m3rd").
+  function gaugeIntervalName(k) {
+    if (k === 0) return 'Unison';
+    const octaves = Math.floor(k / 12), rest = k % 12;
+    const octaveName = octaves === 1 ? '8ve' : `${octaves}×8ve`;
+    if (!rest) return octaveName;
+    return octaves ? `${octaveName}+${INTERVAL_SHORT_NAMES[rest]}` : INTERVAL_SHORT_NAMES[rest];
+  }
+
+  // The gauge under the Left/Right line shows where the actual gap between the wheels
+  // sits between the two equal-tempered intervals on either side of it (each 100 cents
+  // apart), so it is clear which one the pair leans to and by how much. Hidden unless both
+  // wheels are audible.
+  function updateIntervalGauge(left, right) {
+    const gauge = document.getElementById('intervalGauge');
+    if (!gauge) return;
+    const audible = [left, right].every(hz => Number.isFinite(hz) && hz >= 20);
+    gauge.hidden = !audible;
+    if (!audible) return;
+    const cents = 1200 * Math.log2(Math.max(left, right) / Math.min(left, right));
+    // half a cent of tolerance: two-decimal note tables put an exact fifth at 699.99 cents
+    const lower = Math.floor((cents + 0.5) / 100);
+    const frac = Math.max(0, cents / 100 - lower);
+    const nearest = frac < 0.5 ? lower : lower + 1;
+    const lean = Math.round(cents - nearest * 100);
+    gauge.className = `interval-gauge tone-${INTERVAL_TONES[nearest % 12]}`;
+    gauge.querySelector('.gauge-lower').textContent = `${gaugeIntervalName(lower)} ${lower * 100} ¢`;
+    gauge.querySelector('.gauge-upper').textContent = `${gaugeIntervalName(lower + 1)} ${(lower + 1) * 100} ¢`;
+    gauge.style.setProperty('--gauge-pos', `${(frac * 100).toFixed(1)}%`);
+    gauge.querySelector('.gauge-value').textContent = `${cents.toFixed(0)} ¢ · ${gaugeIntervalName(nearest)} ${lean === 0 ? 'exactly' : `${lean > 0 ? '+' : '-'}${Math.abs(lean)} ¢`}`;
+    gauge.title = `The wheels are ${cents.toFixed(1)} cents apart: ${gaugeIntervalName(nearest)} ${lean === 0 ? 'exactly' : `${lean > 0 ? 'plus' : 'minus'} ${Math.abs(lean)} cents`}`;
   }
 
   // The interval between the notes nearest two tones (null unless both are audible).
