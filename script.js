@@ -5159,7 +5159,7 @@ stopAllPlayback();
         <text x="50" y="12" font-size="7" fill="#9370db" font-weight="bold">1 year</text>
         <text x="50" y="24" font-size="7" fill="#40e0d0" font-weight="bold">× 2³² = 136.1</text>
       </svg>`,
-      demoType: 'om'
+      demoType: null // no demo: the topic is about where the number comes from
     }
   };
 
@@ -5243,13 +5243,9 @@ stopAllPlayback();
         demoBtn.innerHTML = '🔊 Pure vs Piano';
         demoBtn.addEventListener('click', () => playNaturalDemo(demoBtn));
         break;
-      case 'om':
-        demoBtn.innerHTML = '🔊 OM vs 7.83';
-        demoBtn.addEventListener('click', () => playOmDemo(demoBtn));
-        break;
     }
     
-    explanationDemo.appendChild(demoBtn);
+    if (data.demoType) explanationDemo.appendChild(demoBtn);
     conceptExplanation.classList.add('active');
   }
 
@@ -5858,45 +5854,6 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
         gain.connect(audioCtx.destination);
         gain.gain.setValueAtTime(0, audioCtx.currentTime);
         gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05);
-        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.6);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 1.65);
-      }
-      index++;
-      schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 1900);
-    }
-    playNext();
-  }
-
-  // OM DEMO: OM alone, the Schumann fundamental raised four octaves (125.28 Hz) alone,
-  // then both together (they clash, 143 cents apart), then OM against C#3 of the 440 Hz
-  // piano (138.59 Hz, 31 cents apart: it beats about 2.5 times a second).
-  function playOmDemo(btn) {
-    beginActivity('school');
-    ensureSchoolAudio();
-    btn.classList.add('playing');
-
-    const schumann = 7.83 * 16;
-    const steps = [[OM_BASE], [schumann], [OM_BASE, schumann], [OM_BASE, 440 * Math.pow(2, -16 / 12)]];
-    let index = 0;
-
-    function playNext() {
-      clearSchoolKeyHighlights();
-      if (index >= steps.length) {
-        stopSchoolDemo();
-        btn.classList.remove('playing');
-        return;
-      }
-      for (const hz of steps[index]) {
-        highlightSchoolKey(hz);
-        const osc = createSchoolOscillator();
-        const gain = createSchoolGain();
-        osc.type = 'sine';
-        osc.frequency.value = hz;
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        gain.gain.setValueAtTime(0, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 0.05);
         gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.6);
         osc.start();
         osc.stop(audioCtx.currentTime + 1.65);

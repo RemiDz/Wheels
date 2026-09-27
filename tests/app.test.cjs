@@ -57,7 +57,7 @@ test('switching from guided to dynamic cannot stop the new session after a fade'
   assert.ok(env.app.state.wheel1?.osc.running);
 });
 
-for (const topic of ['frequency', 'vibrations', 'harmonics', 'overtones', 'timbre', 'tone', 'note', 'scale', 'octave', 'intervals', 'cents', 'natural', 'om']) {
+for (const topic of ['frequency', 'vibrations', 'harmonics', 'overtones', 'timbre', 'tone', 'note', 'scale', 'octave', 'intervals', 'cents', 'natural']) {
   test(`music lesson ${topic} completes without errors and can be stopped early`, async t => {
     const env = setup(t);
     env.select('#conceptSelect', topic); env.click('#explanationDemo .demo-btn');
