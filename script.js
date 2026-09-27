@@ -117,6 +117,27 @@
   // minor ticks into this many equal frequency steps (2 = one mid tick; 4 looked too busy).
   const LABEL_RADIUS = 0.34;
   const TICK_SUBDIVISIONS = 2;
+  // The piano's 88 keys (A0 = MIDI 21 up to C8) also split the wheel into semitones: a
+  // frequency belongs to the key at or below it. Note tables are written to two decimals,
+  // so a frequency may sit a fraction of a cent below its own key; NOTE_TOLERANCE (in
+  // semitones, half a cent) keeps it on that key. The note ring sits between the anchor
+  // labels and the tick scale (in the 200-unit viewBox): a short tick at every key
+  // boundary where neighbouring ticks stay NOTE_TICK_MIN_PX apart, and the arc of the
+  // note under the pointer. The needle runs from outside the hub to the tick scale.
+  const KEYBOARD_KEY_COUNT = 88;
+  const KEYBOARD_START_MIDI = 21; // A0
+  const NOTE_TOLERANCE = 0.005;
+  const NOTE_RING_RADIUS = 73.2;
+  const NOTE_TICK_HALF = 0.9;
+  const NOTE_TICK_MIN_PX = 2.4;
+  const NEEDLE_INNER_RADIUS = 46, NEEDLE_OUTER_RADIUS = 79.6;
+  // The piano note at or below a frequency and its range up to the next key; null off the keyboard.
+  function noteRangeForFrequency(hz) {
+    if (!Number.isFinite(hz) || hz <= 0) return null;
+    const midi = Math.floor(frequencyToMidi(hz) + NOTE_TOLERANCE);
+    if (midi < KEYBOARD_START_MIDI || midi >= KEYBOARD_START_MIDI + KEYBOARD_KEY_COUNT) return null;
+    return { midi, from: midiToFrequency(midi), to: midiToFrequency(midi + 1) };
+  }
 function bandForFrequency(hz) {
     return FREQUENCY_BANDS.find(band => hz < band.to) ?? FREQUENCY_BANDS[FREQUENCY_BANDS.length - 1];
   }
@@ -262,6 +283,7 @@ function bandForFrequency(hz) {
     const bandRange = root.querySelector('.hub .band-range');
 let labelElements = [];
     let tickElements = []; // one major tick per anchor label, in label order
+    let noteArc = null, needle = null; // note ring arc and the exact-frequency needle, rebuilt with the rings
     let wheelReady = false; // pointer state exists once the wheel is initialised
     const pointer = root.querySelector('.pointer');
 const innerCircle = root.querySelector('.inner-circle');
@@ -381,9 +403,64 @@ const innerCircle = root.querySelector('.inner-circle');
           ticks += tick((i + k / TICK_SUBDIVISIONS) * sectorAngle, mid ? 77.4 : 77.8, mid ? 'tick-minor tick-mid' : 'tick-minor');
         }
       }
-      bands.innerHTML = `<defs>${defs}</defs>${arcs}<g class="ticks">${ticks}</g>${texts}`;
+      // Note ring: a tick at every piano key boundary, sector by sector, skipped where a
+      // sector packs its boundaries closer than NOTE_TICK_MIN_PX (the low sectors compress
+      // dozens of semitones into a few degrees). The arc of the current note and the
+      // needle are positioned by drawNoteMarks.
+      const unitPx = widthPx / 200;
+      const boundaries = [];
+      for (let midi = KEYBOARD_START_MIDI; midi <= KEYBOARD_START_MIDI + KEYBOARD_KEY_COUNT; midi++) {
+        const hz = midiToFrequency(midi);
+        if (hz >= MAX_FREQUENCY_HZ) break;
+        boundaries.push({ hz, angle: mapFrequencyToAngle(hz) });
+      }
+      let noteTicks = '';
+      for (let i = 0; i < SORTED_FREQUENCIES.length; i++) {
+        const inSector = boundaries.filter(b => Math.floor(b.angle / sectorAngle) === i);
+        let minGap = Infinity;
+        for (let k = 1; k < inSector.length; k++) minGap = Math.min(minGap, inSector[k].angle - inSector[k - 1].angle);
+        if (minGap * Math.PI / 180 * NOTE_RING_RADIUS * unitPx < NOTE_TICK_MIN_PX) continue;
+        for (const b of inSector) {
+          const [x1, y1] = point(NOTE_RING_RADIUS - NOTE_TICK_HALF, b.angle), [x2, y2] = point(NOTE_RING_RADIUS + NOTE_TICK_HALF, b.angle);
+          noteTicks += `<line class="note-tick" data-hz="${b.hz.toFixed(2)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+        }
+      }
+      bands.innerHTML = `<defs>${defs}</defs>${arcs}<g class="ticks">${ticks}</g><g class="note-ticks">${noteTicks}</g>`
+        + `<path class="note-range" d=""/><line class="needle" x1="100" y1="${(100 - NEEDLE_INNER_RADIUS).toFixed(2)}" x2="100" y2="${(100 - NEEDLE_OUTER_RADIUS).toFixed(2)}"/>${texts}`;
       tickElements = [...bands.querySelectorAll('.tick-major')];
+      noteArc = bands.querySelector('.note-range');
+      needle = bands.querySelector('.needle');
       drawBookmark();
+      if (wheelReady) drawNoteMarks();
+    }
+
+    // The note ring shows the range of the piano note under the pointer (from its key up to
+    // the next key) as an arc in the wheel's glow colour, and the needle marks the exact
+    // frequency across the labels, where the emphasised label only names the nearest anchor.
+    function drawNoteMarks() {
+      if (!noteArc || !needle) return;
+      const hz = currentTopHz();
+      const angleOf = f => f >= MAX_FREQUENCY_HZ ? 360 : mapFrequencyToAngle(f);
+      const point = (radius, angle) => {
+        const rad = (angle - 90) * Math.PI / 180;
+        return [(100 + radius * Math.cos(rad)).toFixed(2), (100 + radius * Math.sin(rad)).toFixed(2)];
+      };
+      const range = noteRangeForFrequency(hz);
+      if (range) {
+        const a1 = angleOf(range.from), a2 = angleOf(range.to);
+        const [x1, y1] = point(NOTE_RING_RADIUS, a1), [x2, y2] = point(NOTE_RING_RADIUS, a2);
+        noteArc.setAttribute('d', `M ${x1} ${y1} A ${NOTE_RING_RADIUS} ${NOTE_RING_RADIUS} 0 ${a2 - a1 > 180 ? 1 : 0} 1 ${x2} ${y2}`);
+        noteArc.dataset.midi = String(range.midi);
+        noteArc.style.stroke = getInterpolatedColors(hz)?.glow || '#ffffff';
+      } else {
+        noteArc.setAttribute('d', '');
+        delete noteArc.dataset.midi;
+      }
+      const angle = Math.min(359.999, angleOf(hz));
+      const [nx1, ny1] = point(NEEDLE_INNER_RADIUS, angle), [nx2, ny2] = point(NEEDLE_OUTER_RADIUS, angle);
+      needle.setAttribute('x1', nx1); needle.setAttribute('y1', ny1);
+      needle.setAttribute('x2', nx2); needle.setAttribute('y2', ny2);
+      needle.dataset.angle = angle.toFixed(3);
     }
 
     // A captured tone is bookmarked on the rim: a radial line over the tick scale and a dot
@@ -731,6 +808,7 @@ pointer.style.transformOrigin = `50% calc(50% + ${b.width/2}px)`;
       }
       if (bandRange) bandRange.textContent = formatBandRange(band);
 highlightNearestLabel();
+      drawNoteMarks();
 
       // Update galaxy colors dynamically - interpolate between frequencies
       const colors = getInterpolatedColors(currentHz);
@@ -1265,8 +1343,7 @@ monoOsc1 = monoOsc2 = null;
   ];
 
   const KEYBOARD_NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  const KEYBOARD_KEY_COUNT = 88;
-  const KEYBOARD_START_MIDI = 21; // A0
+  // KEYBOARD_KEY_COUNT and KEYBOARD_START_MIDI live with the wheel geometry (the wheels use them).
   const KEYBOARD_WHITE_TOTAL = 52;
   const BLACK_KEY_POSITION_OFFSET = 0.62;
   const pianoKeyboardEl = document.getElementById('pianoKeyboard');
@@ -1347,9 +1424,7 @@ monoOsc1 = monoOsc2 = null;
     freqLabelMap.clear();
   }
   
-  // Note tables are written to two decimals, so a frequency may sit a fraction of a cent
-  // below its own key. NOTE_TOLERANCE (in semitones, half a cent) keeps it on that key.
-  const NOTE_TOLERANCE = 0.005;
+  // NOTE_TOLERANCE is defined with the wheel geometry.
 
   function frequencyToMidi(freq) {
     return 12 * Math.log2(freq / 440) + 69;
@@ -1473,6 +1548,28 @@ monoOsc1 = monoOsc2 = null;
     return { note: noteName, cents, hzOffset };
   }
 
+  // The range of the piano note at or below a frequency: its key's frequency up to the
+  // next key's, how wide that is in Hz, and the fixed 100 cents of a semitone (the Hz width
+  // doubles every octave; the cents never change). Off the keyboard the line says so.
+  function renderNoteRange(el, hz) {
+    if (!el) return;
+    const range = noteRangeForFrequency(hz);
+    if (!range) {
+      el.classList.add('is-empty');
+      const top = midiToFrequency(KEYBOARD_START_MIDI + KEYBOARD_KEY_COUNT);
+      el.textContent = !(hz > 0) ? '—' : hz >= top ? 'above the piano (C8 ends at ' + top.toFixed(2) + ' Hz)' : 'below the piano (A0 starts at ' + midiToFrequency(KEYBOARD_START_MIDI).toFixed(2) + ' Hz)';
+      return;
+    }
+    el.classList.remove('is-empty');
+    const names = NOTE_NAMES[noteSystem];
+    const name = `${names[((range.midi % 12) + 12) % 12]}${Math.floor(range.midi / 12) - 1}`;
+    el.replaceChildren();
+    const add = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; el.appendChild(s); };
+    add('range-note', name);
+    add('range-span', `${range.from.toFixed(2)}–${range.to.toFixed(2)} Hz`);
+    add('range-width', `${(range.to - range.from).toFixed(2)} Hz · 100 ¢`);
+  }
+
   // Update live information display
   function updateLiveInfo() {
     const leftWheelNoteEl = document.getElementById('leftWheelNote');
@@ -1528,6 +1625,14 @@ monoOsc1 = monoOsc2 = null;
     // Calculate frequency difference
     const diff = Math.abs(rightFreq - leftFreq);
     frequencyDiffEl.textContent = `${diff.toFixed(3)} Hz`;
+    // ... and the same interval in cents (100 cents = one semitone)
+    const centsEl = document.getElementById('frequencyDiffCents');
+    if (centsEl) {
+      const cents = leftFreq > 0 && rightFreq > 0 ? Math.abs(1200 * Math.log2(rightFreq / leftFreq)) : null;
+      centsEl.textContent = cents === null ? '—' : `${Math.round(cents)} ¢`;
+    }
+    renderNoteRange(document.getElementById('leftWheelRange'), leftFreq);
+    renderNoteRange(document.getElementById('rightWheelRange'), rightFreq);
     
     // Update spectrogram
     updateSpectrogram(leftFreq, rightFreq);
