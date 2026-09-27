@@ -5120,6 +5120,20 @@ stopAllPlayback();
         <text x="65" y="18" font-size="8" fill="#ff69b4" font-weight="bold">5th</text>
       </svg>`,
       demoType: 'intervals'
+    },
+    cents: {
+      title: 'Cents',
+      text: 'One cent is 1/100 of a semitone: 100 cents take you from one piano key to the next, and 1,200 cents make an octave. The readout’s “at +16 ¢” means the tone sits 16% of the way from A4 to A#4 as the ear hears it. Pitch is logarithmic: each cent multiplies the frequency by about 1.0006 instead of adding a fixed number of Hz, so halfway in cents (+50 ¢ = 452.89 Hz) is a little under half of A4’s 26.16 Hz width, and the same 100 cents span 26 Hz at A4 but 52 Hz at A5. That is why musicians tune in cents: 10 cents sharp sounds equally out of tune on a low note and a high one. Most people can hear a difference of about 5 cents.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <path d="M8 20 L92 20" stroke="#9370db" stroke-width="2"/>
+        <path d="M8 14 L8 26 M92 14 L92 26" stroke="#9370db" stroke-width="2"/>
+        <path d="M16.4 17 L16.4 23 M24.8 17 L24.8 23 M33.2 17 L33.2 23 M41.6 17 L41.6 23 M50 15 L50 25 M58.4 17 L58.4 23 M66.8 17 L66.8 23 M75.2 17 L75.2 23 M83.6 17 L83.6 23" stroke="#9370db" stroke-width="1" opacity="0.7"/>
+        <path d="M21.4 10 L21.4 26" stroke="#ff69b4" stroke-width="2"/>
+        <text x="4" y="9" font-size="7" fill="#40e0d0" font-weight="bold">A4</text>
+        <text x="84" y="9" font-size="7" fill="#40e0d0" font-weight="bold">A#4</text>
+        <text x="25" y="9" font-size="7" fill="#ff69b4" font-weight="bold">+16¢</text>
+      </svg>`,
+      demoType: 'cents'
     }
   };
 
@@ -5194,6 +5208,10 @@ stopAllPlayback();
       case 'intervals':
         demoBtn.innerHTML = '🔊 Play Intervals';
         demoBtn.addEventListener('click', () => playIntervalsDemo(demoBtn));
+        break;
+      case 'cents':
+        demoBtn.innerHTML = '🔊 Cents';
+        demoBtn.addEventListener('click', () => playCentsDemo(demoBtn));
         break;
     }
     
@@ -5731,6 +5749,43 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
       
       index++;
       schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 550);
+    }
+    playNext();
+  }
+
+  // CENTS DEMO: A4, then 10, 50 and 100 cents above it (A#4), so the ear can compare a
+  // barely audible step, half a key and the whole key.
+  function playCentsDemo(btn) {
+    beginActivity('school');
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    const steps = [0, 10, 50, 100].map(cents => 440 * Math.pow(2, cents / 1200));
+    let index = 0;
+
+    function playNext() {
+      clearSchoolKeyHighlights();
+      if (index >= steps.length) {
+        stopSchoolDemo();
+        btn.classList.remove('playing');
+        return;
+      }
+      highlightSchoolKey(steps[index]);
+
+      const osc = createSchoolOscillator();
+      const gain = createSchoolGain();
+      osc.type = 'sine';
+      osc.frequency.value = steps[index];
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.55);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.6);
+
+      index++;
+      schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 750);
     }
     playNext();
   }
