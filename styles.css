@@ -4322,10 +4322,14 @@ body[data-theme="dark"] .tone-sharp { --tone: #fda4af; }
 .interval-cell:hover { border-color: rgba(var(--tone-rgb, 139, 92, 246), 0.5); background: rgba(var(--tone-rgb, 139, 92, 246), 0.16); }
 .interval-cell:active { transform: scale(0.97); }
 .interval-cell.is-active { background: rgba(var(--tone-rgb, 139, 92, 246), 0.22); border-color: var(--tone); box-shadow: 0 0 0 2px rgba(var(--tone-rgb, 139, 92, 246), 0.3); }
-/* Fill meters in the highlighted cell, drawn like the key fills: the lower note rises in the
-   left half and the upper note in the right half (height = how far each note sits between its
-   key and the next), so the Scroll wheel fills the cell up and drains it down. */
+/* Meters in the highlighted cell, drawn like the key fills: the lower note in the left half
+   and the upper note in the right half. Half height means the tone is on its note; it rises
+   when the tone is sharp and drops when flat (a full half-cell is 50 cents), so the Scroll
+   wheel moves both meters up and down around the centre line. */
 .interval-cell { position: relative; isolation: isolate; overflow: hidden; }
+.interval-cell.is-active {
+  background-image: linear-gradient(to top, transparent calc(50% - 0.5px), rgba(255, 255, 255, 0.45) calc(50% - 0.5px), rgba(255, 255, 255, 0.45) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+}
 .interval-cell::before,
 .interval-cell::after {
   content: '';

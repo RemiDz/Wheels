@@ -89,7 +89,7 @@ const active = app => { const el = app.document.querySelector('#intervalsTable .
 const octave = app => app.document.getElementById('intervalOctave').value;
 const lit = app => [...app.document.querySelectorAll('.piano-key.is-left, .piano-key.is-right')].map(k => k.dataset.note).sort();
 
-test('the highlighted cell follows the keys the keyboard lights, so the Scroll wheel moves it', async () => {
+test('the highlighted cell names the interval the wheels sound, so the Scroll wheel moves it', async () => {
   const app = createApp();
   try {
     app.click('#intervalsToggle');
@@ -98,13 +98,14 @@ test('the highlighted cell follows the keys the keyboard lights, so the Scroll w
     assert.equal(active(app), '0-7');
     assert.equal(cell(app, 0, 7).getAttribute('aria-current'), 'true');
 
-    app.app.applyPitchBend(30); // the Scroll wheel: both wheels up 30 Hz -> 291.63 / 422.00
+    app.app.applyPitchBend(30); // the Scroll wheel: both wheels up 30 Hz -> 291.63 / 422.00, 640 cents apart
     await app.tick(100);
-    assert.deepEqual(lit(app), ['C#4', 'G#4']);
-    assert.equal(active(app), '1-8', 'C# to G# is the fifth in row C#');
+    assert.deepEqual(lit(app), ['C#4', 'G#4'], 'the keyboard still lights the keys at or below each tone');
+    assert.equal(active(app), '2-8', 'D (the key nearest 291.63 Hz) to G#: 640 cents is nearer the tritone than the fifth');
     assert.equal(cell(app, 0, 7).classList.contains('is-active'), false);
     assert.equal(cell(app, 0, 7).hasAttribute('aria-current'), false);
     assert.equal(octave(app), '4');
+
 
     app.key('#pitchBendWheel', 'Home'); // back to the pair
     await app.tick(100);
@@ -136,6 +137,11 @@ test('the highlighted cell follows the keys the keyboard lights, so the Scroll w
     app.app.wheelL.setHz(261.63);
     await app.tick(100);
     assert.equal(active(app), '0-7');
+    app.app.wheelL.setHz(222.38); app.app.wheelR.setHz(258.36); // Remi's pair: A3 +19 c and C4 -22 c, 259 cents apart
+    await app.tick(100);
+    assert.deepEqual(lit(app), ['A3', 'B3'], 'the keyboard lights B3 for a tone just under C4');
+    assert.equal(active(app), '9-0', 'but the table says A3 to C4, a minor third, not a major second');
+    assert.equal(octave(app), '3');
   } finally { app.close(); }
 });
 
@@ -144,34 +150,37 @@ const fill = (app, row, column) => {
   return { lower: s.getPropertyValue('--fill-lower'), upper: s.getPropertyValue('--fill-upper'), lowerColor: s.getPropertyValue('--fill-lower-color'), upperColor: s.getPropertyValue('--fill-upper-color') };
 };
 
-test('the highlighted cell fills up as the Scroll wheel raises the pair and drains as it lowers it', async () => {
+test('the meters in the highlighted cell sit at half when in tune and move with the deviation in cents', async () => {
   const app = createApp();
   try {
     app.click('#intervalsToggle');
     cell(app, 0, 7).click(); // C4 -> G4, both notes exactly on their keys
     await app.tick(100);
-    assert.deepEqual([fill(app, 0, 7).lower, fill(app, 0, 7).upper], ['0.000', '0.000']);
+    assert.deepEqual([fill(app, 0, 7).lower, fill(app, 0, 7).upper], ['0.500', '0.500']);
 
-    const ratio = hz => app.app.getKeySpanForFrequency(hz).ratio.toFixed(3);
-    app.app.applyPitchBend(10); // C4 + 10 Hz is 0.64 of the way to C#4, G4 + 10 Hz 0.43 of the way to G#4
+    const midiToHz = midi => 440 * 2 ** ((midi - 69) / 12);
+    const level = (hz, midi) => Math.max(0, Math.min(1, 0.5 + 1200 * Math.log2(hz / midiToHz(midi)) / 100)).toFixed(3);
+    app.app.applyPitchBend(5); // C4 + 5 Hz is 33 cents sharp, G4 + 5 Hz 22 cents sharp: still C4 -> G4, meters above half
     await app.tick(100);
     assert.equal(active(app), '0-7');
-    assert.equal(fill(app, 0, 7).lower, ratio(app.app.wheelL.getHz()));
-    assert.equal(fill(app, 0, 7).upper, ratio(app.app.wheelR.getHz()));
-    assert.ok(Number(fill(app, 0, 7).lower) > 0.6 && Number(fill(app, 0, 7).upper) > 0.4, JSON.stringify(fill(app, 0, 7)));
+    assert.equal(fill(app, 0, 7).lower, level(app.app.wheelL.getHz(), 60));
+    assert.equal(fill(app, 0, 7).upper, level(app.app.wheelR.getHz(), 67));
+    assert.ok(Number(fill(app, 0, 7).lower) > 0.8 && Number(fill(app, 0, 7).upper) > 0.7, JSON.stringify(fill(app, 0, 7)));
     assert.match(fill(app, 0, 7).lowerColor, /^#[0-9a-f]{6}$/i);
     assert.match(fill(app, 0, 7).upperColor, /^#[0-9a-f]{6}$/i);
 
-    app.app.applyPitchBend(-5); // draining
+    app.app.applyPitchBend(-8); // 3 Hz under: both meters below half
     await app.tick(100);
-    assert.ok(Number(fill(app, 0, 7).lower) < 0.4, fill(app, 0, 7).lower);
+    assert.equal(active(app), '0-7');
+    assert.ok(Number(fill(app, 0, 7).lower) < 0.4 && Number(fill(app, 0, 7).upper) < 0.45, JSON.stringify(fill(app, 0, 7)));
 
-    app.app.applyPitchBend(25); // crosses into C#4 / G#4: the old cell empties, the new one starts from its own levels
+    app.app.applyPitchBend(13); // 10 Hz up: nearer C#4 / G#4 (still a fifth): the old cell empties, the new one shows its own deviations
     await app.tick(100);
     assert.equal(active(app), '1-8');
     assert.deepEqual([fill(app, 0, 7).lower, fill(app, 0, 7).upper, fill(app, 0, 7).lowerColor], ['', '', '']);
-    assert.equal(fill(app, 1, 8).lower, ratio(app.app.wheelL.getHz()));
-    assert.equal(fill(app, 1, 8).upper, ratio(app.app.wheelR.getHz()));
+    assert.equal(fill(app, 1, 8).lower, level(app.app.wheelL.getHz(), 61));
+    assert.equal(fill(app, 1, 8).upper, level(app.app.wheelR.getHz(), 68));
+    assert.ok(Number(fill(app, 1, 8).lower) < 0.2, 'C4 + 10 Hz is 35 cents under C#4');
 
     app.app.wheelL.setHz(440); app.app.wheelR.setHz(440); // no cell, no leftover fill
     await app.tick(100);
@@ -202,16 +211,21 @@ test('cells are tinted by consonance group, and the readout and reference descri
     assert.equal(readout.textContent, 'Tap an interval, or move the wheels.');
     cell(app, 0, 7).click();
     await app.tick(100);
-    assert.match(readout.textContent, /^Perfect fifth C4 · G4 Uplifting/);
+    assert.match(readout.textContent, /^Perfect fifth C4 \+0 ¢ · G4 \+0 ¢ Uplifting/);
     assert.ok(readout.classList.contains('tone-perfect'));
 
     app.click('#noteSystemToggle');
     await app.tick(100);
-    assert.match(readout.textContent, /Do4 · Sol4/);
+    assert.match(readout.textContent, /Do4 \+0 ¢ · Sol4 \+0 ¢/);
 
     app.app.wheelL.setHz(261.63); app.app.wheelR.setHz(783.99); // C4 -> G5 reads as a fifth with the real notes
     await app.tick(100);
-    assert.match(readout.textContent, /^Perfect fifth Do4 · Sol5/);
+    assert.match(readout.textContent, /^Perfect fifth Do4 \+0 ¢ · Sol5 \+0 ¢/);
+
+    app.app.wheelL.setHz(222.38); app.app.wheelR.setHz(258.36); // the deviations follow the tones
+    await app.tick(100);
+    assert.match(readout.textContent, /^Minor third La3 \+19 ¢ · Do4 -22 ¢/);
+    app.app.wheelL.setHz(261.63);
 
     app.app.wheelR.setHz(261.63); // unison
     await app.tick(100);

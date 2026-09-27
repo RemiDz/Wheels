@@ -4014,36 +4014,53 @@ if (cell) {
     return colors?.glow || colors?.primary || '#f97316';
   }
 
-  function setIntervalCellFill(cell, lower, upper, lowerHz, upperHz) {
-    cell.style.setProperty('--fill-lower', lower.ratio.toFixed(3));
-    cell.style.setProperty('--fill-upper', upper.ratio.toFixed(3));
-    cell.style.setProperty('--fill-lower-color', intervalFillColor(lowerHz));
-    cell.style.setProperty('--fill-upper-color', intervalFillColor(upperHz));
+  // Meter level for a tone's deviation from its note: half when in tune, up when sharp,
+  // down when flat (a full half-cell is 50 cents).
+  function intervalMeterLevel(cents) {
+    return Math.max(0, Math.min(1, 0.5 + cents / 100)).toFixed(3);
+  }
+
+  function setIntervalCellFill(cell, lower, upper) {
+    cell.style.setProperty('--fill-lower', intervalMeterLevel(lower.cents));
+    cell.style.setProperty('--fill-upper', intervalMeterLevel(upper.cents));
+    cell.style.setProperty('--fill-lower-color', intervalFillColor(lower.hz));
+    cell.style.setProperty('--fill-upper-color', intervalFillColor(upper.hz));
   }
 
   function clearIntervalCellFill(cell) {
     for (const name of ['--fill-lower', '--fill-upper', '--fill-lower-color', '--fill-upper-color']) cell.style.removeProperty(name);
   }
 
-  // The readout above the table names the highlighted interval, its two notes and its
-  // character. Re-rendered only when the pair (or the note-name system) changes.
-  function renderIntervalReadout(lowerKey, upperKey) {
+  // The readout above the table names the highlighted interval, its two notes with how far
+  // each tone sits from its note in cents, and its character. The name and character are
+  // re-rendered only when the pair (or the note-name system) changes; the cents follow
+  // every move.
+  function formatSignedCents(cents) {
+    const rounded = Math.round(cents);
+    return `${rounded < 0 ? '-' : '+'}${Math.abs(rounded)} ¢`;
+  }
+
+  function renderIntervalReadout(lower, upper) {
     const readout = document.getElementById('intervalsReadout');
     if (!readout) return;
-    const key = lowerKey && upperKey ? `${lowerKey.midi}-${upperKey.midi}-${noteSystem}` : '';
-    if (readout.dataset.pair === key) return;
-    readout.dataset.pair = key;
-    if (!key) {
-      readout.className = 'intervals-readout';
-      readout.textContent = INTERVAL_READOUT_IDLE;
-      return;
+    const key = lower && upper ? `${lower.key.midi}-${upper.key.midi}-${noteSystem}` : '';
+    if (readout.dataset.pair !== key) {
+      readout.dataset.pair = key;
+      if (!key) {
+        readout.className = 'intervals-readout';
+        readout.textContent = INTERVAL_READOUT_IDLE;
+        return;
+      }
+      const index = (upper.key.midi - lower.key.midi) % 12;
+      readout.className = `intervals-readout tone-${INTERVAL_TONES[index]}`;
+      readout.innerHTML = `<strong>${intervalDisplayName(index)}</strong> `
+        + '<span class="intervals-readout-notes"></span> '
+        + `<span class="intervals-readout-effect">${INTERVAL_EFFECTS[index]}</span>`;
     }
-    const index = (upperKey.midi - lowerKey.midi) % 12;
+    if (!key) return;
     const names = NOTE_NAMES[noteSystem];
-    readout.className = `intervals-readout tone-${INTERVAL_TONES[index]}`;
-    readout.innerHTML = `<strong>${intervalDisplayName(index)}</strong> `
-      + `<span class="intervals-readout-notes">${names[lowerKey.noteIndex]}${lowerKey.octave} · ${names[upperKey.noteIndex]}${upperKey.octave}</span> `
-      + `<span class="intervals-readout-effect">${INTERVAL_EFFECTS[index]}</span>`;
+    readout.querySelector('.intervals-readout-notes').textContent =
+      `${names[lower.key.noteIndex]}${lower.key.octave} ${formatSignedCents(lower.cents)} · ${names[upper.key.noteIndex]}${upper.key.octave} ${formatSignedCents(upper.cents)}`;
   }
 
   function renderIntervalLegend() {
@@ -4073,35 +4090,38 @@ const scroller = cell.closest('.intervals-scroll');
     else if (right > scroller.scrollLeft + scroller.clientWidth) scroller.scrollLeft = right - scroller.clientWidth + 4;
   }
 
-  // The highlighted cell follows the keys the keyboard lights, so the Scroll wheel, Fine
-  // Tune, a wheel drag or a piano key all move it, and the octave selector follows the
-  // lower note. A compound interval shows its simple name; a unison or a note off the
-  // keyboard clears the highlight. Runs from updateKeyboardHighlights (once per change).
+  // The highlighted cell names the interval the two wheels actually sound: the semitone
+  // count is rounded from the frequency ratio, so 222.4 and 258.4 Hz (259 cents apart)
+  // are a minor third even though the keyboard lights A3 and B3, the keys at or below each
+  // tone. The lower note is the key nearest the lower tone and the upper note is the one
+  // that makes that interval; a compound interval shows its simple name and the octave
+  // selector follows the lower note. The readout and the cell's meters show how far each
+  // tone sits from its note. A unison or a tone off the keyboard clears the highlight.
+  // Runs from updateKeyboardHighlights (once per change).
   function syncIntervalTableToWheels() {
     const table = document.getElementById('intervalsTable');
     if (!table?.tBodies.length || !wheelL || !wheelR) return;
     const hzL = wheelL.getHz();
     const hzR = wheelR.getHz();
-    const spanL = getKeySpanForFrequency(hzL);
-    const spanR = getKeySpanForFrequency(hzR);
     let cell = null;
-    let lowerSpan = null;
-    let upperSpan = null;
-    let lowerHz = 0;
-    let upperHz = 0;
-    if (spanL?.key && spanR?.key && spanL.key.midi !== spanR.key.midi) {
-      const lowerIsLeft = spanL.key.midi < spanR.key.midi;
-      [lowerSpan, upperSpan] = lowerIsLeft ? [spanL, spanR] : [spanR, spanL];
-      [lowerHz, upperHz] = lowerIsLeft ? [hzL, hzR] : [hzR, hzL];
-      const lower = lowerSpan.key;
-      const upper = upperSpan.key;
-      cell = table.querySelector(`.interval-cell[data-row="${lower.noteIndex}"][data-column="${upper.noteIndex}"]`);
-      const octaveSelect = document.getElementById('intervalOctave');
-      if (octaveSelect?.querySelector(`option[value="${lower.octave}"]`)) octaveSelect.value = String(lower.octave);
+    let lower = null;
+    let upper = null;
+    if (hzL > 0 && hzR > 0) {
+      const [lowerHz, upperHz] = hzL <= hzR ? [hzL, hzR] : [hzR, hzL];
+      const semitones = Math.round(12 * Math.log2(upperHz / lowerHz));
+      const lowerKey = getNearestKeyForFrequency(lowerHz);
+      const upperKey = lowerKey && semitones > 0 ? pianoKeys[lowerKey.midi - KEYBOARD_START_MIDI + semitones] ?? null : null;
+      if (lowerKey && upperKey) {
+        lower = { key: lowerKey, hz: lowerHz, cents: 1200 * Math.log2(lowerHz / lowerKey.frequency) };
+        upper = { key: upperKey, hz: upperHz, cents: 1200 * Math.log2(upperHz / upperKey.frequency) };
+        cell = table.querySelector(`.interval-cell[data-row="${lowerKey.noteIndex}"][data-column="${upperKey.noteIndex}"]`);
+        const octaveSelect = document.getElementById('intervalOctave');
+        if (octaveSelect?.querySelector(`option[value="${lowerKey.octave}"]`)) octaveSelect.value = String(lowerKey.octave);
+      }
     }
     if (setActiveIntervalCell(cell) && cell) revealIntervalCell(cell);
-    if (cell) setIntervalCellFill(cell, lowerSpan, upperSpan, lowerHz, upperHz);
-    renderIntervalReadout(lowerSpan?.key ?? null, upperSpan?.key ?? null);
+    if (cell) setIntervalCellFill(cell, lower, upper);
+    renderIntervalReadout(lower, upper);
   }
 
   function renderIntervalTable() {
