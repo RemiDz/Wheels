@@ -3641,6 +3641,7 @@ body:not([data-theme="dark"]) .fine-tune-value {
 .wheel-readout-range { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 7px; font-size: 10px; line-height: 1.3; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; min-height: 13px; }
 .wheel-readout-range .range-note { color: var(--fg); font-weight: 700; }
 .wheel-readout-range .range-span { color: var(--fg); }
+.wheel-readout-range .range-cents { color: var(--fg); }
 .wheel-readout-range.is-empty { opacity: .7; }
 .live-info-item-values { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; }
 .live-info-item-cents { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.2; }

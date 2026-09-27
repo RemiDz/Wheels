@@ -85,8 +85,13 @@ test('the readouts show the note range and the cents between the wheels', async 
     app.app.wheelL.setHz(444);
     app.app.wheelR.setHz(880);
     await app.tick(100);
-    assert.deepEqual(text('leftWheelRange'), ['A4', '440.00–466.16 Hz', '26.16 Hz · 100 ¢']);
-    assert.deepEqual(text('rightWheelRange'), ['A5', '880.00–932.33 Hz', '52.33 Hz · 100 ¢'], 'the Hz width doubles an octave up');
+    assert.deepEqual(text('leftWheelRange'), ['A4', '440.00–466.16 Hz', '26.16 Hz wide', 'at +16 ¢']);
+    assert.deepEqual(text('rightWheelRange'), ['A5', '880.00–932.33 Hz', '52.33 Hz wide', 'at +0 ¢'], 'the Hz width doubles an octave up');
+    app.app.wheelL.setHz(464); // near the top of A4 (466.16 starts A#4)
+    await app.tick(100);
+    assert.deepEqual(text('leftWheelRange').slice(0, 1).concat(text('leftWheelRange').slice(3)), ['A4', `at +${Math.round(1200 * Math.log2(464 / 440))} ¢`]);
+    app.app.wheelL.setHz(444);
+    await app.tick(100);
     assert.equal(app.document.getElementById('frequencyDiff').textContent, '436.000 Hz');
     assert.equal(app.document.getElementById('frequencyDiffCents').textContent, '1184 ¢');
     app.app.wheelR.setHz(880 / 2 ** (1 / 12)); // a semitone under 880 = 830.61 Hz, G#5

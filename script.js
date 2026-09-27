@@ -1549,8 +1549,10 @@ monoOsc1 = monoOsc2 = null;
   }
 
   // The range of the piano note at or below a frequency: its key's frequency up to the
-  // next key's, how wide that is in Hz, and the fixed 100 cents of a semitone (the Hz width
-  // doubles every octave; the cents never change). Off the keyboard the line says so.
+  // next key's, how wide that is in Hz (it doubles every octave) and where inside the note
+  // the frequency sits, in cents (0 at the key, 99 just under the next key; a semitone is
+  // always 100 cents, so the width itself is not shown in cents). Off the keyboard the
+  // line says so.
   function renderNoteRange(el, hz) {
     if (!el) return;
     const range = noteRangeForFrequency(hz);
@@ -1567,7 +1569,9 @@ monoOsc1 = monoOsc2 = null;
     const add = (cls, text) => { const s = document.createElement('span'); s.className = cls; s.textContent = text; el.appendChild(s); };
     add('range-note', name);
     add('range-span', `${range.from.toFixed(2)}–${range.to.toFixed(2)} Hz`);
-    add('range-width', `${(range.to - range.from).toFixed(2)} Hz · 100 ¢`);
+    add('range-width', `${(range.to - range.from).toFixed(2)} Hz wide`);
+    const cents = Math.min(99, Math.max(0, Math.round((frequencyToMidi(hz) - range.midi) * 100)));
+    add('range-cents', `at +${cents} ¢`);
   }
 
   // Update live information display
