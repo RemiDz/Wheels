@@ -5134,6 +5134,20 @@ stopAllPlayback();
         <text x="25" y="9" font-size="7" fill="#ff69b4" font-weight="bold">+16¢</text>
       </svg>`,
       demoType: 'cents'
+    },
+    natural: {
+      title: 'Natural Harmonics',
+      text: 'The Musical Intervals presets are not built on the piano’s 440 Hz grid. They start from OM at 136.10 Hz and multiply it by the simple ratios of the harmonic series: 2:1 is the octave, 3:2 the fifth (136.10 × 3/2 = 204.15 Hz), 4:3 the fourth, 5:4 the major third. Pythagoras found these ratios about 2,500 years ago by dividing a vibrating string: stopped at 2/3 of its length it sounds the fifth. Two tones in a pure ratio share overtones, so a pure fifth is beat-free and sounds still. A piano cannot do this: equal temperament splits the octave into 12 equal steps so every key works in every scale, which leaves its fifth 2 cents narrow and its major third 14 cents wide. That is why the fifth preset reads C3 +69 ¢ and G3 +71 ¢ rather than landing on the keys: it follows the ratio, not the grid.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <path d="M6 22 L94 22" stroke="#40e0d0" stroke-width="2"/>
+        <path d="M6 16 L6 28 M94 16 L94 28" stroke="#9370db" stroke-width="2"/>
+        <path d="M64.7 14 L64.7 28" stroke="#ff69b4" stroke-width="2"/>
+        <path d="M6 22 Q35 12 64.7 22" stroke="#ff69b4" stroke-width="1.2" opacity="0.8"/>
+        <path d="M64.7 22 Q79 17 94 22" stroke="#ff69b4" stroke-width="1.2" opacity="0.8"/>
+        <text x="26" y="9" font-size="7" fill="#ff69b4" font-weight="bold">2/3</text>
+        <text x="72" y="9" font-size="7" fill="#40e0d0" font-weight="bold">3:2</text>
+      </svg>`,
+      demoType: 'natural'
     }
   };
 
@@ -5212,6 +5226,10 @@ stopAllPlayback();
       case 'cents':
         demoBtn.innerHTML = '🔊 Cents';
         demoBtn.addEventListener('click', () => playCentsDemo(demoBtn));
+        break;
+      case 'natural':
+        demoBtn.innerHTML = '🔊 Pure vs Piano';
+        demoBtn.addEventListener('click', () => playNaturalDemo(demoBtn));
         break;
     }
     
@@ -5786,6 +5804,50 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
 
       index++;
       schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 750);
+    }
+    playNext();
+  }
+
+  // NATURAL HARMONICS DEMO: the same interval twice over the OM root, first in its pure
+  // ratio (beat-free) and then as the piano tunes it (equal temperament), for the fifth
+  // (2 cents apart, barely audible) and the major third (14 cents apart, it beats).
+  function playNaturalDemo(btn) {
+    beginActivity('school');
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    const root = OM_BASE;
+    const pairs = [
+      [root, root * 3 / 2],                    // pure fifth 3:2
+      [root, root * Math.pow(2, 7 / 12)],      // piano fifth
+      [root, root * 5 / 4],                    // pure major third 5:4
+      [root, root * Math.pow(2, 4 / 12)]       // piano major third
+    ];
+    let index = 0;
+
+    function playNext() {
+      clearSchoolKeyHighlights();
+      if (index >= pairs.length) {
+        stopSchoolDemo();
+        btn.classList.remove('playing');
+        return;
+      }
+      for (const hz of pairs[index]) {
+        highlightSchoolKey(hz);
+        const osc = createSchoolOscillator();
+        const gain = createSchoolGain();
+        osc.type = 'sine';
+        osc.frequency.value = hz;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.6);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 1.65);
+      }
+      index++;
+      schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 1900);
     }
     playNext();
   }
