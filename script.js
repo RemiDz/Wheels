@@ -5332,8 +5332,7 @@ stopAllPlayback();
     }
 document.querySelectorAll('.school-demo-filling').forEach(el => {
       el.classList.remove('is-left', 'is-right', 'school-demo-filling');
-      el.style.removeProperty('--left-fill');
-      el.style.removeProperty('--right-fill');
+      for (const name of ['--left-fill', '--left-highlight', '--right-fill', '--right-highlight']) el.style.removeProperty(name);
     });
     if (schoolDemoTimeout) {
       schoolPlayback.clearTimeout(schoolDemoTimeout);
@@ -5783,36 +5782,71 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     playNext();
   }
 
+  // A demo tone shown the way the wheels show theirs: its key fills to the tone's position
+  // between that key and the next (so +16 cents is a low fill, +99 cents nearly full) in
+  // the given colour, on the left or right half. Returns the key for clearing.
+  function fillSchoolKey(hz, side, color) {
+    const span = getKeySpanForFrequency(hz);
+    const el = span?.key?.element;
+    if (!el) return null;
+    el.classList.add(`is-${side}`, 'school-demo-filling');
+    el.style.setProperty(`--${side}-fill`, span.ratio.toFixed(3));
+    el.style.setProperty(`--${side}-highlight`, color);
+    return el;
+  }
+
+  function clearSchoolKeyFills(keys) {
+    for (const el of keys) {
+      el.classList.remove('is-left', 'is-right', 'school-demo-filling');
+      for (const name of ['--left-fill', '--left-highlight', '--right-fill', '--right-highlight']) el.style.removeProperty(name);
+    }
+    keys.length = 0;
+  }
+
+  function playSchoolTone(hz, level, seconds) {
+    const osc = createSchoolOscillator();
+    const gain = createSchoolGain();
+    osc.type = 'sine';
+    osc.frequency.value = hz;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(level, audioCtx.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + seconds);
+    osc.start();
+    osc.stop(audioCtx.currentTime + seconds + 0.05);
+  }
+
   // CENTS DEMO: A4, then 10, 50 and 100 cents above it (A#4), so the ear can compare a
-  // barely audible step, half a key and the whole key.
+  // barely audible step, half a key and the whole key. The A4 key fills to each position;
+  // the last step lands on A#4 at +0.
   function playCentsDemo(btn) {
     beginActivity('school');
+    clearSchoolFillingKey();
     ensureSchoolAudio();
     btn.classList.add('playing');
 
-    const steps = [0, 10, 50, 100].map(cents => 440 * Math.pow(2, cents / 1200));
+    const steps = [
+      { cents: 0, color: '#40e0d0' },
+      { cents: 10, color: '#2ecc71' },
+      { cents: 50, color: '#f39c12' },
+      { cents: 100, color: '#ff69b4' }
+    ];
     let index = 0;
+    const filled = [];
 
     function playNext() {
-      clearSchoolKeyHighlights();
+      clearSchoolKeyFills(filled);
       if (index >= steps.length) {
         stopSchoolDemo();
         btn.classList.remove('playing');
         return;
       }
-      highlightSchoolKey(steps[index]);
-
-      const osc = createSchoolOscillator();
-      const gain = createSchoolGain();
-      osc.type = 'sine';
-      osc.frequency.value = steps[index];
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      gain.gain.setValueAtTime(0, audioCtx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.05);
-      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.55);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.6);
+      const step = steps[index];
+      const hz = 440 * Math.pow(2, step.cents / 1200);
+      const key = fillSchoolKey(hz, 'left', step.color);
+      if (key) filled.push(key);
+      playSchoolTone(hz, 0.25, 0.55);
 
       index++;
       schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 750);
@@ -5822,42 +5856,39 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
 
   // NATURAL HARMONICS DEMO: the same interval twice over the OM root, first in its pure
   // ratio (beat-free) and then as the piano tunes it (equal temperament), for the fifth
-  // (2 cents apart, barely audible) and the major third (14 cents apart, it beats).
+  // (2 cents apart, barely audible) and the major third (14 cents apart, it beats). The
+  // root fills its key on the left in teal; the upper tone fills on the right, green when
+  // pure and orange when tempered, so the two positions can be compared on the keys.
   function playNaturalDemo(btn) {
     beginActivity('school');
+    clearSchoolFillingKey();
     ensureSchoolAudio();
     btn.classList.add('playing');
 
     const root = OM_BASE;
+    const PURE = '#2ecc71', PIANO = '#f39c12';
     const pairs = [
-      [root, root * 3 / 2],                    // pure fifth 3:2
-      [root, root * Math.pow(2, 7 / 12)],      // piano fifth
-      [root, root * 5 / 4],                    // pure major third 5:4
-      [root, root * Math.pow(2, 4 / 12)]       // piano major third
+      { upper: root * 3 / 2, color: PURE },                 // pure fifth 3:2
+      { upper: root * Math.pow(2, 7 / 12), color: PIANO },  // piano fifth
+      { upper: root * 5 / 4, color: PURE },                 // pure major third 5:4
+      { upper: root * Math.pow(2, 4 / 12), color: PIANO }   // piano major third
     ];
     let index = 0;
+    const filled = [];
 
     function playNext() {
-      clearSchoolKeyHighlights();
+      clearSchoolKeyFills(filled);
       if (index >= pairs.length) {
         stopSchoolDemo();
         btn.classList.remove('playing');
         return;
       }
-      for (const hz of pairs[index]) {
-        highlightSchoolKey(hz);
-        const osc = createSchoolOscillator();
-        const gain = createSchoolGain();
-        osc.type = 'sine';
-        osc.frequency.value = hz;
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        gain.gain.setValueAtTime(0, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05);
-        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.6);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 1.65);
-      }
+      const pair = pairs[index];
+      const rootKey = fillSchoolKey(root, 'left', '#40e0d0');
+      const upperKey = fillSchoolKey(pair.upper, 'right', pair.color);
+      for (const key of [rootKey, upperKey]) if (key) filled.push(key);
+      playSchoolTone(root, 0.15, 1.6);
+      playSchoolTone(pair.upper, 0.15, 1.6);
       index++;
       schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 1900);
     }
