@@ -89,7 +89,7 @@ const active = app => { const el = app.document.querySelector('#intervalsTable .
 const octave = app => app.document.getElementById('intervalOctave').value;
 const lit = app => [...app.document.querySelectorAll('.piano-key.is-left, .piano-key.is-right')].map(k => k.dataset.note).sort();
 
-test('the highlighted cell names the interval the wheels sound, so the Scroll wheel moves it', async () => {
+test('the highlighted cell is the interval between the nearest notes, so the Scroll wheel moves it', async () => {
   const app = createApp();
   try {
     app.click('#intervalsToggle');
@@ -101,7 +101,7 @@ test('the highlighted cell names the interval the wheels sound, so the Scroll wh
     app.app.applyPitchBend(30); // the Scroll wheel: both wheels up 30 Hz -> 291.63 / 422.00, 640 cents apart
     await app.tick(100);
     assert.deepEqual(lit(app), ['C#4', 'G#4'], 'the keyboard still lights the keys at or below each tone');
-    assert.equal(active(app), '2-8', 'D (the key nearest 291.63 Hz) to G#: 640 cents is nearer the tritone than the fifth');
+    assert.equal(active(app), '2-8', 'the nearest notes are D4 (-12 cents) and G#4 (+28): a tritone');
     assert.equal(cell(app, 0, 7).classList.contains('is-active'), false);
     assert.equal(cell(app, 0, 7).hasAttribute('aria-current'), false);
     assert.equal(octave(app), '4');
@@ -174,13 +174,19 @@ test('the meters in the highlighted cell sit at half when in tune and move with 
     assert.equal(active(app), '0-7');
     assert.ok(Number(fill(app, 0, 7).lower) < 0.4 && Number(fill(app, 0, 7).upper) < 0.45, JSON.stringify(fill(app, 0, 7)));
 
-    app.app.applyPitchBend(13); // 10 Hz up: nearer C#4 / G#4 (still a fifth): the old cell empties, the new one shows its own deviations
+    app.app.applyPitchBend(13); // 10 Hz up: C4 + 10 Hz is nearest C#4 (-35 cents), G4 + 10 Hz still G4 (+43): the old cell empties, the new one shows its own deviations
     await app.tick(100);
-    assert.equal(active(app), '1-8');
+    assert.equal(active(app), '1-7', 'C# to G is a tritone');
     assert.deepEqual([fill(app, 0, 7).lower, fill(app, 0, 7).upper, fill(app, 0, 7).lowerColor], ['', '', '']);
-    assert.equal(fill(app, 1, 8).lower, level(app.app.wheelL.getHz(), 61));
-    assert.equal(fill(app, 1, 8).upper, level(app.app.wheelR.getHz(), 68));
-    assert.ok(Number(fill(app, 1, 8).lower) < 0.2, 'C4 + 10 Hz is 35 cents under C#4');
+    assert.equal(fill(app, 1, 7).lower, level(app.app.wheelL.getHz(), 61));
+    assert.equal(fill(app, 1, 7).upper, level(app.app.wheelR.getHz(), 67));
+    assert.ok(Number(fill(app, 1, 7).lower) < 0.2 && Number(fill(app, 1, 7).upper) > 0.9, JSON.stringify(fill(app, 1, 7)));
+
+    app.app.wheelL.setHz(222.38); app.app.wheelR.setHz(255.09); // A3 +19 and C4 -44: the upper meter is low but never clamped
+    await app.tick(100);
+    assert.equal(active(app), '9-0', 'still A3 to C4, a minor third');
+    assert.equal(fill(app, 9, 0).upper, level(255.09, 60));
+    assert.ok(Number(fill(app, 9, 0).upper) > 0.05 && Number(fill(app, 9, 0).upper) < 0.1, fill(app, 9, 0).upper);
 
     app.app.wheelL.setHz(440); app.app.wheelR.setHz(440); // no cell, no leftover fill
     await app.tick(100);

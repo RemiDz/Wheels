@@ -4090,14 +4090,14 @@ const scroller = cell.closest('.intervals-scroll');
     else if (right > scroller.scrollLeft + scroller.clientWidth) scroller.scrollLeft = right - scroller.clientWidth + 4;
   }
 
-  // The highlighted cell names the interval the two wheels actually sound: the semitone
-  // count is rounded from the frequency ratio, so 222.4 and 258.4 Hz (259 cents apart)
-  // are a minor third even though the keyboard lights A3 and B3, the keys at or below each
-  // tone. The lower note is the key nearest the lower tone and the upper note is the one
-  // that makes that interval; a compound interval shows its simple name and the octave
-  // selector follows the lower note. The readout and the cell's meters show how far each
-  // tone sits from its note. A unison or a tone off the keyboard clears the highlight.
-  // Runs from updateKeyboardHighlights (once per change).
+  // The highlighted cell is the interval between the notes the two tones are nearest to,
+  // the way a musician reads them: 222.4 Hz is A3 (+19 cents) and 258.4 Hz is C4 (-22), a
+  // minor third, even though the keyboard lights A3 and B3, the keys at or below each tone.
+  // Naming each tone by its nearest key keeps every deviation within 50 cents, so the
+  // cell's meters (half = in tune) never run off their scale. A compound interval shows
+  // its simple name and the octave selector follows the lower note. Two tones nearest the
+  // same key (a unison) or a tone off the keyboard clear the highlight. Runs from
+  // updateKeyboardHighlights (once per change).
   function syncIntervalTableToWheels() {
     const table = document.getElementById('intervalsTable');
     if (!table?.tBodies.length || !wheelL || !wheelR) return;
@@ -4108,10 +4108,9 @@ const scroller = cell.closest('.intervals-scroll');
     let upper = null;
     if (hzL > 0 && hzR > 0) {
       const [lowerHz, upperHz] = hzL <= hzR ? [hzL, hzR] : [hzR, hzL];
-      const semitones = Math.round(12 * Math.log2(upperHz / lowerHz));
       const lowerKey = getNearestKeyForFrequency(lowerHz);
-      const upperKey = lowerKey && semitones > 0 ? pianoKeys[lowerKey.midi - KEYBOARD_START_MIDI + semitones] ?? null : null;
-      if (lowerKey && upperKey) {
+      const upperKey = getNearestKeyForFrequency(upperHz);
+      if (lowerKey && upperKey && upperKey.midi > lowerKey.midi) {
         lower = { key: lowerKey, hz: lowerHz, cents: 1200 * Math.log2(lowerHz / lowerKey.frequency) };
         upper = { key: upperKey, hz: upperHz, cents: 1200 * Math.log2(upperHz / upperKey.frequency) };
         cell = table.querySelector(`.interval-cell[data-row="${lowerKey.noteIndex}"][data-column="${upperKey.noteIndex}"]`);
@@ -10338,8 +10337,23 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
     const pianoSummary = document.getElementById('bowlPianoSummary');
     pianoSummary.hidden = !capturedBowls.left && !capturedBowls.right;
     const describeWheel = hz => `${hz.toFixed(2)} Hz${hz >= 20 ? ` (${bowlNoteLabel(hz)})` : ' (below hearing)'}`;
-    const wheelInterval = BowlAudio.describeInterval(wheelL.getHz(), wheelR.getHz());
-    pianoSummary.textContent = `Left: ${describeWheel(wheelL.getHz())} · Right: ${describeWheel(wheelR.getHz())}${wheelInterval ? ` · ${wheelInterval.name}` : ''}`;
+    // the interval named here is between the two notes just named (nearest keys), as in
+    // the Intervals table below; the Sound Capture panel keeps the ratio-based reading
+    const wheelInterval = describeNamedInterval(wheelL.getHz(), wheelR.getHz());
+    pianoSummary.textContent = `Left: ${describeWheel(wheelL.getHz())} · Right: ${describeWheel(wheelR.getHz())}${wheelInterval ? ` · ${wheelInterval}` : ''}`;
+  }
+
+  // The interval between the notes nearest two tones (null unless both are audible).
+  function describeNamedInterval(left, right) {
+    if (![left, right].every(hz => Number.isFinite(hz) && hz >= 20)) return null;
+    const semitones = Math.abs(Math.round(frequencyToMidi(left)) - Math.round(frequencyToMidi(right)));
+    const names = ['Unison', 'Minor second', 'Major second', 'Minor third', 'Major third',
+      'Perfect fourth', 'Tritone', 'Perfect fifth', 'Minor sixth', 'Major sixth', 'Minor seventh', 'Major seventh'];
+    const octaves = Math.floor(semitones / 12);
+    const remainder = semitones % 12;
+    if (octaves && !remainder) return octaves === 1 ? 'Octave' : `${octaves} octaves`;
+    if (octaves) return `${octaves === 1 ? 'Octave' : `${octaves} octaves`} + ${names[remainder].toLowerCase()}`;
+    return names[remainder];
   }
 
   // Captured tones stay visible while the wheels move: a marker line on the piano key at
