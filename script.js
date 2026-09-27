@@ -5148,6 +5148,18 @@ stopAllPlayback();
         <text x="72" y="9" font-size="7" fill="#40e0d0" font-weight="bold">3:2</text>
       </svg>`,
       demoType: 'natural'
+    },
+    om: {
+      title: 'OM 136.10 Hz',
+      text: 'The Musical Intervals root is not a piano note. It is Hans Cousto’s Earth year tone (The Cosmic Octave, 1978): one orbit of the Earth takes 31,556,926 seconds, so one cycle per year is 0.0000000317 Hz, far below hearing. Doubling a frequency raises it an octave without changing its character, so raising it 32 octaves gives 136.10 Hz, which Cousto called OM and linked to the Indian tonic Sa. It is arithmetic and tradition, not a resonance of anything. The Schumann resonance is something else: an electromagnetic standing wave between the ground and the ionosphere, driven by lightning, with its fundamental near 7.83 Hz. Its octaves run 15.7, 31.3, 62.6 and 125.3 Hz and never reach 136.10, so the two are unrelated. One real link: 136.10 Hz is C#3 when A is tuned to 432 Hz instead of 440, which is why the presets sit about 30 cents below the piano keys.',
+      visual: `<svg viewBox="0 0 100 30" fill="none">
+        <ellipse cx="24" cy="16" rx="18" ry="9" stroke="#9370db" stroke-width="1.5"/>
+        <circle cx="24" cy="16" r="3" fill="#ff69b4"/>
+        <circle cx="42" cy="16" r="2" fill="#40e0d0"/>
+        <text x="50" y="12" font-size="7" fill="#9370db" font-weight="bold">1 year</text>
+        <text x="50" y="24" font-size="7" fill="#40e0d0" font-weight="bold">× 2³² = 136.1</text>
+      </svg>`,
+      demoType: 'om'
     }
   };
 
@@ -5230,6 +5242,10 @@ stopAllPlayback();
       case 'natural':
         demoBtn.innerHTML = '🔊 Pure vs Piano';
         demoBtn.addEventListener('click', () => playNaturalDemo(demoBtn));
+        break;
+      case 'om':
+        demoBtn.innerHTML = '🔊 OM vs 7.83';
+        demoBtn.addEventListener('click', () => playOmDemo(demoBtn));
         break;
     }
     
@@ -5842,6 +5858,45 @@ document.querySelectorAll('.demo-btn.playing').forEach(b => b.classList.remove('
         gain.connect(audioCtx.destination);
         gain.gain.setValueAtTime(0, audioCtx.currentTime);
         gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.6);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 1.65);
+      }
+      index++;
+      schoolDemoTimeout = schoolPlayback.setTimeout(playNext, 1900);
+    }
+    playNext();
+  }
+
+  // OM DEMO: OM alone, the Schumann fundamental raised four octaves (125.28 Hz) alone,
+  // then both together (they clash, 143 cents apart), then OM against C#3 of the 440 Hz
+  // piano (138.59 Hz, 31 cents apart: it beats about 2.5 times a second).
+  function playOmDemo(btn) {
+    beginActivity('school');
+    ensureSchoolAudio();
+    btn.classList.add('playing');
+
+    const schumann = 7.83 * 16;
+    const steps = [[OM_BASE], [schumann], [OM_BASE, schumann], [OM_BASE, 440 * Math.pow(2, -16 / 12)]];
+    let index = 0;
+
+    function playNext() {
+      clearSchoolKeyHighlights();
+      if (index >= steps.length) {
+        stopSchoolDemo();
+        btn.classList.remove('playing');
+        return;
+      }
+      for (const hz of steps[index]) {
+        highlightSchoolKey(hz);
+        const osc = createSchoolOscillator();
+        const gain = createSchoolGain();
+        osc.type = 'sine';
+        osc.frequency.value = hz;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 0.05);
         gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.6);
         osc.start();
         osc.stop(audioCtx.currentTime + 1.65);
