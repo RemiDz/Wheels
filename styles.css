@@ -5258,11 +5258,16 @@ body[data-theme="dark"] .tone-sharp { --tone: #fda4af; }
   display: block;
 }
 
-/* Link back to the Harmonic Waves hub (harmonicwaves.app lists Nestorium): a note, then the
-   hub's badge and name centred like the Harmonic Sounds credit above it */
-.footer-hub { margin: 16px 0 0; }
-.footer-hub + .footer-branding { margin-top: 8px; }
-.footer-hub + .footer-branding .footer-logo { border-radius: 50%; }
+/* Harmonic Waves (harmonicwaves.app lists Nestorium) is the primary brand: its round badge
+   and name first and largest, the collection note under it, then the Harmonic Sounds
+   credit as a smaller secondary line */
+.footer-primary { margin-top: 18px; }
+.footer-primary a { gap: 10px; font-size: 15px; font-weight: 700; letter-spacing: 0.01em; }
+.footer-primary .footer-logo { height: 44px; border-radius: 50%; }
+.footer-hub { margin: 6px 0 0; }
+.footer-secondary { margin-top: 18px; }
+.footer-secondary a { gap: 6px; font-size: 11px; color: var(--muted); }
+.footer-secondary .footer-logo { height: 22px; }
 
 /* Captured-tone markers: a line across the key's half at the captured position with an
    L/R dot, staying put while the live fill (::before/::after) follows the wheel. */
